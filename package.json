@@ -11,6 +11,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-demo": "tsx prisma/seed-demo.ts",
     "db:reset-admin-password": "tsx prisma/reset-admin-password.ts",
+    "db:list-users": "tsx prisma/list-users.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
