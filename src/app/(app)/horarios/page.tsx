@@ -121,7 +121,7 @@ export default async function HorariosPage({
           </div>
         ) : (
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+            <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
               <tr>
                 <th className="sticky left-0 bg-white px-4 py-3">
                   Colaborador
@@ -129,7 +129,7 @@ export default async function HorariosPage({
                 {days.map((d, i) => (
                   <th key={i} className="px-2 py-3 text-center">
                     {WEEKDAY_LABELS[i]}
-                    <div className="font-normal normal-case text-stone-400">
+                    <div className="font-normal normal-case text-stone-500">
                       {d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
                     </div>
                   </th>

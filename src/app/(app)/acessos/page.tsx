@@ -47,7 +47,7 @@ export default async function AcessosPage() {
               </h2>
             </div>
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
                 <tr>
                   <th className="px-6 py-3">Utilizador</th>
                   <th className="px-6 py-3">Perfis</th>
@@ -60,7 +60,7 @@ export default async function AcessosPage() {
                   <tr key={u.id}>
                     <td className="px-6 py-3 align-top">
                       <div className="font-medium text-stone-900">{u.name}</div>
-                      <div className="text-xs text-stone-400">{u.email}</div>
+                      <div className="text-xs text-stone-500">{u.email}</div>
                     </td>
                     <td className="px-6 py-3 align-top">
                       {admin ? (
@@ -165,7 +165,7 @@ export default async function AcessosPage() {
                   {log.action} · {log.entity}
                 </div>
                 <div className="text-stone-500">{log.details}</div>
-                <div className="text-stone-400">
+                <div className="text-stone-500">
                   {log.user?.name ?? "Sistema"} —{" "}
                   {log.createdAt.toLocaleString("pt-PT")}
                 </div>

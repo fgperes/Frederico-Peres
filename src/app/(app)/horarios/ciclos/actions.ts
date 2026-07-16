@@ -32,6 +32,180 @@ export async function createCycle(formData: FormData) {
   revalidatePath("/horarios/ciclos");
 }
 
+// Adiciona uma semana em branco ao fim do ciclo.
+export async function addWeek(cycleId: string) {
+  const user = await assertCanWrite();
+  const cycle = await prisma.scheduleCycle.update({
+    where: { id: cycleId },
+    data: { weeks: { increment: 1 } },
+  });
+  await logAudit({ userId: user.id, action: "ADD_WEEK", entity: "ScheduleCycle", entityId: cycleId });
+  revalidatePath(`/horarios/ciclos/${cycleId}`);
+  return cycle.weeks;
+}
+
+// Duplica uma semana existente para uma nova semana no fim do ciclo.
+export async function duplicateWeek(cycleId: string, sourceWeekIndex: number) {
+  const user = await assertCanWrite();
+  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+    where: { id: cycleId },
+    include: { pattern: true },
+  });
+  const newWeekIndex = cycle.weeks;
+  const sourceCells = cycle.pattern.filter((p) => p.weekIndex === sourceWeekIndex);
+
+  await prisma.$transaction([
+    prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { increment: 1 } } }),
+    ...sourceCells.map((cell) =>
+      prisma.scheduleCyclePattern.create({
+        data: {
+          cycleId,
+          weekIndex: newWeekIndex,
+          dayOfWeek: cell.dayOfWeek,
+          shiftTemplateId: cell.shiftTemplateId,
+          isDayOff: cell.isDayOff,
+        },
+      })
+    ),
+  ]);
+
+  await logAudit({ userId: user.id, action: "DUPLICATE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
+  revalidatePath(`/horarios/ciclos/${cycleId}`);
+}
+
+// Remove a última semana do ciclo (apaga o respetivo padrão).
+export async function removeWeek(cycleId: string, weekIndex: number) {
+  const user = await assertCanWrite();
+  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
+  if (cycle.weeks <= 1) throw new Error("O ciclo tem de ter pelo menos uma semana.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.scheduleCyclePattern.deleteMany({ where: { cycleId, weekIndex } });
+    // Reindexa as semanas seguintes para preencher o espaço.
+    const remaining = await tx.scheduleCyclePattern.findMany({
+      where: { cycleId, weekIndex: { gt: weekIndex } },
+    });
+    for (const cell of remaining) {
+      await tx.scheduleCyclePattern.update({
+        where: { id: cell.id },
+        data: { weekIndex: cell.weekIndex - 1 },
+      });
+    }
+    await tx.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { decrement: 1 } } });
+  });
+
+  await logAudit({ userId: user.id, action: "REMOVE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
+  revalidatePath(`/horarios/ciclos/${cycleId}`);
+}
+
+// Reordena as semanas do ciclo (drag-and-drop). `order` é a lista dos
+// índices atuais na nova ordem pretendida, ex.: [2,0,1].
+export async function reorderWeeks(cycleId: string, order: number[]) {
+  const user = await assertCanWrite();
+  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+    where: { id: cycleId },
+    include: { pattern: true },
+  });
+  if (order.length !== cycle.weeks) throw new Error("Ordem de semanas inválida.");
+
+  // Usa índices temporários (offset) para evitar colisões durante a escrita.
+  const OFFSET = 1000;
+  await prisma.$transaction([
+    ...cycle.pattern.map((cell) =>
+      prisma.scheduleCyclePattern.update({
+        where: { id: cell.id },
+        data: { weekIndex: cell.weekIndex + OFFSET },
+      })
+    ),
+  ]);
+
+  const updates = [];
+  for (let newIndex = 0; newIndex < order.length; newIndex++) {
+    const oldIndex = order[newIndex];
+    updates.push(
+      prisma.scheduleCyclePattern.updateMany({
+        where: { cycleId, weekIndex: oldIndex + OFFSET },
+        data: { weekIndex: newIndex },
+      })
+    );
+  }
+  await prisma.$transaction(updates);
+
+  await logAudit({ userId: user.id, action: "REORDER_WEEKS", entity: "ScheduleCycle", entityId: cycleId });
+  revalidatePath(`/horarios/ciclos/${cycleId}`);
+}
+
+// Guarda o ciclo atual como modelo reutilizável (só o padrão, sem
+// colaboradores associados nem data de início específica).
+export async function saveAsTemplate(cycleId: string, formData: FormData) {
+  const user = await assertCanWrite();
+  const name = String(formData.get("templateName") ?? "").trim();
+  if (!name) throw new Error("Indique um nome para o modelo.");
+
+  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+    where: { id: cycleId },
+    include: { pattern: true },
+  });
+
+  const template = await prisma.scheduleCycle.create({
+    data: {
+      name,
+      weeks: cycle.weeks,
+      startDate: new Date(),
+      isTemplate: true,
+      pattern: {
+        create: cycle.pattern.map((p) => ({
+          weekIndex: p.weekIndex,
+          dayOfWeek: p.dayOfWeek,
+          shiftTemplateId: p.shiftTemplateId,
+          isDayOff: p.isDayOff,
+        })),
+      },
+    },
+  });
+
+  await logAudit({ userId: user.id, action: "SAVE_TEMPLATE", entity: "ScheduleCycle", entityId: template.id, details: name });
+  revalidatePath("/horarios/ciclos");
+  revalidatePath(`/horarios/ciclos/${cycleId}`);
+}
+
+// Cria um novo ciclo "ao vivo" a partir de um modelo pré-definido.
+export async function createCycleFromTemplate(formData: FormData) {
+  const user = await assertCanWrite();
+  const templateId = String(formData.get("templateId"));
+  const name = String(formData.get("name") ?? "").trim();
+  const startDate = String(formData.get("startDate") ?? "");
+  const departmentId = String(formData.get("departmentId") ?? "") || null;
+
+  if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
+
+  const template = await prisma.scheduleCycle.findUniqueOrThrow({
+    where: { id: templateId },
+    include: { pattern: true },
+  });
+
+  const cycle = await prisma.scheduleCycle.create({
+    data: {
+      name,
+      weeks: template.weeks,
+      startDate: parseISO(startDate),
+      departmentId,
+      isTemplate: false,
+      pattern: {
+        create: template.pattern.map((p) => ({
+          weekIndex: p.weekIndex,
+          dayOfWeek: p.dayOfWeek,
+          shiftTemplateId: p.shiftTemplateId,
+          isDayOff: p.isDayOff,
+        })),
+      },
+    },
+  });
+
+  await logAudit({ userId: user.id, action: "CREATE_FROM_TEMPLATE", entity: "ScheduleCycle", entityId: cycle.id, details: name });
+  revalidatePath("/horarios/ciclos");
+}
+
 export async function setPatternCell(formData: FormData) {
   const user = await assertCanWrite();
   const cycleId = String(formData.get("cycleId"));

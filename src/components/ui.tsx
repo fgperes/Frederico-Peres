@@ -44,7 +44,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-stone-200/80 bg-white p-6 shadow-[0_1px_2px_rgba(28,25,23,0.04)] ${className}`}
+      className={`rounded-2xl border border-stone-200 bg-white p-6 shadow-[0_1px_3px_rgba(28,25,23,0.06)] ${className}`}
     >
       {children}
     </div>
@@ -80,7 +80,7 @@ export function StatCard({
           <p className="mt-1.5 text-2xl font-semibold tracking-tight text-stone-900">
             {value}
           </p>
-          {hint && <p className="mt-1 text-xs text-stone-400">{hint}</p>}
+          {hint && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
         </div>
         {Icon && (
           <span
@@ -177,7 +177,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 p-10 text-center">
       {Icon && (
-        <span className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+        <span className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-500">
           <Icon size={18} strokeWidth={1.75} />
         </span>
       )}

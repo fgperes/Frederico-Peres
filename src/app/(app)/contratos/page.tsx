@@ -90,7 +90,7 @@ export default async function ContratosPage({
           <div className="p-6"><EmptyState message="Sem contratos registados." /></div>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+            <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
               <tr>
                 <th className="px-4 py-3">Colaborador</th>
                 <th className="px-4 py-3">Tipo</th>
@@ -107,7 +107,7 @@ export default async function ContratosPage({
                     <Link href={`/contratos/${c.id}`} className="font-medium text-violet-700 hover:underline">
                       {c.employee.firstName} {c.employee.lastName}
                     </Link>
-                    {c.version > 1 && <span className="ml-2 text-xs text-stone-400">v{c.version}</span>}
+                    {c.version > 1 && <span className="ml-2 text-xs text-stone-500">v{c.version}</span>}
                   </td>
                   <td className="px-4 py-3">{CONTRACT_TYPE_LABELS[c.contractType] ?? c.contractType}</td>
                   <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>

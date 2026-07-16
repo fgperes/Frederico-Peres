@@ -44,7 +44,7 @@ export default async function EstruturaPage() {
               {departments.map((d) => (
                 <li key={d.id} className="flex justify-between py-2">
                   <span>{d.name}</span>
-                  <span className="text-stone-400">{d._count.employees}</span>
+                  <span className="text-stone-500">{d._count.employees}</span>
                 </li>
               ))}
             </ul>
@@ -79,9 +79,9 @@ export default async function EstruturaPage() {
                 <li key={t.id} className="flex justify-between py-2">
                   <span>
                     {t.name}
-                    <span className="text-stone-400"> · {t.department.name}</span>
+                    <span className="text-stone-500"> · {t.department.name}</span>
                   </span>
-                  <span className="text-stone-400">{t._count.employees}</span>
+                  <span className="text-stone-500">{t._count.employees}</span>
                 </li>
               ))}
             </ul>
@@ -127,7 +127,7 @@ export default async function EstruturaPage() {
               {locations.map((l) => (
                 <li key={l.id} className="flex justify-between py-2">
                   <span>{l.name}</span>
-                  <span className="text-stone-400">{l._count.employees}</span>
+                  <span className="text-stone-500">{l._count.employees}</span>
                 </li>
               ))}
             </ul>

@@ -7,6 +7,7 @@ import { computeWorkedHours } from "@/lib/hours";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { ClockWidget } from "./clock-widget";
 import { JustifyForm } from "./justify-form";
+import { LocationButton } from "./location-button";
 import { reviewJustification } from "./actions";
 import type { Prisma } from "@prisma/client";
 import { Fingerprint } from "lucide-react";
@@ -108,6 +109,15 @@ export default async function PicagensPage() {
                         </Badge>
                       )}
                     </div>
+                    {entry.latitude != null && entry.longitude != null && (
+                      <div className="mt-1">
+                        <LocationButton
+                          latitude={entry.latitude}
+                          longitude={entry.longitude}
+                          accuracy={entry.locationAccuracy}
+                        />
+                      </div>
+                    )}
                     {entry.hasDeviation && !entry.justification && (
                       <JustifyForm entryId={entry.id} />
                     )}
@@ -146,6 +156,13 @@ export default async function PicagensPage() {
                         {entry.timestamp.toLocaleString("pt-PT")} —{" "}
                         {entry.justification ?? "sem justificação"}
                       </p>
+                      {entry.latitude != null && entry.longitude != null && (
+                        <LocationButton
+                          latitude={entry.latitude}
+                          longitude={entry.longitude}
+                          accuracy={entry.locationAccuracy}
+                        />
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <form action={reviewJustification.bind(null, entry.id, "APPROVED")}>
@@ -173,7 +190,7 @@ export default async function PicagensPage() {
               <EmptyState message="Sem dados para esta semana." />
             ) : (
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
                   <tr>
                     <th className="py-2">Colaborador</th>
                     <th className="py-2">Horas trabalhadas</th>

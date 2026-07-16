@@ -7,8 +7,19 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { classifyDeviation } from "@/lib/timeclock";
 
+export type GeoCoords = {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+};
+
 // PI-01: registo de picagem via browser, autenticado por colaborador.
-export async function clockAction(type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END") {
+// Georreferenciação (opcional): se o browser fornecer a posição, é
+// associada ao registo para validação de local de picagem.
+export async function clockAction(
+  type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END",
+  coords?: GeoCoords | null
+) {
   const user = await requireUser();
   if (!user.employeeId) throw new Error("Utilizador sem ficha de colaborador associada.");
 
@@ -40,6 +51,9 @@ export async function clockAction(type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START"
       hasDeviation,
       deviationType,
       justificationStatus: hasDeviation ? "PENDING" : null,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
+      locationAccuracy: coords?.accuracy,
     },
   });
 
@@ -48,7 +62,7 @@ export async function clockAction(type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START"
     action: "CLOCK",
     entity: "TimeClockEntry",
     entityId: entry.id,
-    details: type,
+    details: coords ? `${type} (com localização)` : type,
   });
 
   revalidatePath("/picagens");

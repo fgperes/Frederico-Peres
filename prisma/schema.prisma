@@ -197,6 +197,7 @@ model ScheduleCycle {
   weeks        Int // duração do ciclo em semanas
   startDate    DateTime // data de referência da semana 1
   departmentId String?
+  isTemplate   Boolean                   @default(false)
   createdAt    DateTime                  @default(now())
   assignments  ScheduleCycleAssignment[]
   pattern      ScheduleCyclePattern[]
@@ -264,6 +265,9 @@ model TimeClockEntry {
   type       String // CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
   timestamp  DateTime @default(now())
   location   String?
+  latitude   Float?
+  longitude  Float?
+  locationAccuracy Float?
 
   hasDeviation        Boolean @default(false)
   deviationType       String? // LATE | EARLY_LEAVE | MISSING | OVERTIME

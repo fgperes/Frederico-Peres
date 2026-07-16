@@ -79,7 +79,7 @@ export function Nav({
                   : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
               }`}
             >
-              <Icon size={17} strokeWidth={2} className={active ? "text-violet-600" : "text-stone-400"} />
+              <Icon size={17} strokeWidth={2} className={active ? "text-violet-600" : "text-stone-500"} />
               {item.label}
             </Link>
           );
@@ -96,7 +96,7 @@ export function Nav({
             <p className="truncate text-xs text-stone-500">{email}</p>
           </div>
         </div>
-        <p className="mb-3 truncate text-xs text-stone-400">
+        <p className="mb-3 truncate text-xs text-stone-500">
           {roles.map((r) => ROLE_LABELS[r]).join(", ")}
         </p>
         <div className="flex gap-2">

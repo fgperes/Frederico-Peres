@@ -58,7 +58,7 @@ export default async function ImportarColaboradoresPage() {
                 <li key={log.id} className="flex items-center justify-between px-6 py-3">
                   <div>
                     <div className="font-medium text-stone-800">{log.fileName}</div>
-                    <div className="text-xs text-stone-400">
+                    <div className="text-xs text-stone-500">
                       {log.totalRows} linhas · {log.errorRows} erros ·{" "}
                       {log.user?.name} · {log.createdAt.toLocaleString("pt-PT")}
                     </div>

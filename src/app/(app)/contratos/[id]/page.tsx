@@ -94,7 +94,7 @@ export default async function ContractDetailPage({
                 <span>
                   v{v.version} — {CONTRACT_TYPE_LABELS[v.contractType]} — {v.weeklyHours}h
                 </span>
-                <span className="text-xs text-stone-400">
+                <span className="text-xs text-stone-500">
                   {v.startDate.toLocaleDateString("pt-PT")}
                   {v.id === contract.id && " (atual)"}
                 </span>

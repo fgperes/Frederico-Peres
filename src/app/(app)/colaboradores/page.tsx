@@ -126,7 +126,7 @@ export default async function ColaboradoresPage({
           </div>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+            <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
               <tr>
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">Função</th>
@@ -145,7 +145,7 @@ export default async function ColaboradoresPage({
                     >
                       {e.firstName} {e.lastName}
                     </Link>
-                    <div className="text-xs text-stone-400">{e.email}</div>
+                    <div className="text-xs text-stone-500">{e.email}</div>
                   </td>
                   <td className="px-4 py-3 text-stone-700">{e.jobTitle}</td>
                   <td className="px-4 py-3 text-stone-700">

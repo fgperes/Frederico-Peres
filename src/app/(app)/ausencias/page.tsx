@@ -165,7 +165,7 @@ export default async function AusenciasPage() {
                         </span>
                         <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>
                       </div>
-                      <div className="text-xs text-stone-400">
+                      <div className="text-xs text-stone-500">
                         {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate.toLocaleDateString("pt-PT")}
                       </div>
                       {a.status === "PENDING" && (
@@ -209,7 +209,7 @@ export default async function AusenciasPage() {
                               {a.employee.firstName} {a.employee.lastName}
                             </span>{" "}
                             — {a.absenceType.name} ({a.days}d)
-                            <div className="text-xs text-stone-400">
+                            <div className="text-xs text-stone-500">
                               {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate.toLocaleDateString("pt-PT")}
                               {a.reason && ` · ${a.reason}`}
                             </div>
@@ -253,7 +253,7 @@ export default async function AusenciasPage() {
                       <span>
                         {a.employee.firstName} {a.employee.lastName} — {a.absenceType.name}
                       </span>
-                      <span className="text-xs text-stone-400">
+                      <span className="text-xs text-stone-500">
                         {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate.toLocaleDateString("pt-PT")}
                       </span>
                       <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>
@@ -271,7 +271,7 @@ export default async function AusenciasPage() {
                 <EmptyState message="Sem dados." />
               ) : (
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
                     <tr>
                       <th className="py-2">Tipo</th>
                       <th className="py-2">Pedidos</th>

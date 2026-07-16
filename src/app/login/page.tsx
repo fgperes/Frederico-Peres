@@ -113,7 +113,7 @@ function LoginForm() {
               <div className="relative">
                 <Mail
                   size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -transtone-y-1/2 text-stone-400"
+                  className="pointer-events-none absolute left-3 top-1/2 -transtone-y-1/2 text-stone-500"
                 />
                 <input
                   type="email"
@@ -133,7 +133,7 @@ function LoginForm() {
               <div className="relative">
                 <Lock
                   size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -transtone-y-1/2 text-stone-400"
+                  className="pointer-events-none absolute left-3 top-1/2 -transtone-y-1/2 text-stone-500"
                 />
                 <input
                   type="password"

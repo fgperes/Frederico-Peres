@@ -86,7 +86,7 @@ export default async function ColaboradorDetailPage({
               <li key={h.id} className="text-stone-600">
                 <span className="font-medium">{h.field}</span>:{" "}
                 {h.oldValue ?? "—"} → {h.newValue ?? "—"}{" "}
-                <span className="text-xs text-stone-400">
+                <span className="text-xs text-stone-500">
                   ({h.changedBy}, {h.createdAt.toLocaleDateString("pt-PT")})
                 </span>
               </li>

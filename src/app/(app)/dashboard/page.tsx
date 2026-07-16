@@ -66,7 +66,7 @@ export default async function DashboardPage() {
 
       <Card>
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900">
-          <Activity size={16} className="text-stone-400" />
+          <Activity size={16} className="text-stone-500" />
           Atividade recente (auditoria)
         </h2>
         {recentAudit.length === 0 ? (
@@ -85,12 +85,12 @@ export default async function DashboardPage() {
                     {log.entityId ? ` · ${log.entityId.slice(0, 8)}` : ""}
                   </span>
                   {log.details && (
-                    <span className="ml-2 text-stone-400">
+                    <span className="ml-2 text-stone-500">
                       — {log.details}
                     </span>
                   )}
                 </div>
-                <div className="text-right text-stone-400">
+                <div className="text-right text-stone-500">
                   <div>{log.user?.name ?? "Sistema"}</div>
                   <div>{log.createdAt.toLocaleString("pt-PT")}</div>
                 </div>
