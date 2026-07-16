@@ -1,5 +1,9 @@
 import { requireUser } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { Nav } from "@/components/nav";
+import { TopBar } from "@/components/topbar/topbar";
+import { getNotifications, getUnreadMessageCount } from "@/lib/notifications";
+import { getAllowedRecipients } from "@/lib/messaging";
 
 export default async function AppLayout({
   children,
@@ -8,6 +12,18 @@ export default async function AppLayout({
 }) {
   const user = await requireUser();
 
+  const [notifications, unreadMessageCount, recipients, messages] = await Promise.all([
+    getNotifications(user),
+    getUnreadMessageCount(user.id),
+    getAllowedRecipients(user),
+    prisma.message.findMany({
+      where: { recipientId: user.id },
+      include: { sender: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+  ]);
+
   return (
     <div className="flex min-h-screen flex-1">
       <Nav
@@ -15,9 +31,18 @@ export default async function AppLayout({
         name={user.name ?? ""}
         email={user.email ?? ""}
       />
-      <main className="flex-1 overflow-y-auto bg-stone-100 p-8">
-        {children}
-      </main>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <TopBar
+          notifications={notifications}
+          unreadMessageCount={unreadMessageCount}
+          recipients={recipients}
+          messages={messages}
+          hasEmployee={!!user.employeeId}
+        />
+        <main className="flex-1 overflow-y-auto bg-stone-100 p-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { MapPin } from "lucide-react";
-import { clockAction, type GeoCoords } from "./actions";
+import { clockAction, type GeoCoords } from "@/app/(app)/picagens/actions";
 
 const BUTTONS: { type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END"; label: string; color: string }[] = [
   { type: "CLOCK_IN", label: "Entrada", color: "bg-emerald-600 hover:bg-emerald-700" },
-  { type: "BREAK_START", label: "Início Pausa", color: "bg-amber-500 hover:bg-amber-600" },
-  { type: "BREAK_END", label: "Fim Pausa", color: "bg-amber-600 hover:bg-amber-700" },
+  { type: "BREAK_START", label: "Início Refeição", color: "bg-amber-500 hover:bg-amber-600" },
+  { type: "BREAK_END", label: "Fim Refeição", color: "bg-amber-600 hover:bg-amber-700" },
   { type: "CLOCK_OUT", label: "Saída", color: "bg-rose-600 hover:bg-rose-700" },
 ];
 
@@ -32,7 +32,7 @@ function getLocation(): Promise<GeoCoords | null> {
   });
 }
 
-export function ClockWidget() {
+export function ClockWidget({ compact = false }: { compact?: boolean }) {
   const [pending, startTransition] = useTransition();
   const [locating, setLocating] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export function ClockWidget() {
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className={compact ? "grid grid-cols-2 gap-2" : "grid grid-cols-2 gap-3 sm:grid-cols-4"}>
         {BUTTONS.map((b) => (
           <button
             key={b.type}
@@ -59,10 +59,12 @@ export function ClockWidget() {
           </button>
         ))}
       </div>
-      <p className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-500">
-        <MapPin size={13} />
-        A localização é pedida ao browser e associada ao registo, se autorizada.
-      </p>
+      {!compact && (
+        <p className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-500">
+          <MapPin size={13} />
+          A localização é pedida ao browser e associada ao registo, se autorizada.
+        </p>
+      )}
     </div>
   );
 }

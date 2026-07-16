@@ -5,7 +5,7 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { getWeekStart, getWeekDays } from "@/lib/dates";
 import { computeWorkedHours } from "@/lib/hours";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
-import { ClockWidget } from "./clock-widget";
+import { ClockWidget } from "@/components/clock-widget";
 import { JustifyForm } from "./justify-form";
 import { LocationButton } from "./location-button";
 import { reviewJustification } from "./actions";
@@ -15,8 +15,8 @@ import { Fingerprint } from "lucide-react";
 const TYPE_LABELS: Record<string, string> = {
   CLOCK_IN: "Entrada",
   CLOCK_OUT: "Saída",
-  BREAK_START: "Início Pausa",
-  BREAK_END: "Fim Pausa",
+  BREAK_START: "Início Refeição",
+  BREAK_END: "Fim Refeição",
 };
 
 type TimeClockEntryWithEmployee = Prisma.TimeClockEntryGetPayload<{

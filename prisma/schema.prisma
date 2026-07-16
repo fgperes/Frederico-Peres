@@ -40,6 +40,23 @@ model User {
   requestedAbsences  Absence[]        @relation("AbsenceRequester")
   reviewedDeviations TimeClockEntry[] @relation("DeviationReviewer")
   importLogs         ImportLog[]
+  sentMessages       Message[]        @relation("MessageSender")
+  receivedMessages   Message[]        @relation("MessageRecipient")
+}
+
+// Mensagens rápidas entre utilizadores (barra superior).
+model Message {
+  id          String    @id @default(cuid())
+  senderId    String
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User      @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([recipientId, readAt])
+  @@index([senderId])
 }
 
 // Associa um perfil a um utilizador, com âmbito opcional (departamento)
