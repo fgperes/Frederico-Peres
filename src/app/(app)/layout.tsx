@@ -38,6 +38,8 @@ export default async function AppLayout({
           recipients={recipients}
           messages={messages}
           hasEmployee={!!user.employeeId}
+          canPreviewRoles={user.realRoles.includes("ADMIN_SISTEMA")}
+          currentViewAs={user.isViewingAs ? user.roles[0] : null}
         />
         <main className="flex-1 overflow-y-auto bg-stone-100 p-8">
           {children}

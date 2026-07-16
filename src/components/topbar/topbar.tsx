@@ -7,8 +7,10 @@ import { NotificationsPanel } from "./notifications-panel";
 import { TasksPanel } from "./tasks-panel";
 import { MessagesPanel } from "./messages-panel";
 import { ClockPanel } from "./clock-panel";
+import { ViewAsSwitcher } from "./view-as-switcher";
 import type { NotificationItem } from "@/lib/notifications";
 import type { Recipient } from "@/lib/messaging";
+import type { Role } from "@/lib/roles";
 
 type InboxMessage = {
   id: string;
@@ -26,12 +28,16 @@ export function TopBar({
   messages,
   recipients,
   hasEmployee,
+  canPreviewRoles,
+  currentViewAs,
 }: {
   notifications: NotificationItem[];
   unreadMessageCount: number;
   messages: InboxMessage[];
   recipients: Recipient[];
   hasEmployee: boolean;
+  canPreviewRoles: boolean;
+  currentViewAs: Role | null;
 }) {
   const [open, setOpen] = useState<Panel>(null);
 
@@ -40,52 +46,56 @@ export function TopBar({
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-end gap-1 border-b border-stone-200 bg-white px-6">
-      {hasEmployee && (
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-6">
+      <div>{canPreviewRoles && <ViewAsSwitcher currentViewAs={currentViewAs} />}</div>
+
+      <div className="flex items-center gap-1">
+        {hasEmployee && (
+          <DropdownButton
+            icon={Clock}
+            label="Picagem rápida"
+            isOpen={open === "clock"}
+            onToggle={() => toggle("clock")}
+            onClose={() => setOpen(null)}
+            panelClassName="w-72"
+          >
+            <ClockPanel onNavigate={() => setOpen(null)} />
+          </DropdownButton>
+        )}
+
         <DropdownButton
-          icon={Clock}
-          label="Picagem rápida"
-          isOpen={open === "clock"}
-          onToggle={() => toggle("clock")}
+          icon={MessageCircle}
+          label="Mensagens rápidas"
+          badgeCount={unreadMessageCount}
+          isOpen={open === "messages"}
+          onToggle={() => toggle("messages")}
           onClose={() => setOpen(null)}
-          panelClassName="w-72"
+          panelClassName="w-96"
         >
-          <ClockPanel onNavigate={() => setOpen(null)} />
+          <MessagesPanel recipients={recipients} messages={messages} />
         </DropdownButton>
-      )}
 
-      <DropdownButton
-        icon={MessageCircle}
-        label="Mensagens rápidas"
-        badgeCount={unreadMessageCount}
-        isOpen={open === "messages"}
-        onToggle={() => toggle("messages")}
-        onClose={() => setOpen(null)}
-        panelClassName="w-96"
-      >
-        <MessagesPanel recipients={recipients} messages={messages} />
-      </DropdownButton>
+        <DropdownButton
+          icon={ListTodo}
+          label="Tarefas"
+          isOpen={open === "tasks"}
+          onToggle={() => toggle("tasks")}
+          onClose={() => setOpen(null)}
+        >
+          <TasksPanel />
+        </DropdownButton>
 
-      <DropdownButton
-        icon={ListTodo}
-        label="Tarefas"
-        isOpen={open === "tasks"}
-        onToggle={() => toggle("tasks")}
-        onClose={() => setOpen(null)}
-      >
-        <TasksPanel />
-      </DropdownButton>
-
-      <DropdownButton
-        icon={Bell}
-        label="Notificações"
-        badgeCount={notifications.reduce((sum, n) => sum + n.count, 0)}
-        isOpen={open === "notifications"}
-        onToggle={() => toggle("notifications")}
-        onClose={() => setOpen(null)}
-      >
-        <NotificationsPanel items={notifications} onNavigate={() => setOpen(null)} />
-      </DropdownButton>
+        <DropdownButton
+          icon={Bell}
+          label="Notificações"
+          badgeCount={notifications.reduce((sum, n) => sum + n.count, 0)}
+          isOpen={open === "notifications"}
+          onToggle={() => toggle("notifications")}
+          onClose={() => setOpen(null)}
+        >
+          <NotificationsPanel items={notifications} onNavigate={() => setOpen(null)} />
+        </DropdownButton>
+      </div>
     </header>
   );
 }
