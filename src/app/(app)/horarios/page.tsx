@@ -8,6 +8,7 @@ import { HorariosTabs } from "./tabs";
 import { ShiftCell } from "./shift-cell";
 import { publishWeek, duplicateWeek } from "./actions";
 import Link from "next/link";
+import { CalendarClock } from "lucide-react";
 
 export default async function HorariosPage({
   searchParams,
@@ -64,6 +65,7 @@ export default async function HorariosPage({
   return (
     <div>
       <PageHeader
+        icon={CalendarClock}
         title="Módulo de Horários"
         description="Gestão de escalas — modelo manual, cíclico e preditivo."
       />
@@ -73,16 +75,16 @@ export default async function HorariosPage({
         <div className="flex items-center gap-2">
           <Link
             href={`/horarios?week=${prevWeek}`}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-white"
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-white"
           >
             ← Semana anterior
           </Link>
-          <span className="px-2 text-sm font-medium text-slate-700">
+          <span className="px-2 text-sm font-medium text-stone-700">
             Semana de {weekStart.toLocaleDateString("pt-PT")}
           </span>
           <Link
             href={`/horarios?week=${nextWeek}`}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-white"
+            className="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-white"
           >
             Semana seguinte →
           </Link>
@@ -95,7 +97,7 @@ export default async function HorariosPage({
             <form action={duplicateWeek.bind(null, prevWeek, weekStartIso)}>
               <button
                 type="submit"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-white"
+                className="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-white"
               >
                 Duplicar semana anterior
               </button>
@@ -103,7 +105,7 @@ export default async function HorariosPage({
             <form action={publishWeek.bind(null, weekStartIso, undefined)}>
               <button
                 type="submit"
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
               >
                 Publicar semana
               </button>
@@ -119,7 +121,7 @@ export default async function HorariosPage({
           </div>
         ) : (
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+            <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
               <tr>
                 <th className="sticky left-0 bg-white px-4 py-3">
                   Colaborador
@@ -127,17 +129,17 @@ export default async function HorariosPage({
                 {days.map((d, i) => (
                   <th key={i} className="px-2 py-3 text-center">
                     {WEEKDAY_LABELS[i]}
-                    <div className="font-normal normal-case text-slate-400">
+                    <div className="font-normal normal-case text-stone-400">
                       {d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
                     </div>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {employees.map((e) => (
                 <tr key={e.id}>
-                  <td className="sticky left-0 bg-white px-4 py-2 font-medium text-slate-800">
+                  <td className="sticky left-0 bg-white px-4 py-2 font-medium text-stone-800">
                     {e.firstName} {e.lastName}
                   </td>
                   {days.map((d, i) => {
@@ -146,7 +148,7 @@ export default async function HorariosPage({
                     return (
                       <td key={i} className="px-2 py-2">
                         {absent ? (
-                          <div className="rounded bg-red-50 px-1 py-1 text-center text-[11px] text-red-600">
+                          <div className="rounded bg-rose-50 px-1 py-1 text-center text-[11px] text-rose-600">
                             Ausência
                           </div>
                         ) : (

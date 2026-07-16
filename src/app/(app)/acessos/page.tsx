@@ -5,6 +5,7 @@ import { PageHeader, Card, Badge } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
 import { toggleUserActive, updateUserRoles } from "./actions";
 import { redirect } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 
 export default async function AcessosPage() {
   const user = await requireUser();
@@ -32,6 +33,7 @@ export default async function AcessosPage() {
   return (
     <div>
       <PageHeader
+        icon={ShieldCheck}
         title="Perfis e Acessos"
         description="Gestão de utilizadores, perfis de acesso (RBAC) e auditoria."
       />
@@ -39,13 +41,13 @@ export default async function AcessosPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card className="p-0">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="text-sm font-semibold text-slate-900">
+            <div className="border-b border-stone-200 px-6 py-4">
+              <h2 className="text-sm font-semibold text-stone-900">
                 Utilizadores
               </h2>
             </div>
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
                 <tr>
                   <th className="px-6 py-3">Utilizador</th>
                   <th className="px-6 py-3">Perfis</th>
@@ -53,12 +55,12 @@ export default async function AcessosPage() {
                   {admin && <th className="px-6 py-3">Ações</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {users.map((u) => (
                   <tr key={u.id}>
                     <td className="px-6 py-3 align-top">
-                      <div className="font-medium text-slate-900">{u.name}</div>
-                      <div className="text-xs text-slate-400">{u.email}</div>
+                      <div className="font-medium text-stone-900">{u.name}</div>
+                      <div className="text-xs text-stone-400">{u.email}</div>
                     </td>
                     <td className="px-6 py-3 align-top">
                       {admin ? (
@@ -70,7 +72,7 @@ export default async function AcessosPage() {
                             {ROLES.map((role) => (
                               <label
                                 key={role}
-                                className="flex items-center gap-2 text-xs text-slate-700"
+                                className="flex items-center gap-2 text-xs text-stone-700"
                               >
                                 <input
                                   type="checkbox"
@@ -90,7 +92,7 @@ export default async function AcessosPage() {
                               u.roles.find((r) => r.role === "GESTOR_EQUIPA")
                                 ?.departmentId ?? ""
                             }
-                            className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs"
+                            className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs"
                           >
                             <option value="">
                               Âmbito (departamento) p/ Gestor de Equipa
@@ -103,7 +105,7 @@ export default async function AcessosPage() {
                           </select>
                           <button
                             type="submit"
-                            className="rounded-md bg-slate-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-900"
+                            className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900"
                           >
                             Guardar perfis
                           </button>
@@ -129,7 +131,7 @@ export default async function AcessosPage() {
                         <form action={toggleUserActive.bind(null, u.id, !u.active)}>
                           <button
                             type="submit"
-                            className="rounded-md border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-50"
+                            className="rounded-md border border-stone-300 px-2.5 py-1 text-xs hover:bg-stone-50"
                           >
                             {u.active ? "Desativar" : "Ativar"}
                           </button>
@@ -144,7 +146,7 @@ export default async function AcessosPage() {
 
           {admin && (
             <Card>
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">
+              <h2 className="mb-3 text-sm font-semibold text-stone-900">
                 Novo Utilizador
               </h2>
               <CreateUserForm employees={employees} />
@@ -153,17 +155,17 @@ export default async function AcessosPage() {
         </div>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">
             Log de Auditoria
           </h2>
           <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-xs">
             {auditLog.map((log) => (
-              <li key={log.id} className="border-b border-slate-100 pb-2">
-                <div className="font-medium text-slate-700">
+              <li key={log.id} className="border-b border-stone-100 pb-2">
+                <div className="font-medium text-stone-700">
                   {log.action} · {log.entity}
                 </div>
-                <div className="text-slate-500">{log.details}</div>
-                <div className="text-slate-400">
+                <div className="text-stone-500">{log.details}</div>
+                <div className="text-stone-400">
                   {log.user?.name ?? "Sistema"} —{" "}
                   {log.createdAt.toLocaleString("pt-PT")}
                 </div>

@@ -25,7 +25,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
 
   if (state.success) {
     return (
-      <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+      <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
         Password alterada com sucesso. A terminar sessão para novo login...
       </p>
     );
@@ -40,18 +40,18 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">
+        <label className="mb-1 block text-xs font-medium text-stone-600">
           Password atual
         </label>
         <input
           type="password"
           name="currentPassword"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">
+        <label className="mb-1 block text-xs font-medium text-stone-600">
           Nova password (mín. 10 caracteres)
         </label>
         <input
@@ -59,11 +59,11 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
           name="newPassword"
           required
           minLength={10}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-600">
+        <label className="mb-1 block text-xs font-medium text-stone-600">
           Confirmar nova password
         </label>
         <input
@@ -71,12 +71,12 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
           name="confirmPassword"
           required
           minLength={10}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
         />
       </div>
 
       {state.error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
           {state.error}
         </p>
       )}
@@ -84,7 +84,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+        className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
       >
         {pending ? "A guardar..." : "Alterar password"}
       </button>

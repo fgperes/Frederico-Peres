@@ -9,9 +9,9 @@ export function JustifyForm({ entryId }: { entryId: string }) {
         name="justification"
         placeholder="Justificação..."
         required
-        className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs"
+        className="flex-1 rounded-md border border-stone-300 px-2 py-1 text-xs"
       />
-      <button type="submit" className="rounded-md bg-slate-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-900">
+      <button type="submit" className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900">
         Submeter
       </button>
     </form>

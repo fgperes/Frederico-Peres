@@ -6,6 +6,7 @@ import { PageHeader, Card, Badge, Button } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
 import { updateEmployee, setEmployeeStatus } from "../actions";
 import { notFound } from "next/navigation";
+import { User } from "lucide-react";
 
 export default async function ColaboradorDetailPage({
   params,
@@ -41,6 +42,7 @@ export default async function ColaboradorDetailPage({
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
+        icon={User}
         title={`${employee.firstName} ${employee.lastName}`}
         description={employee.jobTitle}
         action={
@@ -76,15 +78,15 @@ export default async function ColaboradorDetailPage({
 
       {employee.history.length > 0 && (
         <Card className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">
             Histórico de Alterações
           </h2>
           <ul className="space-y-2 text-sm">
             {employee.history.map((h) => (
-              <li key={h.id} className="text-slate-600">
+              <li key={h.id} className="text-stone-600">
                 <span className="font-medium">{h.field}</span>:{" "}
                 {h.oldValue ?? "—"} → {h.newValue ?? "—"}{" "}
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-stone-400">
                   ({h.changedBy}, {h.createdAt.toLocaleDateString("pt-PT")})
                 </span>
               </li>
@@ -133,8 +135,8 @@ function ReadOnlyView({
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className="mt-0.5 text-slate-900">{value}</dd>
+      <dt className="text-xs font-medium text-stone-500">{label}</dt>
+      <dd className="mt-0.5 text-stone-900">{value}</dd>
     </div>
   );
 }

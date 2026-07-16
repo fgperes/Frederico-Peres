@@ -4,6 +4,7 @@ import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, LinkButton, Button } from "@/components/ui";
 import { setContractStatus } from "../actions";
 import { notFound } from "next/navigation";
+import { FileSignature } from "lucide-react";
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   SEM_TERMO: "Sem termo",
@@ -38,6 +39,7 @@ export default async function ContractDetailPage({
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
+        icon={FileSignature}
         title={`Contrato — ${contract.employee.firstName} ${contract.employee.lastName}`}
         description={`${CONTRACT_TYPE_LABELS[contract.contractType] ?? contract.contractType} · versão ${contract.version}`}
         action={
@@ -66,7 +68,7 @@ export default async function ContractDetailPage({
           <Info label="Documento" value={contract.documentName ?? "—"} />
         </dl>
         {contract.notes && (
-          <p className="mt-4 text-sm text-slate-600">
+          <p className="mt-4 text-sm text-stone-600">
             <span className="font-medium">Notas: </span>{contract.notes}
           </p>
         )}
@@ -85,14 +87,14 @@ export default async function ContractDetailPage({
 
       {allVersions.length > 1 && (
         <Card className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Histórico de Versões</h2>
-          <ul className="divide-y divide-slate-100 text-sm">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">Histórico de Versões</h2>
+          <ul className="divide-y divide-stone-100 text-sm">
             {allVersions.map((v) => (
               <li key={v.id} className="flex items-center justify-between py-2">
                 <span>
                   v{v.version} — {CONTRACT_TYPE_LABELS[v.contractType]} — {v.weeklyHours}h
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-stone-400">
                   {v.startDate.toLocaleDateString("pt-PT")}
                   {v.id === contract.id && " (atual)"}
                 </span>
@@ -108,8 +110,8 @@ export default async function ContractDetailPage({
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className="mt-0.5 text-slate-900">{value}</dd>
+      <dt className="text-xs font-medium text-stone-500">{label}</dt>
+      <dd className="mt-0.5 text-stone-900">{value}</dd>
     </div>
   );
 }

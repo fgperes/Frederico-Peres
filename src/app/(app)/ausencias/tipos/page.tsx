@@ -4,6 +4,7 @@ import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { createAbsenceType } from "../actions";
 import { redirect } from "next/navigation";
+import { Settings2 } from "lucide-react";
 
 export default async function TiposAusenciaPage() {
   const user = await requireUser();
@@ -14,6 +15,7 @@ export default async function TiposAusenciaPage() {
   return (
     <div>
       <PageHeader
+        icon={Settings2}
         title="Tipos de Ausência"
         description="Configuração de tipos de ausência e respetivas regras (AU-01)."
       />
@@ -24,7 +26,7 @@ export default async function TiposAusenciaPage() {
             <div className="p-6"><EmptyState message="Sem tipos configurados." /></div>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
                 <tr>
                   <th className="px-4 py-3">Nome</th>
                   <th className="px-4 py-3">Remunerada</th>
@@ -33,7 +35,7 @@ export default async function TiposAusenciaPage() {
                   <th className="px-4 py-3">Limite anual</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {types.map((t) => (
                   <tr key={t.id}>
                     <td className="px-4 py-3 font-medium">{t.name}</td>
@@ -57,22 +59,22 @@ export default async function TiposAusenciaPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Novo Tipo</h2>
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Tipo</h2>
           <form action={createAbsenceType} className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Nome</label>
-              <input name="name" required className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+              <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
+              <input name="name" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Unidade</label>
-              <select name="unitType" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+              <label className="mb-1 block text-xs font-medium text-stone-600">Unidade</label>
+              <select name="unitType" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
                 <option value="WORKING_DAYS">Dias úteis</option>
                 <option value="CALENDAR_DAYS">Dias corridos</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Limite anual (dias)</label>
-              <input name="annualLimitDays" type="number" step="0.5" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+              <label className="mb-1 block text-xs font-medium text-stone-600">Limite anual (dias)</label>
+              <input name="annualLimitDays" type="number" step="0.5" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="paid" defaultChecked /> Remunerada
@@ -83,7 +85,7 @@ export default async function TiposAusenciaPage() {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="affectsBalance" defaultChecked /> Afeta saldo de dias
             </label>
-            <button type="submit" className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
               Criar tipo
             </button>
           </form>

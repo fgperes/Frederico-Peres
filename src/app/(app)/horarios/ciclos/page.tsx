@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { HorariosTabs } from "../tabs";
 import { createCycle } from "./actions";
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
 
 export default async function CiclosPage() {
   const user = await requireUser();
@@ -23,6 +24,7 @@ export default async function CiclosPage() {
   return (
     <div>
       <PageHeader
+        icon={RefreshCw}
         title="Módulo de Horários"
         description="Padrões de escala que se repetem ciclicamente (ex.: rotativos de 2, 3 ou 4 semanas)."
       />
@@ -36,7 +38,7 @@ export default async function CiclosPage() {
             </div>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
                 <tr>
                   <th className="px-4 py-3">Nome</th>
                   <th className="px-4 py-3">Duração</th>
@@ -44,11 +46,11 @@ export default async function CiclosPage() {
                   <th className="px-4 py-3">Colaboradores</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {cycles.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50">
+                  <tr key={c.id} className="hover:bg-stone-50">
                     <td className="px-4 py-3">
-                      <Link href={`/horarios/ciclos/${c.id}`} className="font-medium text-blue-700 hover:underline">
+                      <Link href={`/horarios/ciclos/${c.id}`} className="font-medium text-violet-700 hover:underline">
                         {c.name}
                       </Link>
                     </td>
@@ -64,34 +66,34 @@ export default async function CiclosPage() {
 
         {canEdit && (
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Novo Ciclo</h2>
+            <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Ciclo</h2>
             <form action={createCycle} className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Nome</label>
-                <input name="name" required className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
+                <input name="name" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Duração (semanas)</label>
-                <select name="weeks" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                <label className="mb-1 block text-xs font-medium text-stone-600">Duração (semanas)</label>
+                <select name="weeks" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
                   {[2, 3, 4, 6, 8].map((w) => (
                     <option key={w} value={w}>{w} semanas</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Data de início (semana 1)</label>
-                <input name="startDate" type="date" required className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-stone-600">Data de início (semana 1)</label>
+                <input name="startDate" type="date" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Departamento (opcional)</label>
-                <select name="departmentId" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                <label className="mb-1 block text-xs font-medium text-stone-600">Departamento (opcional)</label>
+                <select name="departmentId" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
                   <option value="">—</option>
                   {departments.map((d) => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               </div>
-              <button type="submit" className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
                 Criar ciclo
               </button>
             </form>

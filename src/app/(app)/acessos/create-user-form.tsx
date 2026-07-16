@@ -17,14 +17,14 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
   return (
     <div>
       {state.success ? (
-        <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm">
-          <p className="font-medium text-green-800">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm">
+          <p className="font-medium text-emerald-800">
             Utilizador criado com sucesso.
           </p>
-          <p className="mt-2 text-slate-700">
+          <p className="mt-2 text-stone-700">
             Email: <span className="font-mono">{state.success.email}</span>
           </p>
-          <p className="text-slate-700">
+          <p className="text-stone-700">
             Password temporária:{" "}
             <span className="font-mono font-semibold">
               {state.success.password}
@@ -40,7 +40,7 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
               navigator.clipboard.writeText(state.success!.password);
               setCopied(true);
             }}
-            className="mt-2 rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-white"
+            className="mt-2 rounded-md border border-stone-300 px-3 py-1 text-xs hover:bg-white"
           >
             {copied ? "Copiado!" : "Copiar password"}
           </button>
@@ -48,33 +48,33 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
       ) : (
         <form action={formAction} className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600">
               Nome
             </label>
             <input
               name="name"
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600">
               Email
             </label>
             <input
               name="email"
               type="email"
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600">
               Associar a colaborador (opcional)
             </label>
             <select
               name="employeeId"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
             >
               <option value="">—</option>
               {employees.map((e) => (
@@ -85,7 +85,7 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600">
               Perfis de acesso
             </label>
             <div className="grid grid-cols-2 gap-1.5">
@@ -99,7 +99,7 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
           </div>
 
           {state.error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {state.error}
             </p>
           )}
@@ -107,7 +107,7 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
           >
             {pending ? "A criar..." : "Criar utilizador"}
           </button>

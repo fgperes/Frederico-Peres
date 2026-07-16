@@ -5,6 +5,7 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
 import Link from "next/link";
 import { addDays } from "date-fns";
+import { FileSignature } from "lucide-react";
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   SEM_TERMO: "Sem termo",
@@ -48,6 +49,7 @@ export default async function ContratosPage({
   return (
     <div>
       <PageHeader
+        icon={FileSignature}
         title="Contratos de Trabalho"
         description="Dados contratuais, aditamentos e alertas de prazos."
       />
@@ -88,7 +90,7 @@ export default async function ContratosPage({
           <div className="p-6"><EmptyState message="Sem contratos registados." /></div>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+            <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
               <tr>
                 <th className="px-4 py-3">Colaborador</th>
                 <th className="px-4 py-3">Tipo</th>
@@ -98,14 +100,14 @@ export default async function ContratosPage({
                 <th className="px-4 py-3">Estado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {contracts.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50">
+                <tr key={c.id} className="hover:bg-stone-50">
                   <td className="px-4 py-3">
-                    <Link href={`/contratos/${c.id}`} className="font-medium text-blue-700 hover:underline">
+                    <Link href={`/contratos/${c.id}`} className="font-medium text-violet-700 hover:underline">
                       {c.employee.firstName} {c.employee.lastName}
                     </Link>
-                    {c.version > 1 && <span className="ml-2 text-xs text-slate-400">v{c.version}</span>}
+                    {c.version > 1 && <span className="ml-2 text-xs text-stone-400">v{c.version}</span>}
                   </td>
                   <td className="px-4 py-3">{CONTRACT_TYPE_LABELS[c.contractType] ?? c.contractType}</td>
                   <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>

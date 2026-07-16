@@ -9,6 +9,7 @@ import { ClockWidget } from "./clock-widget";
 import { JustifyForm } from "./justify-form";
 import { reviewJustification } from "./actions";
 import type { Prisma } from "@prisma/client";
+import { Fingerprint } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
   CLOCK_IN: "Entrada",
@@ -74,25 +75,26 @@ export default async function PicagensPage() {
   return (
     <div>
       <PageHeader
+        icon={Fingerprint}
         title="Picagens"
         description="Registo de assiduidade, desvios e banco de horas."
       />
 
       {user.employeeId && (
         <Card className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">
             Relógio de Ponto
           </h2>
           <ClockWidget />
 
           <div className="mt-6">
-            <h3 className="mb-2 text-xs font-semibold uppercase text-slate-500">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-stone-500">
               Registos recentes
             </h3>
             {myEntries.length === 0 ? (
               <EmptyState message="Sem registos ainda." />
             ) : (
-              <ul className="divide-y divide-slate-100 text-sm">
+              <ul className="divide-y divide-stone-100 text-sm">
                 {myEntries.map((entry) => (
                   <li key={entry.id} className="py-2">
                     <div className="flex items-center justify-between">
@@ -110,7 +112,7 @@ export default async function PicagensPage() {
                       <JustifyForm entryId={entry.id} />
                     )}
                     {entry.justification && (
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-stone-500">
                         Justificação: {entry.justification}
                       </p>
                     )}
@@ -125,13 +127,13 @@ export default async function PicagensPage() {
       {canEdit && (
         <>
           <Card className="mb-6">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
+            <h2 className="mb-3 text-sm font-semibold text-stone-900">
               Desvios por Aprovar
             </h2>
             {deviationQueue.length === 0 ? (
               <EmptyState message="Sem desvios pendentes de aprovação." />
             ) : (
-              <ul className="divide-y divide-slate-100 text-sm">
+              <ul className="divide-y divide-stone-100 text-sm">
                 {deviationQueue.map((entry) => (
                   <li key={entry.id} className="flex items-center justify-between py-2">
                     <div>
@@ -140,19 +142,19 @@ export default async function PicagensPage() {
                       </span>{" "}
                       — {TYPE_LABELS[entry.type]} ·{" "}
                       <Badge color="amber">{entry.deviationType}</Badge>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-stone-500">
                         {entry.timestamp.toLocaleString("pt-PT")} —{" "}
                         {entry.justification ?? "sem justificação"}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <form action={reviewJustification.bind(null, entry.id, "APPROVED")}>
-                        <button type="submit" className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700">
+                        <button type="submit" className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">
                           Aprovar
                         </button>
                       </form>
                       <form action={reviewJustification.bind(null, entry.id, "REJECTED")}>
-                        <button type="submit" className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700">
+                        <button type="submit" className="rounded-md bg-rose-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-rose-700">
                           Rejeitar
                         </button>
                       </form>
@@ -164,14 +166,14 @@ export default async function PicagensPage() {
           </Card>
 
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
+            <h2 className="mb-3 text-sm font-semibold text-stone-900">
               Relatório Semanal de Assiduidade
             </h2>
             {weeklyReport.length === 0 ? (
               <EmptyState message="Sem dados para esta semana." />
             ) : (
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
                   <tr>
                     <th className="py-2">Colaborador</th>
                     <th className="py-2">Horas trabalhadas</th>
@@ -179,7 +181,7 @@ export default async function PicagensPage() {
                     <th className="py-2">Banco de horas</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-stone-100">
                   {weeklyReport.map((r, i) => {
                     const diff = r.worked - r.contracted;
                     return (

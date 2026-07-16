@@ -25,7 +25,7 @@ export function PatternCell({
         name="shiftTemplateId"
         defaultValue={currentTemplateId ?? ""}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className="w-full rounded border border-slate-200 px-1 py-1 text-xs"
+        className="w-full rounded border border-stone-200 px-1 py-1 text-xs"
       >
         <option value="">Folga</option>
         {templates.map((t) => (

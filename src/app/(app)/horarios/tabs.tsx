@@ -13,7 +13,7 @@ const TABS = [
 export function HorariosTabs() {
   const pathname = usePathname();
   return (
-    <div className="mb-6 flex gap-1 border-b border-slate-200">
+    <div className="mb-6 flex gap-1 border-b border-stone-200">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         return (
@@ -22,8 +22,8 @@ export function HorariosTabs() {
             href={tab.href}
             className={`px-4 py-2 text-sm font-medium ${
               active
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-slate-500 hover:text-slate-700"
+                ? "border-b-2 border-violet-600 text-violet-700"
+                : "text-stone-500 hover:text-stone-700"
             }`}
           >
             {tab.label}

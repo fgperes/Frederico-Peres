@@ -5,6 +5,7 @@ import { PageHeader, Card } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
 import { createEmployee } from "../actions";
 import { redirect } from "next/navigation";
+import { UserPlus } from "lucide-react";
 
 export default async function NovoColaboradorPage() {
   const user = await requireUser();
@@ -22,6 +23,7 @@ export default async function NovoColaboradorPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
+        icon={UserPlus}
         title="Novo Colaborador"
         description="Criar uma nova ficha de colaborador."
       />

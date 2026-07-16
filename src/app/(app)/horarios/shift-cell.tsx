@@ -30,8 +30,8 @@ export function ShiftCell({
         defaultValue={currentTemplateId ?? ""}
         disabled={disabled}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className={`w-full rounded border px-1 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-400 ${
-          isDayOff ? "border-red-200 bg-red-50" : "border-slate-200"
+        className={`w-full rounded border px-1 py-1 text-xs disabled:bg-stone-50 disabled:text-stone-400 ${
+          isDayOff ? "border-rose-200 bg-rose-50" : "border-stone-200"
         }`}
         title={isDayOff ? "Ausência aprovada nesta data" : undefined}
       >

@@ -4,6 +4,7 @@ import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { WEEKDAY_LABELS } from "@/lib/dates";
+import { RefreshCw } from "lucide-react";
 import { PatternCell } from "../pattern-cell";
 import { GenerateButton } from "../generate-button";
 import { assignEmployeeToCycle, removeAssignment } from "../actions";
@@ -47,17 +48,18 @@ export default async function CycleDetailPage({
   return (
     <div>
       <PageHeader
+        icon={RefreshCw}
         title={cycle.name}
         description={`Ciclo de ${cycle.weeks} semanas, início em ${cycle.startDate.toLocaleDateString("pt-PT")}`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 overflow-x-auto">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">
             Padrão do Ciclo
           </h2>
           <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="text-xs uppercase text-slate-500">
+            <thead className="text-xs uppercase text-stone-500">
               <tr>
                 <th className="px-2 py-2">Semana</th>
                 {WEEKDAY_LABELS.map((d) => (
@@ -65,10 +67,10 @@ export default async function CycleDetailPage({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {Array.from({ length: cycle.weeks }, (_, weekIndex) => (
                 <tr key={weekIndex}>
-                  <td className="px-2 py-2 font-medium text-slate-700">
+                  <td className="px-2 py-2 font-medium text-stone-700">
                     Semana {weekIndex + 1}
                   </td>
                   {Array.from({ length: 7 }, (_, dayOfWeek) => (
@@ -82,7 +84,7 @@ export default async function CycleDetailPage({
                           templates={templates}
                         />
                       ) : (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-stone-500">
                           {templates.find(
                             (t) => t.id === patternFor(weekIndex, dayOfWeek)?.shiftTemplateId
                           )?.name ?? "Folga"}
@@ -99,7 +101,7 @@ export default async function CycleDetailPage({
         <div className="space-y-6">
           {canEdit && (
             <Card>
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">
+              <h2 className="mb-3 text-sm font-semibold text-stone-900">
                 Gerar Escalas
               </h2>
               <GenerateButton cycleId={cycle.id} />
@@ -107,7 +109,7 @@ export default async function CycleDetailPage({
           )}
 
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
+            <h2 className="mb-3 text-sm font-semibold text-stone-900">
               Colaboradores Associados
             </h2>
             <ul className="mb-4 space-y-2 text-sm">
@@ -122,7 +124,7 @@ export default async function CycleDetailPage({
                   </span>
                   {canEdit && (
                     <form action={removeAssignment.bind(null, a.id, cycle.id)}>
-                      <button type="submit" className="text-xs text-red-600 hover:underline">
+                      <button type="submit" className="text-xs text-rose-600 hover:underline">
                         remover
                       </button>
                     </form>
@@ -133,7 +135,7 @@ export default async function CycleDetailPage({
             {canEdit && (
               <form action={assignEmployeeToCycle} className="space-y-2">
                 <input type="hidden" name="cycleId" value={cycle.id} />
-                <select name="employeeId" required className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                <select name="employeeId" required className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm">
                   <option value="">Colaborador...</option>
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>
@@ -148,9 +150,9 @@ export default async function CycleDetailPage({
                   max={cycle.weeks - 1}
                   defaultValue={0}
                   placeholder="Desfasamento (semanas)"
-                  className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
                 />
-                <button type="submit" className="w-full rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900">
+                <button type="submit" className="w-full rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
                   Associar
                 </button>
               </form>

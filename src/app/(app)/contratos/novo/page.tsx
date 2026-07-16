@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, Card } from "@/components/ui";
 import { ContractForm } from "../contract-form";
 import { redirect } from "next/navigation";
+import { FileSignature } from "lucide-react";
 
 export default async function NovoContratoPage({
   searchParams,
@@ -18,7 +19,7 @@ export default async function NovoContratoPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Novo Contrato" description="Registar dados contratuais de um colaborador." />
+      <PageHeader icon={FileSignature} title="Novo Contrato" description="Registar dados contratuais de um colaborador." />
       <Card>
         <ContractForm
           employees={employees}

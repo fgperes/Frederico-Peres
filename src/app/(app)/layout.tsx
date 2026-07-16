@@ -15,7 +15,7 @@ export default async function AppLayout({
         name={user.name ?? ""}
         email={user.email ?? ""}
       />
-      <main className="flex-1 overflow-y-auto bg-slate-50 p-8">
+      <main className="flex-1 overflow-y-auto bg-stone-50 p-8">
         {children}
       </main>
     </div>

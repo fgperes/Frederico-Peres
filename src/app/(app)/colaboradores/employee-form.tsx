@@ -18,7 +18,7 @@ export function EmployeeForm({
   return (
     <form action={action} className="space-y-8">
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900">
           Dados Pessoais
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -35,7 +35,7 @@ export function EmployeeForm({
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900">
           Dados Organizacionais
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -72,7 +72,7 @@ export function EmployeeForm({
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900">
           Especificações para Horários
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -117,7 +117,7 @@ export function EmployeeForm({
       <div className="flex justify-end gap-3">
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
         >
           Guardar
         </button>
@@ -145,7 +145,7 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-xs font-medium text-slate-600">
+      <label className="mb-1 block text-xs font-medium text-stone-600">
         {label}
       </label>
       <input
@@ -154,7 +154,7 @@ function Field({
         step={step}
         defaultValue={defaultValue ?? ""}
         required={required}
-        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
       />
     </div>
   );
@@ -173,13 +173,13 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-slate-600">
+      <label className="mb-1 block text-xs font-medium text-stone-600">
         {label}
       </label>
       <select
         name={name}
         defaultValue={defaultValue}
-        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
       >
         <option value="">—</option>
         {options.map((o) => (

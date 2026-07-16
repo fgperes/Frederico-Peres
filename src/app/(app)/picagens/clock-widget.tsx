@@ -4,10 +4,10 @@ import { useTransition } from "react";
 import { clockAction } from "./actions";
 
 const BUTTONS: { type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END"; label: string; color: string }[] = [
-  { type: "CLOCK_IN", label: "Entrada", color: "bg-green-600 hover:bg-green-700" },
+  { type: "CLOCK_IN", label: "Entrada", color: "bg-emerald-600 hover:bg-emerald-700" },
   { type: "BREAK_START", label: "Início Pausa", color: "bg-amber-500 hover:bg-amber-600" },
   { type: "BREAK_END", label: "Fim Pausa", color: "bg-amber-600 hover:bg-amber-700" },
-  { type: "CLOCK_OUT", label: "Saída", color: "bg-red-600 hover:bg-red-700" },
+  { type: "CLOCK_OUT", label: "Saída", color: "bg-rose-600 hover:bg-rose-700" },
 ];
 
 export function ClockWidget() {
