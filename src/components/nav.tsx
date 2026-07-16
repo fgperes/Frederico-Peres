@@ -8,12 +8,14 @@ import {
   Users,
   Building2,
   CalendarClock,
+  CalendarRange,
   Fingerprint,
   PalmtreeIcon,
   FileSignature,
   ShieldCheck,
   KeyRound,
   LogOut,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 import { canRead, ROLE_LABELS, type Module, type Role } from "@/lib/roles";
@@ -23,9 +25,11 @@ const NAV_ITEMS: { href: string; label: string; module: Module; icon: LucideIcon
   { href: "/colaboradores", label: "Colaboradores", module: "recursos", icon: Users },
   { href: "/estrutura", label: "Estrutura Organizacional", module: "recursos", icon: Building2 },
   { href: "/horarios", label: "Horários", module: "horarios", icon: CalendarClock },
+  { href: "/escalas", label: "Escalas", module: "horarios", icon: CalendarRange },
   { href: "/picagens", label: "Picagens", module: "picagens", icon: Fingerprint },
   { href: "/ausencias", label: "Ausências", module: "ausencias", icon: PalmtreeIcon },
   { href: "/contratos", label: "Contratos", module: "contratos", icon: FileSignature },
+  { href: "/payroll", label: "Payroll", module: "payroll", icon: Banknote },
   { href: "/acessos", label: "Perfis e Acessos", module: "acessos", icon: ShieldCheck },
 ];
 

@@ -29,7 +29,8 @@ export type Module =
   | "ausencias"
   | "contratos"
   | "acessos"
-  | "integracoes";
+  | "integracoes"
+  | "payroll";
 
 const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
   ADMIN_SISTEMA: {
@@ -40,6 +41,7 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     contratos: "rw",
     acessos: "rw",
     integracoes: "rw",
+    payroll: "rw",
   },
   ADMIN_RH: {
     recursos: "rw",
@@ -49,6 +51,7 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     contratos: "rw",
     acessos: "ro",
     integracoes: "rw",
+    payroll: "rw",
   },
   GESTOR_EQUIPA: {
     recursos: "rw",
@@ -58,6 +61,7 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     contratos: "ro",
     acessos: "none",
     integracoes: "none",
+    payroll: "none",
   },
   COLABORADOR: {
     recursos: "own",
@@ -67,6 +71,7 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     contratos: "own",
     acessos: "none",
     integracoes: "none",
+    payroll: "own",
   },
   RH_CONTRATOS: {
     recursos: "ro",
@@ -76,6 +81,7 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     contratos: "rw",
     acessos: "none",
     integracoes: "none",
+    payroll: "ro",
   },
   AUDITOR: {
     recursos: "ro",
@@ -85,6 +91,7 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     contratos: "ro",
     acessos: "ro",
     integracoes: "ro",
+    payroll: "ro",
   },
 };
 

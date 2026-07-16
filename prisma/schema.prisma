@@ -159,13 +159,21 @@ model Employee {
   hireDate     DateTime?
   importLogId  String?
 
-  contracts        Contract[]
-  shifts           Shift[]
-  absences         Absence[]
-  absenceBalances  AbsenceBalance[]
-  timeClockEntries TimeClockEntry[]
-  history          EmployeeHistory[]
-  documents        EmployeeDocument[]
+  // Dados de payroll (folha de pagamento)
+  maritalStatus         String? // NAO_CASADO | CASADO_UNICO_TITULAR | CASADO_DOIS_TITULARES
+  dependents             Int     @default(0)
+  fiscalRegion           String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
+  mealAllowanceOverride  Float?  // € / dia; se vazio usa o valor por omissão dos pressupostos
+
+  contracts         Contract[]
+  shifts            Shift[]
+  absences          Absence[]
+  absenceBalances   AbsenceBalance[]
+  timeClockEntries  TimeClockEntry[]
+  history           EmployeeHistory[]
+  documents         EmployeeDocument[]
+  payrollComponents PayrollComponent[]
+  payslips          Payslip[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -376,6 +384,89 @@ model Contract {
   notes              String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Payroll (Processamento Salarial)
+// ---------------------------------------------------------------------------
+// Nota: os valores por omissão (salário mínimo, taxas, escalões de IRS) são
+// uma aproximação configurável, não uma cópia certificada das tabelas
+// oficiais da Autoridade Tributária — devem ser revistos/ajustados por RH.
+
+model PayrollSettings {
+  id                         String   @id @default(cuid())
+  minimumWage                Float    @default(870)
+  socialSecurityEmployeeRate Float    @default(0.11)
+  socialSecurityEmployerRate Float    @default(0.2375)
+  workAccidentInsuranceRate  Float    @default(0.01)
+  mealAllowanceDaily         Float    @default(6)
+  mealAllowanceExemptCap     Float    @default(6)
+  overtimeRateFirstHour      Float    @default(1.25)
+  overtimeRateAdditional     Float    @default(1.375)
+  overtimeRateWeekendHoliday Float    @default(1.5)
+  workingDaysPerMonth        Float    @default(22)
+  vacationSubsidyMode        String   @default("LUMP_SUM_JUNE") // LUMP_SUM_JUNE | MONTHLY_DUODECIMOS
+  christmasSubsidyMode       String   @default("LUMP_SUM_DECEMBER") // LUMP_SUM_DECEMBER | MONTHLY_DUODECIMOS
+  updatedAt                  DateTime @updatedAt
+  updatedById                String?
+}
+
+// Escalões progressivos usados para estimar a retenção na fonte de IRS.
+model IrsBracket {
+  id        String @id @default(cuid())
+  order     Int    @unique
+  upToGross Float? // null = sem limite superior (último escalão)
+  rate      Float // taxa marginal (ex.: 0.145 = 14.5%)
+}
+
+// Componentes variáveis por colaborador (prémios, subsídios específicos,
+// descontos pontuais ou recorrentes) que entram no cálculo do recibo.
+model PayrollComponent {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name         String
+  type         String // EARNING | DEDUCTION
+  amount       Float
+  recurring    Boolean  @default(true)
+  taxable      Boolean  @default(true)
+  ssApplicable Boolean  @default(true)
+  applyYear    Int? // obrigatório quando recurring = false
+  applyMonth   Int? // 1-12, obrigatório quando recurring = false
+  createdAt    DateTime @default(now())
+}
+
+// Recibo de vencimento gerado (ficam "congelados" após gerados).
+model Payslip {
+  id                     String   @id @default(cuid())
+  employeeId             String
+  employee               Employee @relation(fields: [employeeId], references: [id])
+  year                   Int
+  month                  Int
+  baseSalary             Float
+  workedHours            Float
+  workedDays             Float    @default(0)
+  overtimeHours          Float
+  overtimePay            Float
+  mealAllowanceTotal     Float
+  mealAllowanceExempt    Float
+  absenceDeductionDays   Float
+  absenceDeduction       Float
+  otherEarnings          Float
+  otherDeductions        Float
+  vacationSubsidy        Float    @default(0)
+  christmasSubsidy       Float    @default(0)
+  grossTotal             Float
+  socialSecurityEmployee Float
+  irsWithholding         Float
+  netTotal               Float
+  socialSecurityEmployer Float
+  employerCost           Float
+  belowMinimumWage       Boolean  @default(false)
+  generatedAt            DateTime @default(now())
+  generatedById          String?
+
+  @@unique([employeeId, year, month])
 }
 
 // ---------------------------------------------------------------------------

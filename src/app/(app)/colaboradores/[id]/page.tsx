@@ -1,12 +1,12 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite } from "@/lib/roles";
+import { canWrite, canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { PageHeader, Card, Badge, Button } from "@/components/ui";
+import { PageHeader, Card, Badge, Button, LinkButton } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
 import { updateEmployee, setEmployeeStatus } from "../actions";
 import { notFound } from "next/navigation";
-import { User } from "lucide-react";
+import { User, Banknote } from "lucide-react";
 
 export default async function ColaboradorDetailPage({
   params,
@@ -50,6 +50,11 @@ export default async function ColaboradorDetailPage({
             <Badge color={employee.status === "ACTIVE" ? "green" : "slate"}>
               {employee.status === "ACTIVE" ? "Ativo" : "Inativo"}
             </Badge>
+            {canRead(user.roles, "payroll") && (
+              <LinkButton href={`/payroll/${employee.id}`} variant="secondary">
+                <Banknote size={14} /> Payroll
+              </LinkButton>
+            )}
             {canEdit && (
               <form action={toggleStatus}>
                 <Button variant="secondary" type="submit">
