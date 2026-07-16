@@ -1,0 +1,375 @@
+// SGRH - Sistema de Gestão de Recursos Humanos
+// Modelo de dados baseado no Documento Funcional SGRH v1.0
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Perfis de Acesso e Permissões (secção 4)
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN_SISTEMA
+  ADMIN_RH
+  GESTOR_EQUIPA
+  COLABORADOR
+  RH_CONTRATOS
+  AUDITOR
+}
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  passwordHash       String
+  name               String
+  roles              UserRole[]
+  employee           Employee?
+  active             Boolean    @default(true)
+  mustChangePassword Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  auditLogs          AuditLog[]
+  approvedAbsences   Absence[]        @relation("AbsenceApprover")
+  requestedAbsences  Absence[]        @relation("AbsenceRequester")
+  reviewedDeviations TimeClockEntry[] @relation("DeviationReviewer")
+  importLogs         ImportLog[]
+}
+
+// Associa um perfil a um utilizador, com âmbito opcional (departamento)
+model UserRole {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+
+  @@unique([userId, role, departmentId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Gestão de Recursos (secção 5)
+// ---------------------------------------------------------------------------
+
+model Department {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  parentId  String?
+  parent    Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children  Department[] @relation("DeptHierarchy")
+  teams     Team[]
+  employees Employee[]
+  userRoles UserRole[]
+  createdAt DateTime     @default(now())
+}
+
+model Team {
+  id           String     @id @default(cuid())
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  employees    Employee[]
+  createdAt    DateTime   @default(now())
+
+  @@unique([name, departmentId])
+}
+
+model Location {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  address   String?
+  employees Employee[]
+  createdAt DateTime   @default(now())
+}
+
+model Employee {
+  id     String  @id @default(cuid())
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  // Dados pessoais
+  firstName        String
+  lastName         String
+  email            String    @unique
+  phone            String?
+  address          String?
+  nif              String?   @unique
+  idDocument       String?
+  socialSecurityNo String?
+  iban             String?
+  birthDate        DateTime?
+
+  // Dados organizacionais
+  jobTitle     String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  teamId       String?
+  team         Team?       @relation(fields: [teamId], references: [id])
+  locationId   String?
+  location     Location?   @relation(fields: [locationId], references: [id])
+  managerId    String?
+  manager      Employee?   @relation("ManagerReports", fields: [managerId], references: [id])
+  reports      Employee[]  @relation("ManagerReports")
+
+  // Especificações para horários
+  employmentType   String  @default("FULL_TIME") // FULL_TIME | PART_TIME
+  weeklyHours      Float   @default(40)
+  availability     String? // JSON: disponibilidade semanal
+  restrictions     String? // JSON: restrições (ex.: não domingo)
+  shiftPreferences String? // JSON: preferências de turno
+  skills           String? // CSV de competências
+
+  status       String    @default("ACTIVE") // ACTIVE | INACTIVE
+  hireDate     DateTime?
+  importLogId  String?
+
+  contracts        Contract[]
+  shifts           Shift[]
+  absences         Absence[]
+  absenceBalances  AbsenceBalance[]
+  timeClockEntries TimeClockEntry[]
+  history          EmployeeHistory[]
+  documents        EmployeeDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeHistory {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  field      String
+  oldValue   String?
+  newValue   String?
+  changedBy  String?
+  createdAt  DateTime @default(now())
+}
+
+model EmployeeDocument {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  type       String
+  fileName   String
+  uploadedAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Horários (secção 6)
+// ---------------------------------------------------------------------------
+
+model ShiftTemplate {
+  id                    String                 @id @default(cuid())
+  name                  String                 @unique
+  startTime             String // "08:00"
+  endTime               String // "16:00"
+  breakMins             Int                    @default(0)
+  color                 String                 @default("#2563eb")
+  shifts                Shift[]
+  createdAt             DateTime               @default(now())
+  scheduleCyclePatterns ScheduleCyclePattern[]
+}
+
+model ScheduleCycle {
+  id           String                    @id @default(cuid())
+  name         String
+  weeks        Int // duração do ciclo em semanas
+  startDate    DateTime // data de referência da semana 1
+  departmentId String?
+  createdAt    DateTime                  @default(now())
+  assignments  ScheduleCycleAssignment[]
+  pattern      ScheduleCyclePattern[]
+}
+
+// padrão do ciclo: para cada semana do ciclo/dia da semana/turno
+model ScheduleCyclePattern {
+  id              String         @id @default(cuid())
+  cycleId         String
+  cycle           ScheduleCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  weekIndex       Int // 0-based dentro do ciclo
+  dayOfWeek       Int // 0=Domingo .. 6=Sábado
+  shiftTemplateId String?
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  isDayOff        Boolean        @default(false)
+}
+
+model ScheduleCycleAssignment {
+  id          String        @id @default(cuid())
+  cycleId     String
+  cycle       ScheduleCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employeeId  String
+  offsetWeeks Int           @default(0) // desfasamento (ex.: equipa B inicia semana 2)
+  createdAt   DateTime      @default(now())
+}
+
+model Shift {
+  id              String         @id @default(cuid())
+  employeeId      String
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+  date            DateTime
+  startTime       String
+  endTime         String
+  shiftTemplateId String?
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  source          String         @default("MANUAL") // MANUAL | CYCLE | PREDICTIVE
+  status          String         @default("DRAFT") // DRAFT | PUBLISHED
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([employeeId, date])
+}
+
+model DemandForecast {
+  id           String   @id @default(cuid())
+  departmentId String?
+  locationId   String?
+  date         DateTime
+  hour         Int
+  demandValue  Float
+  source       String   @default("EXCEL") // EXCEL | API
+  importLogId  String?
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Picagens (secção 7)
+// ---------------------------------------------------------------------------
+
+model TimeClockEntry {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  type       String // CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
+  timestamp  DateTime @default(now())
+  location   String?
+
+  hasDeviation        Boolean @default(false)
+  deviationType       String? // LATE | EARLY_LEAVE | MISSING | OVERTIME
+  justification       String?
+  justificationStatus String? // PENDING | APPROVED | REJECTED
+  reviewedById        String?
+  reviewedBy          User?   @relation("DeviationReviewer", fields: [reviewedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId, timestamp])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Ausências (secção 8)
+// ---------------------------------------------------------------------------
+
+model AbsenceType {
+  id               String           @id @default(cuid())
+  name             String           @unique
+  paid             Boolean          @default(true)
+  requiresDocument Boolean          @default(false)
+  unitType         String           @default("WORKING_DAYS") // WORKING_DAYS | CALENDAR_DAYS
+  annualLimitDays  Float?
+  approvalLevels   Int              @default(1)
+  affectsBalance   Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  absences         Absence[]
+  balances         AbsenceBalance[]
+}
+
+model Absence {
+  id            String      @id @default(cuid())
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  absenceTypeId String
+  absenceType   AbsenceType @relation(fields: [absenceTypeId], references: [id])
+  startDate     DateTime
+  endDate       DateTime
+  days          Float
+  status        String      @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+  reason        String?
+  documentName  String?
+  requestedById String
+  requestedBy   User        @relation("AbsenceRequester", fields: [requestedById], references: [id])
+  approvedById  String?
+  approvedBy    User?       @relation("AbsenceApprover", fields: [approvedById], references: [id])
+  decidedAt     DateTime?
+  decisionNote  String?
+  createdAt     DateTime    @default(now())
+
+  @@index([employeeId, startDate])
+}
+
+model AbsenceBalance {
+  id            String      @id @default(cuid())
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  absenceTypeId String
+  absenceType   AbsenceType @relation(fields: [absenceTypeId], references: [id])
+  year          Int
+  entitledDays  Float
+  usedDays      Float       @default(0)
+  plannedDays   Float       @default(0)
+
+  @@unique([employeeId, absenceTypeId, year])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Contratos de Trabalho (secção 9)
+// ---------------------------------------------------------------------------
+
+model Contract {
+  id                 String     @id @default(cuid())
+  employeeId         String
+  employee           Employee   @relation(fields: [employeeId], references: [id])
+  contractType       String // SEM_TERMO | TERMO_CERTO | TERMO_INCERTO | PRESTACAO_SERVICOS | PART_TIME
+  startDate          DateTime
+  endDate            DateTime?
+  trialPeriodEndDate DateTime?
+  weeklyHours        Float
+  baseSalary         Float?
+  status             String     @default("ACTIVE") // ACTIVE | EXPIRED | TERMINATED
+  documentName       String?
+  version            Int        @default(1)
+  parentContractId   String?
+  parentContract     Contract?  @relation("ContractVersions", fields: [parentContractId], references: [id])
+  amendments         Contract[] @relation("ContractVersions")
+  notes              String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Integrações (secção 6.4 / CD)
+// ---------------------------------------------------------------------------
+
+model ImportLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  type        String // EMPLOYEES | DEMAND | SCHEDULE
+  fileName    String
+  status      String // SUCCESS | ERROR | PARTIAL | REVERTED
+  totalRows   Int      @default(0)
+  errorRows   Int      @default(0)
+  errorReport String?
+  createdAt   DateTime @default(now())
+}

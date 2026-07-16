@@ -1,0 +1,103 @@
+import { requireUser } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { canWrite } from "@/lib/roles";
+import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { HorariosTabs } from "../tabs";
+import { createCycle } from "./actions";
+import Link from "next/link";
+
+export default async function CiclosPage() {
+  const user = await requireUser();
+  const canEdit = canWrite(user.roles, "horarios");
+
+  const [cycles, departments] = await Promise.all([
+    prisma.scheduleCycle.findMany({
+      include: {
+        _count: { select: { assignments: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+  ]);
+
+  return (
+    <div>
+      <PageHeader
+        title="Módulo de Horários"
+        description="Padrões de escala que se repetem ciclicamente (ex.: rotativos de 2, 3 ou 4 semanas)."
+      />
+      <HorariosTabs />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 p-0">
+          {cycles.length === 0 ? (
+            <div className="p-6">
+              <EmptyState message="Sem ciclos definidos." />
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Nome</th>
+                  <th className="px-4 py-3">Duração</th>
+                  <th className="px-4 py-3">Início</th>
+                  <th className="px-4 py-3">Colaboradores</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {cycles.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <Link href={`/horarios/ciclos/${c.id}`} className="font-medium text-blue-700 hover:underline">
+                        {c.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">{c.weeks} semanas</td>
+                    <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
+                    <td className="px-4 py-3">{c._count.assignments}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+
+        {canEdit && (
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Novo Ciclo</h2>
+            <form action={createCycle} className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Nome</label>
+                <input name="name" required className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Duração (semanas)</label>
+                <select name="weeks" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                  {[2, 3, 4, 6, 8].map((w) => (
+                    <option key={w} value={w}>{w} semanas</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Data de início (semana 1)</label>
+                <input name="startDate" type="date" required className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Departamento (opcional)</label>
+                <select name="departmentId" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                  <option value="">—</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="submit" className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                Criar ciclo
+              </button>
+            </form>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
