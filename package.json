@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-admin-password": "tsx prisma/reset-admin-password.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
