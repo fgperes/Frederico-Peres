@@ -28,6 +28,7 @@ model User {
   email              String     @unique
   passwordHash       String
   name               String
+  avatarKey          String? // referência a um avatar predefinido (ver lib/avatars.tsx)
   roles              UserRole[]
   employee           Employee?
   active             Boolean    @default(true)
@@ -42,6 +43,25 @@ model User {
   importLogs         ImportLog[]
   sentMessages       Message[]        @relation("MessageSender")
   receivedMessages   Message[]        @relation("MessageRecipient")
+  tasks              Task[]           @relation("TaskAssignee")
+}
+
+// Tarefas atribuídas a um utilizador (ex.: gestor de RH/supervisor a
+// definir o horário de refeição de um colaborador).
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        String    @default("GENERAL") // GENERAL | MEAL_BREAK_SCHEDULE
+  assigneeId  String
+  assignee    User      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  status      String    @default("OPEN") // OPEN | DONE
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([assigneeId, status])
 }
 
 // Mensagens rápidas entre utilizadores (barra superior).
@@ -155,15 +175,15 @@ model Employee {
   shiftPreferences String? // JSON: preferências de turno
   skills           String? // CSV de competências
 
-  status       String    @default("ACTIVE") // ACTIVE | INACTIVE
-  hireDate     DateTime?
-  importLogId  String?
+  status      String    @default("ACTIVE") // ACTIVE | INACTIVE
+  hireDate    DateTime?
+  importLogId String?
 
   // Dados de payroll (folha de pagamento)
   maritalStatus         String? // NAO_CASADO | CASADO_UNICO_TITULAR | CASADO_DOIS_TITULARES
-  dependents             Int     @default(0)
-  fiscalRegion           String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
-  mealAllowanceOverride  Float?  // € / dia; se vazio usa o valor por omissão dos pressupostos
+  dependents            Int     @default(0)
+  fiscalRegion          String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
+  mealAllowanceOverride Float? // € / dia; se vazio usa o valor por omissão dos pressupostos
 
   contracts         Contract[]
   shifts            Shift[]
@@ -174,6 +194,7 @@ model Employee {
   documents         EmployeeDocument[]
   payrollComponents PayrollComponent[]
   payslips          Payslip[]
+  tasks             Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -250,19 +271,23 @@ model ScheduleCycleAssignment {
 }
 
 model Shift {
-  id              String         @id @default(cuid())
-  employeeId      String
-  employee        Employee       @relation(fields: [employeeId], references: [id])
-  date            DateTime
-  startTime       String
-  endTime         String
-  shiftTemplateId String?
-  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
-  source          String         @default("MANUAL") // MANUAL | CYCLE | PREDICTIVE
-  status          String         @default("DRAFT") // DRAFT | PUBLISHED
-  notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                   String         @id @default(cuid())
+  employeeId           String
+  employee             Employee       @relation(fields: [employeeId], references: [id])
+  date                 DateTime
+  startTime            String
+  endTime              String
+  shiftTemplateId      String?
+  shiftTemplate        ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  source               String         @default("MANUAL") // MANUAL | CYCLE | PREDICTIVE
+  status               String         @default("DRAFT") // DRAFT | PUBLISHED
+  notes                String?
+  // Alerta de refeição em falta (5h+ sem pausa): timestamp de deteção e,
+  // se o colaborador dispensar o lembrete, timestamp da dispensa.
+  mealAlertAt          DateTime?
+  mealAlertDismissedAt DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@index([employeeId, date])
 }
@@ -284,14 +309,14 @@ model DemandForecast {
 // ---------------------------------------------------------------------------
 
 model TimeClockEntry {
-  id         String   @id @default(cuid())
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  type       String // CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
-  timestamp  DateTime @default(now())
-  location   String?
-  latitude   Float?
-  longitude  Float?
+  id               String   @id @default(cuid())
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [id])
+  type             String // CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
+  timestamp        DateTime @default(now())
+  location         String?
+  latitude         Float?
+  longitude        Float?
   locationAccuracy Float?
 
   hasDeviation        Boolean @default(false)

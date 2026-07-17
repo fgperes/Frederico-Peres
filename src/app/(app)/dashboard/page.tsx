@@ -3,9 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
 import { ROLE_LABELS, accessFor, canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
+import { describeAuditLog } from "@/lib/audit-labels";
+import { AvatarImage } from "@/lib/avatars";
 import { addDays } from "date-fns";
 import {
-  LayoutGrid,
   Users,
   PalmtreeIcon,
   FileSignature,
@@ -17,6 +18,10 @@ import {
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { name: true, avatarKey: true },
+  });
 
   // A hierarquia de perfis decide qual painel ver: quem só tem o perfil
   // Colaborador (âmbito "own" em recursos) vê o seu painel pessoal; todos
@@ -27,7 +32,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <PageHeader
-        icon={LayoutGrid}
+        avatar={<AvatarImage avatarKey={dbUser?.avatarKey} name={user.name ?? ""} size={40} />}
         title={`Bem-vindo, ${user.name?.split(" ")[0]}`}
         description={`Perfis: ${user.roles.map((r) => ROLE_LABELS[r]).join(", ")}`}
       />
@@ -114,22 +119,20 @@ async function ManagementDashboard({
             <p className="text-sm text-stone-500">Sem atividade registada.</p>
           ) : (
             <ul className="divide-y divide-stone-100">
-              {recentAudit.map((log) => (
-                <li key={log.id} className="flex items-center justify-between py-2.5 text-sm">
-                  <div>
-                    <Badge color="blue">{log.action}</Badge>{" "}
-                    <span className="ml-2 text-stone-700">
-                      {log.entity}
-                      {log.entityId ? ` · ${log.entityId.slice(0, 8)}` : ""}
-                    </span>
-                    {log.details && <span className="ml-2 text-stone-500">— {log.details}</span>}
-                  </div>
-                  <div className="text-right text-stone-500">
-                    <div>{log.user?.name ?? "Sistema"}</div>
-                    <div>{log.createdAt.toLocaleString("pt-PT")}</div>
-                  </div>
-                </li>
-              ))}
+              {recentAudit.map((log) => {
+                const { sentence, color } = describeAuditLog(log);
+                return (
+                  <li key={log.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Badge color={color}>{log.user?.name ?? "Sistema"}</Badge>
+                      <span className="text-stone-700">{sentence}</span>
+                    </div>
+                    <div className="shrink-0 text-right text-xs text-stone-500">
+                      {log.createdAt.toLocaleString("pt-PT")}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

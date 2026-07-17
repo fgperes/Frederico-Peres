@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MapPin } from "lucide-react";
-import { clockAction, type GeoCoords } from "@/app/(app)/picagens/actions";
+import { MapPin, X } from "lucide-react";
+import { clockAction, dismissMealReminder, type GeoCoords } from "@/app/(app)/picagens/actions";
+import type { MealStatus } from "@/lib/meal-rules";
 
-const BUTTONS: { type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END"; label: string; color: string }[] = [
-  { type: "CLOCK_IN", label: "Entrada", color: "bg-emerald-600 hover:bg-emerald-700" },
-  { type: "BREAK_START", label: "Início Refeição", color: "bg-amber-500 hover:bg-amber-600" },
-  { type: "BREAK_END", label: "Fim Refeição", color: "bg-amber-600 hover:bg-amber-700" },
-  { type: "CLOCK_OUT", label: "Saída", color: "bg-rose-600 hover:bg-rose-700" },
-];
+type ButtonType = "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END";
+
+type ButtonSpec = {
+  type: ButtonType;
+  label: string;
+  color: string;
+  enabled: boolean;
+  hint?: string;
+};
 
 // Geolocalização (opcional): se o utilizador recusar ou o browser não
 // suportar, a picagem prossegue na mesma sem localização associada.
@@ -32,11 +36,72 @@ function getLocation(): Promise<GeoCoords | null> {
   });
 }
 
-export function ClockWidget({ compact = false }: { compact?: boolean }) {
-  const [pending, startTransition] = useTransition();
-  const [locating, setLocating] = useState<string | null>(null);
+function buildButtons(status: MealStatus): ButtonSpec[] {
+  const { phase, showMealButtons, hoursUntilMealAvailable } = status;
 
-  async function handleClick(type: (typeof BUTTONS)[number]["type"]) {
+  const buttons: ButtonSpec[] = [
+    {
+      type: "CLOCK_IN",
+      label: "Entrada",
+      color: "bg-emerald-600 hover:bg-emerald-700",
+      enabled: phase === "NOT_CLOCKED_IN" || phase === "CLOCKED_OUT",
+    },
+  ];
+
+  if (showMealButtons && (phase === "WORKING" || phase === "MEAL_AVAILABLE")) {
+    buttons.push({
+      type: "BREAK_START",
+      label: "Início Refeição",
+      color: "bg-amber-500 hover:bg-amber-600",
+      enabled: phase === "MEAL_AVAILABLE",
+      hint:
+        phase === "WORKING" && hoursUntilMealAvailable != null
+          ? `Disponível daqui a ${hoursUntilMealAvailable.toFixed(1)}h`
+          : undefined,
+    });
+  }
+
+  if (phase === "ON_MEAL") {
+    buttons.push({
+      type: "BREAK_END",
+      label: "Fim Refeição",
+      color: "bg-amber-600 hover:bg-amber-700",
+      enabled: true,
+    });
+  }
+
+  buttons.push({
+    type: "CLOCK_OUT",
+    label: "Saída",
+    color: "bg-rose-600 hover:bg-rose-700",
+    enabled: phase === "WORKING" || phase === "MEAL_AVAILABLE" || phase === "AFTER_MEAL",
+  });
+
+  return buttons;
+}
+
+const FALLBACK_STATUS: MealStatus = {
+  phase: "NOT_CLOCKED_IN",
+  showMealButtons: true,
+  dailyHours: 8,
+  elapsedHours: 0,
+  hoursUntilMealAvailable: null,
+  showReminder: false,
+  shiftId: null,
+};
+
+export function ClockWidget({
+  compact = false,
+  status = FALLBACK_STATUS,
+}: {
+  compact?: boolean;
+  status?: MealStatus;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [locating, setLocating] = useState<ButtonType | null>(null);
+  const [reminderDismissed, setReminderDismissed] = useState(false);
+
+  async function handleClick(type: ButtonType) {
     setLocating(type);
     const coords = await getLocation();
     setLocating(null);
@@ -45,20 +110,55 @@ export function ClockWidget({ compact = false }: { compact?: boolean }) {
     });
   }
 
+  function handleDismissReminder() {
+    setReminderDismissed(true);
+    if (status.shiftId) {
+      startTransition(() => {
+        dismissMealReminder(status.shiftId!);
+      });
+    }
+  }
+
+  const buttons = buildButtons(status);
+  const showReminder = status.showReminder && !reminderDismissed;
+
   return (
     <div>
+      {showReminder && (
+        <div className="mb-3 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+          <span>
+            Já leva mais de 5h em turno sem pausa para refeição. O seu gestor de RH e
+            supervisor foram avisados para ajustar a escala.
+          </span>
+          <button
+            type="button"
+            onClick={handleDismissReminder}
+            title="Dispensar lembrete"
+            className="shrink-0 rounded p-0.5 text-amber-600 hover:bg-amber-100"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className={compact ? "grid grid-cols-2 gap-2" : "grid grid-cols-2 gap-3 sm:grid-cols-4"}>
-        {BUTTONS.map((b) => (
+        {buttons.map((b) => (
           <button
             key={b.type}
-            disabled={pending || locating !== null}
+            disabled={pending || locating !== null || !b.enabled}
+            title={b.hint}
             onClick={() => handleClick(b.type)}
-            className={`rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-60 ${b.color}`}
+            className={`rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-40 ${b.color}`}
           >
             {locating === b.type ? "A localizar..." : b.label}
           </button>
         ))}
       </div>
+      {buttons.some((b) => b.hint) && (
+        <p className="mt-2 text-xs text-stone-500">
+          {buttons.find((b) => b.hint)?.hint}
+        </p>
+      )}
       {!compact && (
         <p className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-500">
           <MapPin size={13} />

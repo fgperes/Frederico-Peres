@@ -1,18 +1,52 @@
-import { ListTodo } from "lucide-react";
+"use client";
 
-// Placeholder: as regras/origem das tarefas ainda serão definidas.
-export function TasksPanel() {
+import { useTransition } from "react";
+import { ListTodo, Check } from "lucide-react";
+import { completeTask } from "./actions";
+import type { TaskItem } from "@/lib/tasks";
+
+export function TasksPanel({ tasks }: { tasks: TaskItem[] }) {
+  const [pending, startTransition] = useTransition();
+
   return (
     <div>
       <div className="border-b border-stone-200 px-4 py-3">
         <p className="text-sm font-semibold text-stone-900">Tarefas</p>
       </div>
-      <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-        <ListTodo size={20} className="text-stone-400" />
-        <p className="text-xs text-stone-500">
-          Módulo de tarefas em preparação.
-        </p>
-      </div>
+      {tasks.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+          <ListTodo size={20} className="text-stone-400" />
+          <p className="text-xs text-stone-500">Sem tarefas pendentes.</p>
+        </div>
+      ) : (
+        <ul className="max-h-80 divide-y divide-stone-100 overflow-y-auto">
+          {tasks.map((task) => (
+            <li key={task.id} className="flex items-start justify-between gap-2 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-stone-900">{task.title}</p>
+                {task.employeeName && (
+                  <p className="text-xs text-stone-500">Colaborador: {task.employeeName}</p>
+                )}
+                {task.description && (
+                  <p className="mt-0.5 text-xs text-stone-500">{task.description}</p>
+                )}
+                <p className="mt-0.5 text-[11px] text-stone-400">
+                  {task.createdAt.toLocaleString("pt-PT")}
+                </p>
+              </div>
+              <button
+                type="button"
+                title="Marcar como concluída"
+                disabled={pending}
+                onClick={() => startTransition(() => completeTask(task.id))}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-stone-300 text-stone-500 hover:border-emerald-500 hover:text-emerald-600 disabled:opacity-50"
+              >
+                <Check size={13} strokeWidth={2.5} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -7,19 +7,25 @@ export function PageHeader({
   description,
   action,
   icon: Icon,
+  avatar,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
   icon?: LucideIcon;
+  avatar?: ReactNode;
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
       <div className="flex items-start gap-3">
-        {Icon && (
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700">
-            <Icon size={20} strokeWidth={2} />
-          </span>
+        {avatar ? (
+          <span className="mt-0.5 shrink-0">{avatar}</span>
+        ) : (
+          Icon && (
+            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700">
+              <Icon size={20} strokeWidth={2} />
+            </span>
+          )
         )}
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900">

@@ -56,3 +56,15 @@ export async function markAllMessagesRead() {
   });
   revalidatePath("/", "layout");
 }
+
+export async function completeTask(taskId: string) {
+  const user = await requireUser();
+  const task = await prisma.task.updateMany({
+    where: { id: taskId, assigneeId: user.id, status: "OPEN" },
+    data: { status: "DONE", resolvedAt: new Date() },
+  });
+  if (task.count > 0) {
+    await logAudit({ userId: user.id, action: "DONE", entity: "Task", entityId: taskId });
+  }
+  revalidatePath("/", "layout");
+}

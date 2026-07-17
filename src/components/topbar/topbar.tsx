@@ -11,6 +11,8 @@ import { ViewAsSwitcher } from "./view-as-switcher";
 import type { NotificationItem } from "@/lib/notifications";
 import type { Recipient } from "@/lib/messaging";
 import type { Role } from "@/lib/roles";
+import type { TaskItem } from "@/lib/tasks";
+import type { MealStatus } from "@/lib/meal-rules";
 
 type InboxMessage = {
   id: string;
@@ -27,7 +29,9 @@ export function TopBar({
   unreadMessageCount,
   messages,
   recipients,
+  tasks,
   hasEmployee,
+  mealStatus,
   canPreviewRoles,
   currentViewAs,
 }: {
@@ -35,7 +39,9 @@ export function TopBar({
   unreadMessageCount: number;
   messages: InboxMessage[];
   recipients: Recipient[];
+  tasks: TaskItem[];
   hasEmployee: boolean;
+  mealStatus: MealStatus | null;
   canPreviewRoles: boolean;
   currentViewAs: Role | null;
 }) {
@@ -50,7 +56,7 @@ export function TopBar({
       <div>{canPreviewRoles && <ViewAsSwitcher currentViewAs={currentViewAs} />}</div>
 
       <div className="flex items-center gap-1">
-        {hasEmployee && (
+        {hasEmployee && mealStatus && (
           <DropdownButton
             icon={Clock}
             label="Picagem rápida"
@@ -59,7 +65,7 @@ export function TopBar({
             onClose={() => setOpen(null)}
             panelClassName="w-72"
           >
-            <ClockPanel onNavigate={() => setOpen(null)} />
+            <ClockPanel onNavigate={() => setOpen(null)} status={mealStatus} />
           </DropdownButton>
         )}
 
@@ -78,11 +84,12 @@ export function TopBar({
         <DropdownButton
           icon={ListTodo}
           label="Tarefas"
+          badgeCount={tasks.length}
           isOpen={open === "tasks"}
           onToggle={() => toggle("tasks")}
           onClose={() => setOpen(null)}
         >
-          <TasksPanel />
+          <TasksPanel tasks={tasks} />
         </DropdownButton>
 
         <DropdownButton

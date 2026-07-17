@@ -13,12 +13,13 @@ import {
   PalmtreeIcon,
   FileSignature,
   ShieldCheck,
-  KeyRound,
+  UserRound,
   LogOut,
   Banknote,
   type LucideIcon,
 } from "lucide-react";
 import { canRead, ROLE_LABELS, type Module, type Role } from "@/lib/roles";
+import { AvatarImage } from "@/lib/avatars";
 
 const NAV_ITEMS: { href: string; label: string; module: Module; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Dashboard", module: "recursos", icon: LayoutGrid },
@@ -33,21 +34,16 @@ const NAV_ITEMS: { href: string; label: string; module: Module; icon: LucideIcon
   { href: "/acessos", label: "Perfis e Acessos", module: "acessos", icon: ShieldCheck },
 ];
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (first + last).toUpperCase();
-}
-
 export function Nav({
   roles,
   name,
   email,
+  avatarKey,
 }: {
   roles: Role[];
   name: string;
   email: string;
+  avatarKey: string | null;
 }) {
   const pathname = usePathname();
 
@@ -92,9 +88,7 @@ export function Nav({
 
       <div className="border-t border-stone-200 p-4">
         <div className="mb-3 flex items-center gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
-            {initials(name)}
-          </span>
+          <AvatarImage avatarKey={avatarKey} name={name} size={36} />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-stone-900">{name}</p>
             <p className="truncate text-xs text-stone-500">{email}</p>
@@ -105,11 +99,11 @@ export function Nav({
         </p>
         <div className="flex gap-2">
           <Link
-            href="/alterar-password"
+            href="/perfil"
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
           >
-            <KeyRound size={14} />
-            Password
+            <UserRound size={14} />
+            Perfil
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}

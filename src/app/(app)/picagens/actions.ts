@@ -66,6 +66,20 @@ export async function clockAction(
   });
 
   revalidatePath("/picagens");
+  revalidatePath("/", "layout");
+}
+
+// Colaborador dispensa o lembrete de pausa de refeição em falta — a tarefa
+// já criada para o gestor de RH/supervisor mantém-se, só o aviso pessoal
+// deixa de aparecer para o resto do dia.
+export async function dismissMealReminder(shiftId: string) {
+  const user = await requireUser();
+  await prisma.shift.updateMany({
+    where: { id: shiftId, employeeId: user.employeeId ?? undefined },
+    data: { mealAlertDismissedAt: new Date() },
+  });
+  revalidatePath("/picagens");
+  revalidatePath("/", "layout");
 }
 
 // PI-03: colaborador submete justificação para picagem em falta/incorreta.

@@ -4,6 +4,7 @@ import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { getWeekStart, getWeekDays } from "@/lib/dates";
 import { computeWorkedHours } from "@/lib/hours";
+import { getTodayMealStatus } from "@/lib/meal-rules";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { ClockWidget } from "@/components/clock-widget";
 import { JustifyForm } from "./justify-form";
@@ -35,6 +36,15 @@ export default async function PicagensPage() {
         take: 15,
       })
     : [];
+
+  let mealStatus = null;
+  if (user.employeeId) {
+    const employee = await prisma.employee.findUnique({
+      where: { id: user.employeeId },
+      select: { weeklyHours: true },
+    });
+    mealStatus = await getTodayMealStatus(user.employeeId, employee?.weeklyHours ?? 40);
+  }
 
   const weekStart = getWeekStart();
   const weekDays = getWeekDays(weekStart);
@@ -86,7 +96,7 @@ export default async function PicagensPage() {
           <h2 className="mb-3 text-sm font-semibold text-stone-900">
             Relógio de Ponto
           </h2>
-          <ClockWidget />
+          {mealStatus && <ClockWidget status={mealStatus} />}
 
           <div className="mt-6">
             <h3 className="mb-2 text-xs font-semibold uppercase text-stone-500">
