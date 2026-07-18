@@ -87,27 +87,27 @@ function LoginForm() {
       </div>
 
       {/* Painel de login */}
-      <div className="flex flex-1 items-center justify-center bg-stone-50 px-6 py-12">
+      <div className="flex flex-1 items-center justify-center bg-stone-50 px-6 py-12 dark:bg-stone-950">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <div className="mb-3 flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-sm font-bold text-white">
                 S
               </span>
-              <span className="text-lg font-semibold text-stone-900">SGRH</span>
+              <span className="text-lg font-semibold text-stone-900 dark:text-stone-100">SGRH</span>
             </div>
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
             Bem-vindo de volta
           </h1>
-          <p className="mt-1.5 mb-8 text-sm text-stone-500">
+          <p className="mt-1.5 mb-8 text-sm text-stone-500 dark:text-stone-400">
             Entre com as suas credenciais para aceder à plataforma.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-stone-700">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">
                 Email
               </label>
               <div className="relative">
@@ -121,13 +121,13 @@ function LoginForm() {
                   autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-stone-300 py-2.5 pl-9 pr-3 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full rounded-lg border border-stone-300 py-2.5 pl-9 pr-3 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
                   placeholder="nome@empresa.pt"
                 />
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-stone-700">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">
                 Palavra-passe
               </label>
               <div className="relative">
@@ -140,7 +140,7 @@ function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-stone-300 py-2.5 pl-9 pr-3 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full rounded-lg border border-stone-300 py-2.5 pl-9 pr-3 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
                   placeholder="••••••••"
                 />
               </div>

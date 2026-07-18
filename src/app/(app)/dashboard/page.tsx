@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { name: true, avatarKey: true },
+    select: { name: true, avatarKey: true, avatarImage: true },
   });
 
   // A hierarquia de perfis decide qual painel ver: quem só tem o perfil
@@ -32,7 +32,14 @@ export default async function DashboardPage() {
   return (
     <div>
       <PageHeader
-        avatar={<AvatarImage avatarKey={dbUser?.avatarKey} name={user.name ?? ""} size={40} />}
+        avatar={
+          <AvatarImage
+            avatarKey={dbUser?.avatarKey}
+            avatarImage={dbUser?.avatarImage}
+            name={user.name ?? ""}
+            size={40}
+          />
+        }
         title={`Bem-vindo, ${user.name?.split(" ")[0]}`}
         description={`Perfis: ${user.roles.map((r) => ROLE_LABELS[r]).join(", ")}`}
       />

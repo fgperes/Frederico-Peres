@@ -125,7 +125,7 @@ export function ClockWidget({
   return (
     <div>
       {showReminder && (
-        <div className="mb-3 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+        <div className="mb-3 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20">
           <span>
             Já leva mais de 5h em turno sem pausa para refeição. O seu gestor de RH e
             supervisor foram avisados para ajustar a escala.
@@ -134,7 +134,7 @@ export function ClockWidget({
             type="button"
             onClick={handleDismissReminder}
             title="Dispensar lembrete"
-            className="shrink-0 rounded p-0.5 text-amber-600 hover:bg-amber-100"
+            className="shrink-0 rounded p-0.5 text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/20"
           >
             <X size={14} />
           </button>

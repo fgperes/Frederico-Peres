@@ -74,6 +74,44 @@ export async function getNotifications(user: SessionUser): Promise<NotificationI
     }
   }
 
+  // Documentos de identificação caducados: o gestor de RH é avisado para
+  // pedir a atualização ao(s) colaborador(es) em causa.
+  if (canWrite(user.roles, "recursos")) {
+    const count = await prisma.employee.count({
+      where: {
+        id: { in: scopedIds },
+        status: "ACTIVE",
+        idDocumentNoExpiry: false,
+        idDocumentExpiry: { not: null, lt: new Date() },
+      },
+    });
+    if (count > 0) {
+      items.push({
+        id: "expired-documents",
+        label: `${count} documento(s) de identificação caducado(s) — peça atualização`,
+        count,
+        href: "/colaboradores",
+      });
+    }
+  }
+
+  // O próprio colaborador é avisado de que o seu documento caducou, para
+  // enviar uma cópia atualizada.
+  if (user.employeeId) {
+    const own = await prisma.employee.findUnique({
+      where: { id: user.employeeId },
+      select: { idDocumentNoExpiry: true, idDocumentExpiry: true },
+    });
+    if (own && !own.idDocumentNoExpiry && own.idDocumentExpiry && own.idDocumentExpiry < new Date()) {
+      items.push({
+        id: "own-expired-document",
+        label: "O seu documento de identificação caducou — envie uma cópia atualizada",
+        count: 1,
+        href: `/colaboradores/${user.employeeId}/anexos`,
+      });
+    }
+  }
+
   return items;
 }
 

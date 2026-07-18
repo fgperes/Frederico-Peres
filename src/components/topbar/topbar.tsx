@@ -8,6 +8,7 @@ import { TasksPanel } from "./tasks-panel";
 import { MessagesPanel } from "./messages-panel";
 import { ClockPanel } from "./clock-panel";
 import { ViewAsSwitcher } from "./view-as-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { NotificationItem } from "@/lib/notifications";
 import type { Recipient } from "@/lib/messaging";
 import type { Role } from "@/lib/roles";
@@ -52,10 +53,12 @@ export function TopBar({
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-6 dark:border-stone-800 dark:bg-stone-900">
       <div>{canPreviewRoles && <ViewAsSwitcher currentViewAs={currentViewAs} />}</div>
 
       <div className="flex items-center gap-1">
+        <ThemeToggle />
+
         {hasEmployee && mealStatus && (
           <DropdownButton
             icon={Clock}

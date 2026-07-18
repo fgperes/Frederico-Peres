@@ -22,17 +22,17 @@ export function PageHeader({
           <span className="mt-0.5 shrink-0">{avatar}</span>
         ) : (
           Icon && (
-            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700">
+            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400">
               <Icon size={20} strokeWidth={2} />
             </span>
           )
         )}
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
             {title}
           </h1>
           {description && (
-            <p className="mt-1 text-sm text-stone-500">{description}</p>
+            <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{description}</p>
           )}
         </div>
       </div>
@@ -50,7 +50,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-stone-200 bg-white p-6 shadow-[0_1px_3px_rgba(28,25,23,0.06)] ${className}`}
+      className={`rounded-2xl border border-stone-200 bg-white p-6 shadow-[0_1px_3px_rgba(28,25,23,0.06)] dark:border-stone-800 dark:bg-stone-900 dark:shadow-none ${className}`}
     >
       {children}
     </div>
@@ -58,11 +58,11 @@ export function Card({
 }
 
 const STAT_ACCENTS = {
-  violet: "bg-violet-50 text-violet-700",
-  emerald: "bg-emerald-50 text-emerald-700",
-  amber: "bg-amber-50 text-amber-700",
-  rose: "bg-rose-50 text-rose-700",
-  sky: "bg-sky-50 text-sky-700",
+  violet: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400",
+  emerald: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  rose: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400",
+  sky: "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400",
 } as const;
 
 export function StatCard({
@@ -82,11 +82,11 @@ export function StatCard({
     <Card className="p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-stone-500">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-stone-900">
+          <p className="text-sm font-medium text-stone-500 dark:text-stone-400">{label}</p>
+          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
             {value}
           </p>
-          {hint && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
+          {hint && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{hint}</p>}
         </div>
         {Icon && (
           <span
@@ -101,11 +101,11 @@ export function StatCard({
 }
 
 const BADGE_COLORS = {
-  slate: "bg-stone-100 text-stone-600 ring-1 ring-inset ring-stone-200",
-  green: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
-  red: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20",
-  amber: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/20",
-  blue: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/20",
+  slate: "bg-stone-100 text-stone-600 ring-1 ring-inset ring-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-700",
+  green: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20",
+  red: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-500/10 dark:text-rose-400 dark:ring-rose-500/20",
+  amber: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20",
+  blue: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/20 dark:bg-violet-500/10 dark:text-violet-400 dark:ring-violet-500/20",
 } as const;
 
 export function Badge({
@@ -136,7 +136,7 @@ export function LinkButton({
   const styles =
     variant === "primary"
       ? "bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-600/20"
-      : "border border-stone-300 text-stone-700 hover:bg-stone-50";
+      : "border border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800";
   return (
     <Link
       href={href}
@@ -161,7 +161,7 @@ export function Button({
       ? "bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-600/20"
       : variant === "danger"
         ? "bg-rose-600 text-white hover:bg-rose-700 shadow-sm shadow-rose-600/20"
-        : "border border-stone-300 text-stone-700 hover:bg-stone-50";
+        : "border border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800";
   return (
     <button
       type={type}
@@ -181,13 +181,13 @@ export function EmptyState({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 p-10 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 bg-stone-50/50 p-10 text-center dark:border-stone-700 dark:bg-stone-900/50">
       {Icon && (
-        <span className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-500">
+        <span className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400">
           <Icon size={18} strokeWidth={1.75} />
         </span>
       )}
-      <p className="text-sm text-stone-500">{message}</p>
+      <p className="text-sm text-stone-500 dark:text-stone-400">{message}</p>
     </div>
   );
 }

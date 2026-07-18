@@ -39,6 +39,11 @@ export default async function ImportarColaboradoresPage() {
           <h2 className="mb-3 text-sm font-semibold text-stone-900">
             Novo Ficheiro
           </h2>
+          <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20">
+            Dados pessoais obrigatórios (sem estes, a linha é rejeitada):{" "}
+            <strong>nome próprio, apelido, email e NIF</strong>. A função
+            (cargo) também é sempre exigida.
+          </p>
           <ImportForm />
         </Card>
 

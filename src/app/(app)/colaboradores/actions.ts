@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { parseExcelFile } from "@/lib/excel";
+import { ID_DOCUMENT_TYPES } from "@/lib/employee-constants";
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "Nome próprio obrigatório"),
@@ -27,6 +28,9 @@ const employeeSchema = z.object({
     ),
   address: z.string().optional(),
   idDocument: z.string().optional(),
+  idDocumentType: z.enum(ID_DOCUMENT_TYPES).optional().or(z.literal("")),
+  idDocumentExpiry: z.string().optional(),
+  idDocumentNoExpiry: z.coerce.boolean().optional(),
   socialSecurityNo: z.string().optional(),
   jobTitle: z.string().min(1, "Função obrigatória"),
   departmentId: z.string().optional(),
@@ -73,6 +77,13 @@ export async function createEmployee(formData: FormData) {
       iban: toNullable(data.iban),
       address: toNullable(data.address),
       idDocument: toNullable(data.idDocument),
+      idDocumentType: toNullable(data.idDocumentType),
+      idDocumentExpiry: data.idDocumentNoExpiry
+        ? null
+        : data.idDocumentExpiry
+          ? new Date(data.idDocumentExpiry)
+          : null,
+      idDocumentNoExpiry: !!data.idDocumentNoExpiry,
       socialSecurityNo: toNullable(data.socialSecurityNo),
       jobTitle: data.jobTitle,
       departmentId: toNullable(data.departmentId),
@@ -126,6 +137,13 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
       iban: toNullable(data.iban),
       address: toNullable(data.address),
       idDocument: toNullable(data.idDocument),
+      idDocumentType: toNullable(data.idDocumentType),
+      idDocumentExpiry: data.idDocumentNoExpiry
+        ? null
+        : data.idDocumentExpiry
+          ? new Date(data.idDocumentExpiry)
+          : null,
+      idDocumentNoExpiry: !!data.idDocumentNoExpiry,
       socialSecurityNo: toNullable(data.socialSecurityNo),
       jobTitle: data.jobTitle,
       departmentId: toNullable(data.departmentId),
@@ -205,15 +223,27 @@ export type ImportState = {
   result?: { total: number; created: number; errorReport: string[] };
 };
 
+// Dados pessoais obrigatórios do colaborador (não é possível importar uma
+// linha sem estes campos): nome próprio, apelido, email e NIF. A função
+// (jobTitle) também é exigida, mas por ser um dado organizacional
+// obrigatório na base de dados — não é "dado pessoal".
 const importRowSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  email: z.string().email(),
-  jobTitle: z.string().min(1),
+  firstName: z.coerce.string().trim().min(1, "nome próprio em falta (dado pessoal obrigatório)"),
+  lastName: z.coerce.string().trim().min(1, "apelido em falta (dado pessoal obrigatório)"),
+  email: z
+    .coerce.string()
+    .trim()
+    .min(1, "email em falta (dado pessoal obrigatório)")
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "email inválido"),
+  nif: z
+    .coerce.string()
+    .trim()
+    .min(1, "NIF em falta (dado pessoal obrigatório)")
+    .regex(/^\d{9}$/, "NIF deve ter 9 dígitos"),
+  jobTitle: z.coerce.string().trim().min(1, "função em falta"),
   department: z.string().optional(),
   employmentType: z.enum(["FULL_TIME", "PART_TIME"]).default("FULL_TIME"),
   weeklyHours: z.coerce.number().min(0).max(80).default(40),
-  nif: z.string().optional(),
   phone: z.string().optional(),
   hireDate: z.string().optional(),
 });
@@ -266,6 +296,12 @@ export async function importEmployeesAction(
     const exists = await prisma.employee.findUnique({ where: { email: data.email.toLowerCase() } });
     if (exists) {
       errorReport.push(`Linha ${rowNum}: já existe um colaborador com o email ${data.email}.`);
+      continue;
+    }
+
+    const nifExists = await prisma.employee.findUnique({ where: { nif: data.nif } });
+    if (nifExists) {
+      errorReport.push(`Linha ${rowNum}: já existe um colaborador com o NIF ${data.nif}.`);
       continue;
     }
 

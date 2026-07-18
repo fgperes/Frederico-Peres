@@ -24,7 +24,7 @@ export default async function AppLayout({
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { avatarKey: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { avatarKey: true, avatarImage: true } }),
     getOpenTasks(user.id),
   ]);
 
@@ -44,6 +44,7 @@ export default async function AppLayout({
         name={user.name ?? ""}
         email={user.email ?? ""}
         avatarKey={dbUser?.avatarKey ?? null}
+        avatarImage={dbUser?.avatarImage ?? null}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar
@@ -57,7 +58,7 @@ export default async function AppLayout({
           canPreviewRoles={user.realRoles.includes("ADMIN_SISTEMA")}
           currentViewAs={user.isViewingAs ? user.roles[0] : null}
         />
-        <main className="flex-1 overflow-y-auto bg-stone-100 p-8">
+        <main className="flex-1 overflow-y-auto bg-stone-100 p-8 dark:bg-stone-950">
           {children}
         </main>
       </div>

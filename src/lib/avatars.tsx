@@ -238,14 +238,17 @@ function initials(name: string) {
   return (first + last).toUpperCase();
 }
 
-// Mostra o avatar escolhido, ou as iniciais do nome como alternativa.
+// Mostra a foto carregada pelo utilizador (se existir), senão o avatar
+// predefinido escolhido, senão as iniciais do nome.
 export function AvatarImage({
   avatarKey,
+  avatarImage,
   name,
   size = 36,
   className = "",
 }: {
   avatarKey?: string | null;
+  avatarImage?: string | null;
   name: string;
   size?: number;
   className?: string;
@@ -253,10 +256,17 @@ export function AvatarImage({
   const avatar = getAvatar(avatarKey);
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-100 text-xs font-semibold text-violet-700 ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-100 text-xs font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 ${className}`}
       style={{ width: size, height: size }}
     >
-      {avatar ? avatar.render() : initials(name)}
+      {avatarImage ? (
+        // eslint-disable-next-line @next/next/no-img-element -- data URI, não é um asset otimizável pelo next/image
+        <img src={avatarImage} alt={name} className="h-full w-full object-cover" />
+      ) : avatar ? (
+        avatar.render()
+      ) : (
+        initials(name)
+      )}
     </span>
   );
 }

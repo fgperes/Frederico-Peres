@@ -4,7 +4,9 @@ import { canWrite, canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, Button, LinkButton } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
+import { ColaboradorTabs } from "./tabs";
 import { updateEmployee, setEmployeeStatus } from "../actions";
+import { ID_DOCUMENT_TYPE_LABELS, type IdDocumentType } from "@/lib/employee-constants";
 import { notFound } from "next/navigation";
 import { User, Banknote } from "lucide-react";
 
@@ -66,6 +68,8 @@ export default async function ColaboradorDetailPage({
         }
       />
 
+      <ColaboradorTabs employeeId={employee.id} />
+
       <Card>
         {canEdit ? (
           <EmployeeForm
@@ -83,15 +87,15 @@ export default async function ColaboradorDetailPage({
 
       {employee.history.length > 0 && (
         <Card className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
             Histórico de Alterações
           </h2>
           <ul className="space-y-2 text-sm">
             {employee.history.map((h) => (
-              <li key={h.id} className="text-stone-600">
+              <li key={h.id} className="text-stone-600 dark:text-stone-400">
                 <span className="font-medium">{h.field}</span>:{" "}
                 {h.oldValue ?? "—"} → {h.newValue ?? "—"}{" "}
-                <span className="text-xs text-stone-500">
+                <span className="text-xs text-stone-500 dark:text-stone-500">
                   ({h.changedBy}, {h.createdAt.toLocaleDateString("pt-PT")})
                 </span>
               </li>
@@ -113,8 +117,17 @@ function ReadOnlyView({
     employmentType: string;
     weeklyHours: number;
     hireDate: Date | null;
+    idDocument: string | null;
+    idDocumentType: string | null;
+    idDocumentExpiry: Date | null;
+    idDocumentNoExpiry: boolean;
   };
 }) {
+  const isExpired =
+    !employee.idDocumentNoExpiry &&
+    !!employee.idDocumentExpiry &&
+    employee.idDocumentExpiry < new Date();
+
   return (
     <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
       <Info label="Email" value={employee.email} />
@@ -133,6 +146,25 @@ function ReadOnlyView({
             : "—"
         }
       />
+      <Info
+        label="Documento de identificação"
+        value={
+          employee.idDocumentType
+            ? ID_DOCUMENT_TYPE_LABELS[employee.idDocumentType as IdDocumentType]
+            : "—"
+        }
+      />
+      <div>
+        <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">Validade</dt>
+        <dd className="mt-0.5 flex items-center gap-2 text-stone-900 dark:text-stone-100">
+          {employee.idDocumentNoExpiry
+            ? "Vitalício"
+            : employee.idDocumentExpiry
+              ? employee.idDocumentExpiry.toLocaleDateString("pt-PT")
+              : "—"}
+          {isExpired && <Badge color="red">Caducado</Badge>}
+        </dd>
+      </div>
     </dl>
   );
 }
@@ -140,8 +172,8 @@ function ReadOnlyView({
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-stone-500">{label}</dt>
-      <dd className="mt-0.5 text-stone-900">{value}</dd>
+      <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">{label}</dt>
+      <dd className="mt-0.5 text-stone-900 dark:text-stone-100">{value}</dd>
     </div>
   );
 }

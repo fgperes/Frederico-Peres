@@ -50,7 +50,9 @@ export function DropdownButton({
         aria-label={label}
         title={label}
         className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-          isOpen ? "bg-violet-50 text-violet-700" : "text-stone-500 hover:bg-stone-100 hover:text-stone-900"
+          isOpen
+            ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
+            : "text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
         }`}
       >
         <Icon size={18} strokeWidth={2} />
@@ -63,7 +65,7 @@ export function DropdownButton({
 
       {isOpen && (
         <div
-          className={`absolute right-0 z-40 mt-2 origin-top-right rounded-xl border border-stone-200 bg-white shadow-lg ${panelClassName}`}
+          className={`absolute right-0 z-40 mt-2 origin-top-right rounded-xl border border-stone-200 bg-white shadow-lg dark:border-stone-700 dark:bg-stone-900 ${panelClassName}`}
         >
           {children}
         </div>

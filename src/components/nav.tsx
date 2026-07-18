@@ -39,11 +39,13 @@ export function Nav({
   name,
   email,
   avatarKey,
+  avatarImage,
 }: {
   roles: Role[];
   name: string;
   email: string;
   avatarKey: string | null;
+  avatarImage: string | null;
 }) {
   const pathname = usePathname();
 
@@ -53,14 +55,14 @@ export function Nav({
   });
 
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col border-r border-stone-200 bg-white">
-      <div className="flex items-center gap-2.5 border-b border-stone-200 px-5 py-4">
+    <div className="flex h-full w-64 shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
+      <div className="flex items-center gap-2.5 border-b border-stone-200 px-5 py-4 dark:border-stone-800">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-sm font-bold text-white shadow-sm shadow-violet-600/30">
           S
         </span>
         <div>
-          <p className="text-sm font-semibold leading-tight text-stone-900">SGRH</p>
-          <p className="text-xs leading-tight text-stone-500">Gestão de RH</p>
+          <p className="text-sm font-semibold leading-tight text-stone-900 dark:text-stone-100">SGRH</p>
+          <p className="text-xs leading-tight text-stone-500 dark:text-stone-400">Gestão de RH</p>
         </div>
       </div>
 
@@ -75,39 +77,39 @@ export function Nav({
               href={item.href}
               className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-violet-50 text-violet-700"
-                  : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                  ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
+                  : "text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
               }`}
             >
-              <Icon size={17} strokeWidth={2} className={active ? "text-violet-600" : "text-stone-500"} />
+              <Icon size={17} strokeWidth={2} className={active ? "text-violet-600 dark:text-violet-400" : "text-stone-500"} />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-stone-200 p-4">
+      <div className="border-t border-stone-200 p-4 dark:border-stone-800">
         <div className="mb-3 flex items-center gap-2.5">
-          <AvatarImage avatarKey={avatarKey} name={name} size={36} />
+          <AvatarImage avatarKey={avatarKey} avatarImage={avatarImage} name={name} size={36} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-stone-900">{name}</p>
-            <p className="truncate text-xs text-stone-500">{email}</p>
+            <p className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">{name}</p>
+            <p className="truncate text-xs text-stone-500 dark:text-stone-400">{email}</p>
           </div>
         </div>
-        <p className="mb-3 truncate text-xs text-stone-500">
+        <p className="mb-3 truncate text-xs text-stone-500 dark:text-stone-400">
           {roles.map((r) => ROLE_LABELS[r]).join(", ")}
         </p>
         <div className="flex gap-2">
           <Link
             href="/perfil"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
             <UserRound size={14} />
             Perfil
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
             <LogOut size={14} />
             Sair

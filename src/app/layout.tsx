@@ -27,8 +27,23 @@ export default function RootLayout({
     <html
       lang="pt"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-stone-50 text-stone-900">
+      <head>
+        {/* Aplica o tema guardado antes da hidratação, para evitar o "flash"
+            de tema claro ao abrir uma página com o modo escuro ativo. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try {
+              var t = localStorage.getItem("sgrh-theme");
+              if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+                document.documentElement.classList.add("dark");
+              }
+            } catch (e) {}`,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
         <Providers>{children}</Providers>
       </body>
     </html>

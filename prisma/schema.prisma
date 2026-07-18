@@ -29,6 +29,7 @@ model User {
   passwordHash       String
   name               String
   avatarKey          String? // referência a um avatar predefinido (ver lib/avatars.tsx)
+  avatarImage        String? // foto carregada pelo próprio (data URI, redimensionada no browser); tem prioridade sobre avatarKey
   roles              UserRole[]
   employee           Employee?
   active             Boolean    @default(true)
@@ -144,16 +145,19 @@ model Employee {
   user   User?   @relation(fields: [userId], references: [id])
 
   // Dados pessoais
-  firstName        String
-  lastName         String
-  email            String    @unique
-  phone            String?
-  address          String?
-  nif              String?   @unique
-  idDocument       String?
-  socialSecurityNo String?
-  iban             String?
-  birthDate        DateTime?
+  firstName          String
+  lastName           String
+  email              String    @unique
+  phone              String?
+  address            String?
+  nif                String?   @unique
+  idDocument         String?
+  idDocumentType     String? // CARTAO_CIDADAO | TITULO_RESIDENCIA | PASSAPORTE | BILHETE_IDENTIDADE
+  idDocumentExpiry   DateTime?
+  idDocumentNoExpiry Boolean   @default(false) // vitalício
+  socialSecurityNo   String?
+  iban               String?
+  birthDate          DateTime?
 
   // Dados organizacionais
   jobTitle     String
@@ -212,13 +216,15 @@ model EmployeeHistory {
 }
 
 model EmployeeDocument {
-  id         String   @id @default(cuid())
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  name       String
-  type       String
-  fileName   String
-  uploadedAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name         String // label dado pelo utilizador ao anexo
+  type         String // tipo MIME do ficheiro carregado
+  fileName     String // nome original do ficheiro
+  fileData     String // conteúdo do ficheiro em data URI (base64)
+  uploadedById String?
+  uploadedAt   DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------

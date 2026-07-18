@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import type { Department, Location, Team, Employee } from "@prisma/client";
+import { ID_DOCUMENT_TYPES, ID_DOCUMENT_TYPE_LABELS } from "@/lib/employee-constants";
 
 export function EmployeeForm({
   action,
@@ -15,10 +19,12 @@ export function EmployeeForm({
   managers: Employee[];
   employee?: Employee | null;
 }) {
+  const [noExpiry, setNoExpiry] = useState(employee?.idDocumentNoExpiry ?? false);
+
   return (
     <form action={action} className="space-y-8">
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-stone-900">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
           Dados Pessoais
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -28,14 +34,55 @@ export function EmployeeForm({
           <Field label="Telefone" name="phone" defaultValue={employee?.phone ?? ""} />
           <Field label="NIF" name="nif" defaultValue={employee?.nif ?? ""} />
           <Field label="IBAN" name="iban" defaultValue={employee?.iban ?? ""} />
-          <Field label="Documento de identificação" name="idDocument" defaultValue={employee?.idDocument ?? ""} />
+          <Field label="Nº do documento de identificação" name="idDocument" defaultValue={employee?.idDocument ?? ""} />
+          <SelectField
+            label="Tipo de documento de identificação"
+            name="idDocumentType"
+            defaultValue={employee?.idDocumentType ?? ""}
+            options={ID_DOCUMENT_TYPES.map((t) => ({ value: t, label: ID_DOCUMENT_TYPE_LABELS[t] }))}
+          />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Data de caducidade
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                name="idDocumentExpiry"
+                disabled={noExpiry}
+                defaultValue={
+                  employee?.idDocumentExpiry
+                    ? employee.idDocumentExpiry.toISOString().slice(0, 10)
+                    : ""
+                }
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:bg-stone-100 disabled:text-stone-400 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:disabled:bg-stone-900 dark:disabled:text-stone-600"
+              />
+              <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-stone-600 dark:text-stone-400">
+                <input
+                  type="checkbox"
+                  name="idDocumentNoExpiry"
+                  checked={noExpiry}
+                  onChange={(e) => setNoExpiry(e.target.checked)}
+                  className="rounded border-stone-300"
+                />
+                Vitalício
+              </label>
+            </div>
+            {!noExpiry &&
+              employee?.idDocumentExpiry &&
+              new Date(employee.idDocumentExpiry) < new Date() && (
+                <p className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400">
+                  Documento caducado — peça uma cópia atualizada ao colaborador.
+                </p>
+              )}
+          </div>
           <Field label="Nº Segurança Social" name="socialSecurityNo" defaultValue={employee?.socialSecurityNo ?? ""} />
           <Field label="Morada" name="address" defaultValue={employee?.address ?? ""} className="sm:col-span-2" />
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-stone-900">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
           Dados Organizacionais
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -72,7 +119,7 @@ export function EmployeeForm({
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-stone-900">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
           Especificações para Horários
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -145,7 +192,7 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-xs font-medium text-stone-600">
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
         {label}
       </label>
       <input
@@ -154,7 +201,7 @@ function Field({
         step={step}
         defaultValue={defaultValue ?? ""}
         required={required}
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
       />
     </div>
   );
@@ -173,13 +220,13 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-stone-600">
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
         {label}
       </label>
       <select
         name={name}
         defaultValue={defaultValue}
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
       >
         <option value="">—</option>
         {options.map((o) => (
