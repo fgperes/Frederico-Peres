@@ -2,12 +2,19 @@
 
 import { useTransition } from "react";
 import { Eye, X } from "lucide-react";
-import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
+import type { Role } from "@/lib/roles";
 import { setViewAsRole, clearViewAsRole } from "./view-as-actions";
 
-export function ViewAsSwitcher({ currentViewAs }: { currentViewAs: Role | null }) {
+export function ViewAsSwitcher({
+  currentViewAs,
+  currentViewAsLabel,
+  previewableRoles,
+}: {
+  currentViewAs: Role | null;
+  currentViewAsLabel: string | null;
+  previewableRoles: { key: Role; label: string }[];
+}) {
   const [pending, startTransition] = useTransition();
-  const previewableRoles = ROLES.filter((r) => r !== "ADMIN_SISTEMA");
 
   function handleChange(role: string) {
     const formData = new FormData();
@@ -22,7 +29,7 @@ export function ViewAsSwitcher({ currentViewAs }: { currentViewAs: Role | null }
       <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-800 ring-1 ring-inset ring-amber-600/20">
         <Eye size={15} />
         <span>
-          A pré-visualizar como <strong>{ROLE_LABELS[currentViewAs]}</strong>
+          A pré-visualizar como <strong>{currentViewAsLabel ?? currentViewAs}</strong>
         </span>
         <button
           type="button"
@@ -48,8 +55,8 @@ export function ViewAsSwitcher({ currentViewAs }: { currentViewAs: Role | null }
       >
         <option value="">Ver como...</option>
         {previewableRoles.map((role) => (
-          <option key={role} value={role}>
-            {ROLE_LABELS[role]}
+          <option key={role.key} value={role.key}>
+            {role.label}
           </option>
         ))}
       </select>

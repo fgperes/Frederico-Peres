@@ -14,13 +14,19 @@ datasource db {
 // Perfis de Acesso e Permissões (secção 4)
 // ---------------------------------------------------------------------------
 
-enum Role {
-  ADMIN_SISTEMA
-  ADMIN_RH
-  GESTOR_EQUIPA
-  COLABORADOR
-  RH_CONTRATOS
-  AUDITOR
+// Tipos de perfil. Os 6 perfis originais são semeados automaticamente (ver
+// ensureMatrixLoaded em lib/roles.ts); o Administrador do Sistema pode criar,
+// renomear e eliminar perfis adicionais em Perfis e Acessos → Perfis.
+// isSystem protege ADMIN_SISTEMA e COLABORADOR (estruturais à aplicação) de
+// serem eliminados.
+model RoleDefinition {
+  id          String   @id @default(cuid())
+  key         String   @unique // identificador interno estável, nunca editável após criação
+  label       String
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedById String?
 }
 
 model User {
@@ -85,7 +91,7 @@ model UserRole {
   id           String      @id @default(cuid())
   userId       String
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role         Role
+  role         String
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
   createdAt    DateTime    @default(now())
@@ -109,7 +115,7 @@ model AuditLog {
 // Acessos. Perfil+módulo sem registo aqui usam o valor por omissão.
 model RolePermission {
   id          String   @id @default(cuid())
-  role        Role
+  role        String
   module      String
   accessLevel String // rw | ro | none
   updatedAt   DateTime @updatedAt

@@ -2,15 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CONFIGURABLE_ROLES,
-  MODULES,
-  MODULE_LABELS,
-  ROLE_LABELS,
-  type AccessLevel,
-  type Module,
-  type Role,
-} from "@/lib/roles";
+import { MODULES, MODULE_LABELS, type AccessLevel, type Module, type Role } from "@/lib/roles";
 import { updateRolePermissions } from "./actions";
 import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
 
@@ -30,9 +22,13 @@ const LEVEL_SHORT_LABELS: Record<Exclude<AccessLevel, "own">, string> = {
 export function PermissionsMatrix({
   matrix,
   canEdit,
+  configurableRoles,
+  roleLabels,
 }: {
   matrix: Record<Role, Record<Module, AccessLevel>>;
   canEdit: boolean;
+  configurableRoles: Role[];
+  roleLabels: Record<Role, string>;
 }) {
   const [pending, startTransition] = useTransition();
   const { status, message, run } = useSaveFeedback();
@@ -73,10 +69,10 @@ export function PermissionsMatrix({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-              {CONFIGURABLE_ROLES.map((role) => (
+              {configurableRoles.map((role) => (
                 <tr key={role}>
                   <td className="px-3 py-2 align-middle font-medium text-stone-800 dark:text-stone-200">
-                    {ROLE_LABELS[role]}
+                    {roleLabels[role] ?? role}
                   </td>
                   {MODULES.map((mod) => {
                     const isLockedAdminAcessos = role === "ADMIN_SISTEMA" && mod === "acessos";
@@ -119,7 +115,7 @@ export function PermissionsMatrix({
               ))}
               <tr>
                 <td className="px-3 py-2 font-medium text-stone-800 dark:text-stone-200">
-                  {ROLE_LABELS.COLABORADOR}
+                  {roleLabels.COLABORADOR ?? "Colaborador"}
                 </td>
                 <td colSpan={MODULES.length} className="px-3 py-2 text-xs text-stone-500 dark:text-stone-400">
                   Perfil de auto-serviço — acesso apenas aos seus próprios dados. Não é configurável nesta grelha.

@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { ROLES, ROLE_LABELS } from "@/lib/roles";
 import { Nav } from "@/components/nav";
 import { TopBar } from "@/components/topbar/topbar";
 import { getNotifications, getUnreadMessageCount } from "@/lib/notifications";
@@ -57,6 +58,11 @@ export default async function AppLayout({
           mealStatus={mealStatus}
           canPreviewRoles={user.realRoles.includes("ADMIN_SISTEMA")}
           currentViewAs={user.isViewingAs ? user.roles[0] : null}
+          currentViewAsLabel={user.isViewingAs ? (ROLE_LABELS[user.roles[0]] ?? user.roles[0]) : null}
+          previewableRoles={ROLES.filter((r) => r !== "ADMIN_SISTEMA").map((key) => ({
+            key,
+            label: ROLE_LABELS[key],
+          }))}
         />
         <main className="flex-1 overflow-y-auto bg-stone-100 p-8 dark:bg-stone-950">
           {children}

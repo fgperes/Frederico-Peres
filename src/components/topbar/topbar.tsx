@@ -35,6 +35,8 @@ export function TopBar({
   mealStatus,
   canPreviewRoles,
   currentViewAs,
+  currentViewAsLabel,
+  previewableRoles,
 }: {
   notifications: NotificationItem[];
   unreadMessageCount: number;
@@ -45,6 +47,8 @@ export function TopBar({
   mealStatus: MealStatus | null;
   canPreviewRoles: boolean;
   currentViewAs: Role | null;
+  currentViewAsLabel: string | null;
+  previewableRoles: { key: Role; label: string }[];
 }) {
   const [open, setOpen] = useState<Panel>(null);
 
@@ -54,7 +58,15 @@ export function TopBar({
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-6 dark:border-stone-800 dark:bg-stone-900">
-      <div>{canPreviewRoles && <ViewAsSwitcher currentViewAs={currentViewAs} />}</div>
+      <div>
+        {canPreviewRoles && (
+          <ViewAsSwitcher
+            currentViewAs={currentViewAs}
+            currentViewAsLabel={currentViewAsLabel}
+            previewableRoles={previewableRoles}
+          />
+        )}
+      </div>
 
       <div className="flex items-center gap-1">
         <ThemeToggle />

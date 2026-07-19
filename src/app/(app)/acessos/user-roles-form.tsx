@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
+import type { Role } from "@/lib/roles";
 import { updateUserRoles } from "./actions";
 import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
 
@@ -11,11 +11,13 @@ export function UserRolesForm({
   currentRoles,
   currentDepartmentId,
   departments,
+  roles,
 }: {
   userId: string;
   currentRoles: Role[];
   currentDepartmentId: string | null;
   departments: { id: string; name: string }[];
+  roles: { key: Role; label: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const { status, message, run } = useSaveFeedback();
@@ -35,16 +37,16 @@ export function UserRolesForm({
       <SaveBanner status={status} message={message} />
       <form action={handleSubmit} className="space-y-2">
         <div className="grid grid-cols-1 gap-1">
-          {ROLES.map((role) => (
-            <label key={role} className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+          {roles.map((role) => (
+            <label key={role.key} className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
               <input
                 type="checkbox"
                 name="roles"
-                value={role}
-                defaultChecked={currentRoles.includes(role)}
+                value={role.key}
+                defaultChecked={currentRoles.includes(role.key)}
                 className="rounded border-stone-300"
               />
-              {ROLE_LABELS[role]}
+              {role.label}
             </label>
           ))}
         </div>

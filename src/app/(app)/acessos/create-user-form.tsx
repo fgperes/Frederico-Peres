@@ -2,12 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { createUserAction, type CreateUserState } from "./actions";
-import { ROLES, ROLE_LABELS } from "@/lib/roles";
+import type { Role } from "@/lib/roles";
 import { SaveBanner } from "@/components/save-banner";
 
 const initialState: CreateUserState = {};
 
-export function CreateUserForm() {
+export function CreateUserForm({ roles }: { roles: { key: Role; label: string }[] }) {
   const [state, formAction, pending] = useActionState(
     createUserAction,
     initialState
@@ -79,10 +79,10 @@ export function CreateUserForm() {
               Perfis de acesso
             </label>
             <div className="grid grid-cols-2 gap-1.5">
-              {ROLES.map((role) => (
-                <label key={role} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                  <input type="checkbox" name="roles" value={role} className="rounded border-stone-300" />
-                  {ROLE_LABELS[role]}
+              {roles.map((role) => (
+                <label key={role.key} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                  <input type="checkbox" name="roles" value={role.key} className="rounded border-stone-300" />
+                  {role.label}
                 </label>
               ))}
             </div>

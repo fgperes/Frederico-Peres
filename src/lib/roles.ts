@@ -1,24 +1,50 @@
 import { prisma } from "@/lib/prisma";
 
-export const ROLES = [
-  "ADMIN_SISTEMA",
-  "ADMIN_RH",
-  "GESTOR_EQUIPA",
-  "COLABORADOR",
-  "RH_CONTRATOS",
-  "AUDITOR",
-] as const;
+export type Role = string;
 
-export type Role = (typeof ROLES)[number];
+export type RoleDefinitionInfo = { key: Role; label: string; isSystem: boolean };
 
-export const ROLE_LABELS: Record<Role, string> = {
-  ADMIN_SISTEMA: "Administrador do Sistema",
-  ADMIN_RH: "Administrador de RH",
-  GESTOR_EQUIPA: "Gestor de Equipa",
-  COLABORADOR: "Colaborador",
-  RH_CONTRATOS: "Recursos Humanos — Contratos",
-  AUDITOR: "Auditor / Só-Leitura",
-};
+// Os 6 perfis originais da aplicação. Semeados automaticamente na base de
+// dados (ver ensureMatrixLoaded) caso ainda não existam. ADMIN_SISTEMA e
+// COLABORADOR são estruturais (isSystem) e não podem ser eliminados — o
+// resto pode ser renomeado ou apagado como qualquer perfil criado depois.
+const BUILTIN_ROLE_DEFS: RoleDefinitionInfo[] = [
+  { key: "ADMIN_SISTEMA", label: "Administrador do Sistema", isSystem: true },
+  { key: "ADMIN_RH", label: "Administrador de RH", isSystem: false },
+  { key: "GESTOR_EQUIPA", label: "Gestor de Equipa", isSystem: false },
+  { key: "COLABORADOR", label: "Colaborador", isSystem: true },
+  { key: "RH_CONTRATOS", label: "Recursos Humanos — Contratos", isSystem: false },
+  { key: "AUDITOR", label: "Auditor / Só-Leitura", isSystem: false },
+];
+
+// Arrays/objetos mutados no próprio local (nunca reatribuídos) para que
+// todos os módulos que os importam vejam sempre o valor atual — o mesmo
+// truque já usado por runtimeMatrix, sem precisar de tocar em dezenas de
+// ficheiros consumidores.
+export const ROLES: Role[] = BUILTIN_ROLE_DEFS.map((d) => d.key);
+export const ROLE_LABELS: Record<Role, string> = Object.fromEntries(
+  BUILTIN_ROLE_DEFS.map((d) => [d.key, d.label])
+);
+export const CONFIGURABLE_ROLES: Role[] = ROLES.filter((r) => r !== "COLABORADOR");
+
+let runtimeRoleDefs: RoleDefinitionInfo[] = BUILTIN_ROLE_DEFS.map((d) => ({ ...d }));
+
+function rebuildDerivedRoleState() {
+  const keys = runtimeRoleDefs.map((d) => d.key);
+
+  ROLES.length = 0;
+  ROLES.push(...keys);
+
+  for (const k of Object.keys(ROLE_LABELS)) delete ROLE_LABELS[k];
+  for (const d of runtimeRoleDefs) ROLE_LABELS[d.key] = d.label;
+
+  CONFIGURABLE_ROLES.length = 0;
+  CONFIGURABLE_ROLES.push(...keys.filter((k) => k !== "COLABORADOR"));
+}
+
+export function getRoleDefinitionsSnapshot(): RoleDefinitionInfo[] {
+  return runtimeRoleDefs;
+}
 
 // Módulos que cada perfil pode aceder e respetivo nível de escrita.
 // "rw" = leitura/escrita, "ro" = apenas leitura, "own" = apenas os seus próprios dados
@@ -56,19 +82,14 @@ export const MODULE_LABELS: Record<Module, string> = {
   payroll: "Payroll",
 };
 
-// Perfis cujo acesso pode ser reconfigurado em Perfis e Acessos. O
-// Colaborador fica de fora: os seus módulos são "own" (dados próprios),
-// um conceito diferente de rw/ro/none que não faz sentido reatribuir aqui.
-export const CONFIGURABLE_ROLES: Role[] = [
-  "ADMIN_SISTEMA",
-  "ADMIN_RH",
-  "GESTOR_EQUIPA",
-  "RH_CONTRATOS",
-  "AUDITOR",
-];
+function allNoneRow(): Record<Module, AccessLevel> {
+  return Object.fromEntries(MODULES.map((m) => [m, "none"])) as Record<Module, AccessLevel>;
+}
 
-// Matriz por omissão — usada como base sempre que não existir um desvio
-// gravado em RolePermission (BD). Alterada em runtime por loadMatrixOverrides().
+// Matriz por omissão dos 6 perfis originais — usada como base sempre que não
+// existir um desvio gravado em RolePermission (BD). Um perfil novo (criado
+// pelo Administrador do Sistema) começa sempre sem acesso a nada (allNoneRow),
+// por segurança — o acesso é depois concedido explicitamente na matriz.
 const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
   ADMIN_SISTEMA: {
     recursos: "rw",
@@ -132,36 +153,47 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
   },
 };
 
-function cloneMatrix() {
-  return Object.fromEntries(
-    Object.entries(DEFAULT_MATRIX).map(([role, mods]) => [role, { ...mods }])
-  ) as Record<Role, Record<Module, AccessLevel>>;
-}
-
 // Matriz efetiva em memória: começa igual à matriz por omissão e é
 // atualizada com os desvios gravados pelo Administrador do Sistema. As
 // funções accessFor/canWrite/canRead continuam síncronas (usadas em
 // dezenas de páginas) — a carga a partir da BD acontece uma única vez por
 // processo, em getCurrentUser(), antes de qualquer verificação de acesso.
-let runtimeMatrix: Record<Role, Record<Module, AccessLevel>> = cloneMatrix();
+let runtimeMatrix: Record<Role, Record<Module, AccessLevel>> = Object.fromEntries(
+  ROLES.map((r) => [r, { ...(DEFAULT_MATRIX[r] ?? allNoneRow()) }])
+);
 let matrixLoaded = false;
 
 export async function ensureMatrixLoaded(): Promise<void> {
   if (matrixLoaded) return;
   matrixLoaded = true; // marca já para não disparar várias cargas em paralelo
   try {
+    let defs = await prisma.roleDefinition.findMany({ orderBy: { createdAt: "asc" } });
+
+    // Autoinstalação: semeia os 6 perfis originais na BD caso ainda não lá
+    // estejam (ex.: primeira vez que esta versão corre contra a BD).
+    const existingKeys = new Set(defs.map((d) => d.key));
+    const missing = BUILTIN_ROLE_DEFS.filter((b) => !existingKeys.has(b.key));
+    if (missing.length > 0) {
+      await prisma.roleDefinition.createMany({ data: missing, skipDuplicates: true });
+      defs = await prisma.roleDefinition.findMany({ orderBy: { createdAt: "asc" } });
+    }
+
+    runtimeRoleDefs = defs.map((d) => ({ key: d.key, label: d.label, isSystem: d.isSystem }));
+    rebuildDerivedRoleState();
+
+    runtimeMatrix = Object.fromEntries(
+      ROLES.map((r) => [r, { ...(DEFAULT_MATRIX[r] ?? allNoneRow()) }])
+    );
+
     const overrides = await prisma.rolePermission.findMany();
-    const next = cloneMatrix();
     for (const o of overrides) {
-      const role = o.role as Role;
       const mod = o.module as Module;
-      if (next[role] && mod in next[role]) {
-        next[role][mod] = o.accessLevel as AccessLevel;
+      if (runtimeMatrix[o.role] && mod in runtimeMatrix[o.role]) {
+        runtimeMatrix[o.role][mod] = o.accessLevel as AccessLevel;
       }
     }
-    runtimeMatrix = next;
   } catch {
-    // Sem BD acessível (ex.: build estático) — mantém a matriz por omissão.
+    // Sem BD acessível (ex.: build estático) — mantém os valores por omissão.
     matrixLoaded = false;
   }
 }
@@ -181,6 +213,27 @@ export function applyMatrixOverrides(
   }
   runtimeMatrix = next;
   matrixLoaded = true;
+}
+
+// Reflete de imediato, sem esperar por reload, a criação/edição/eliminação
+// de um tipo de perfil feita em Perfis e Acessos → Perfis.
+export function applyRoleCreate(def: RoleDefinitionInfo): void {
+  runtimeRoleDefs = [...runtimeRoleDefs, def];
+  rebuildDerivedRoleState();
+  runtimeMatrix = { ...runtimeMatrix, [def.key]: allNoneRow() };
+}
+
+export function applyRoleUpdate(key: Role, label: string): void {
+  runtimeRoleDefs = runtimeRoleDefs.map((d) => (d.key === key ? { ...d, label } : d));
+  rebuildDerivedRoleState();
+}
+
+export function applyRoleDelete(key: Role): void {
+  runtimeRoleDefs = runtimeRoleDefs.filter((d) => d.key !== key);
+  rebuildDerivedRoleState();
+  const next = { ...runtimeMatrix };
+  delete next[key];
+  runtimeMatrix = next;
 }
 
 export function accessFor(roles: Role[], mod: Module): AccessLevel {

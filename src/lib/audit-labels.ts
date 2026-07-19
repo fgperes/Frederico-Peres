@@ -91,6 +91,9 @@ const COMBOS: Record<string, Describer> = {
 
   "UPDATE:PayrollSettings": () => "Atualizou os pressupostos de payroll",
   "UPDATE:RolePermission": () => "Atualizou a matriz de acessos (perfis e módulos)",
+  "CREATE:RoleDefinition": (d) => withDetails("Criou um novo tipo de perfil", d),
+  "UPDATE:RoleDefinition": (d) => withDetails("Renomeou um tipo de perfil", d),
+  "DELETE:RoleDefinition": (d) => withDetails("Eliminou um tipo de perfil", d),
   "UPDATE:IrsBracket": (d) => withDetails("Atualizou um escalão de IRS", d),
   "DELETE:IrsBracket": () => "Eliminou um escalão de IRS",
   "UPDATE:EmployeePayrollProfile": () => "Atualizou o perfil de payroll de um colaborador",
@@ -156,6 +159,7 @@ const ENTITY_LABELS: Record<string, string> = {
   IrsBracket: "escalão de IRS",
   EmployeePayrollProfile: "perfil de payroll",
   RolePermission: "matriz de acessos",
+  RoleDefinition: "tipo de perfil",
   PayrollComponent: "componente de payroll",
   Payslip: "recibo de vencimento",
   Task: "tarefa",

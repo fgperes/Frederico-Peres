@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite, canRead, canManageEmployeeAccess } from "@/lib/roles";
+import { canWrite, canRead, canManageEmployeeAccess, ROLES, ROLE_LABELS } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, Button, LinkButton } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
@@ -116,6 +116,7 @@ export default async function ColaboradorDetailPage({
             })) ?? []
           }
           departments={departments}
+          roles={ROLES.map((key) => ({ key, label: ROLE_LABELS[key] }))}
           canManage={canManageAccess}
         />
       </Card>

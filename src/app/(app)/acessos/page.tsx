@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canRead, isSystemAdmin, ROLE_LABELS } from "@/lib/roles";
+import { canRead, isSystemAdmin, ROLES, ROLE_LABELS } from "@/lib/roles";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
 import { UserRolesForm } from "./user-roles-form";
@@ -15,6 +15,7 @@ export default async function AcessosPage() {
   if (!canRead(user.roles, "acessos")) redirect("/dashboard");
 
   const admin = isSystemAdmin(user.roles);
+  const roles = ROLES.map((key) => ({ key, label: ROLE_LABELS[key] }));
 
   const [users, departments] = await Promise.all([
     prisma.user.findMany({
@@ -80,6 +81,7 @@ export default async function AcessosPage() {
                             ?.departmentId ?? null
                         }
                         departments={departments}
+                        roles={roles}
                       />
                     ) : (
                       <div className="flex flex-wrap gap-1">
@@ -117,7 +119,7 @@ export default async function AcessosPage() {
             <h3 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
               Novo Utilizador
             </h3>
-            <CreateUserForm />
+            <CreateUserForm roles={roles} />
           </Card>
         )}
       </div>

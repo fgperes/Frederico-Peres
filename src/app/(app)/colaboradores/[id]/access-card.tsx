@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { Badge, EmptyState } from "@/components/ui";
-import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
+import type { Role } from "@/lib/roles";
 import {
   updateEmployeeUserRoles,
   resetEmployeeUserPassword,
@@ -25,6 +25,7 @@ export function AccessCard({
   userRoles,
   departments,
   canManage,
+  roles,
 }: {
   employeeId: string;
   hasUser: boolean;
@@ -34,6 +35,7 @@ export function AccessCard({
   userRoles: UserRoleInfo[];
   departments: { id: string; name: string }[];
   canManage: boolean;
+  roles: { key: Role; label: string }[];
 }) {
   const boundUpdateRoles = userId
     ? updateEmployeeUserRoles.bind(null, employeeId, userId)
@@ -50,6 +52,7 @@ export function AccessCard({
   const router = useRouter();
   const [rolesPending, startRolesTransition] = useTransition();
   const rolesFeedback = useSaveFeedback();
+  const roleLabels = Object.fromEntries(roles.map((r) => [r.key, r.label]));
 
   function handleRolesSubmit(formData: FormData) {
     if (!boundUpdateRoles) return;
@@ -94,16 +97,16 @@ export function AccessCard({
           <form action={handleRolesSubmit} className="space-y-3">
             <SaveBanner status={rolesFeedback.status} message={rolesFeedback.message} />
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {ROLES.map((role) => (
-                <label key={role} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+              {roles.map((role) => (
+                <label key={role.key} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
                   <input
                     type="checkbox"
                     name="roles"
-                    value={role}
-                    defaultChecked={userRoles.some((r) => r.role === role)}
+                    value={role.key}
+                    defaultChecked={userRoles.some((r) => r.role === role.key)}
                     className="rounded border-stone-300"
                   />
-                  {ROLE_LABELS[role]}
+                  {role.label}
                 </label>
               ))}
             </div>
@@ -134,7 +137,7 @@ export function AccessCard({
             ) : (
               userRoles.map((r) => (
                 <Badge key={r.id} color="blue">
-                  {ROLE_LABELS[r.role]}
+                  {roleLabels[r.role] ?? r.role}
                   {r.departmentName ? ` · ${r.departmentName}` : ""}
                 </Badge>
               ))
