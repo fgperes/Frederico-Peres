@@ -1,12 +1,13 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canRead, isSystemAdmin, ROLES, ROLE_LABELS } from "@/lib/roles";
+import { canRead, isSystemAdmin, getMatrixSnapshot, ROLES, ROLE_LABELS } from "@/lib/roles";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
+import { PermissionsMatrix } from "./permissions-matrix";
 import { toggleUserActive, updateUserRoles } from "./actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, ArrowUpRight } from "lucide-react";
+import { ShieldCheck, ArrowUpRight, Users, KeySquare } from "lucide-react";
 
 export default async function AcessosPage() {
   const user = await requireUser();
@@ -39,156 +40,176 @@ export default async function AcessosPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <Card className="p-0">
-            <div className="border-b border-stone-200 px-6 py-4 dark:border-stone-800">
-              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                Utilizadores
-              </h2>
-            </div>
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
-                <tr>
-                  <th className="px-6 py-3">Utilizador</th>
-                  <th className="px-6 py-3">Perfis</th>
-                  <th className="px-6 py-3">Estado</th>
-                  {admin && <th className="px-6 py-3">Ações</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td className="px-6 py-3 align-top">
-                      <div className="font-medium text-stone-900 dark:text-stone-100">{u.name}</div>
-                      <div className="text-xs text-stone-500 dark:text-stone-400">{u.email}</div>
-                      {u.employee && (
-                        <Link
-                          href={`/colaboradores/${u.employee.id}`}
-                          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
-                        >
-                          Gerir em Colaboradores
-                          <ArrowUpRight size={11} />
-                        </Link>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 align-top">
-                      {admin && !u.employee ? (
-                        <form
-                          action={updateUserRoles.bind(null, u.id)}
-                          className="space-y-2"
-                        >
-                          <div className="grid grid-cols-1 gap-1">
-                            {ROLES.map((role) => (
-                              <label
-                                key={role}
-                                className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300"
-                              >
-                                <input
-                                  type="checkbox"
-                                  name="roles"
-                                  value={role}
-                                  defaultChecked={u.roles.some(
-                                    (r) => r.role === role
-                                  )}
-                                  className="rounded border-stone-300"
-                                />
-                                {ROLE_LABELS[role]}
-                              </label>
-                            ))}
-                          </div>
-                          <select
-                            name="departmentId"
-                            defaultValue={
-                              u.roles.find((r) => r.role === "GESTOR_EQUIPA")
-                                ?.departmentId ?? ""
-                            }
-                            className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-                          >
-                            <option value="">
-                              Âmbito (departamento) p/ Gestor de Equipa
-                            </option>
-                            {departments.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="submit"
-                            className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900 dark:bg-violet-600 dark:hover:bg-violet-700"
-                          >
-                            Guardar perfis
-                          </button>
-                        </form>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {u.roles.length === 0 ? (
-                            <span className="text-xs text-stone-500 dark:text-stone-400">—</span>
-                          ) : (
-                            u.roles.map((r) => (
-                              <Badge key={r.id} color="blue">
-                                {ROLE_LABELS[r.role]}
-                                {r.department ? ` · ${r.department.name}` : ""}
-                              </Badge>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 align-top">
-                      <Badge color={u.active ? "green" : "red"}>
-                        {u.active ? "Ativo" : "Desativado"}
-                      </Badge>
-                    </td>
-                    {admin && (
-                      <td className="px-6 py-3 align-top">
-                        <form action={toggleUserActive.bind(null, u.id, !u.active)}>
-                          <button
-                            type="submit"
-                            className="rounded-md border border-stone-300 px-2.5 py-1 text-xs hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
-                          >
-                            {u.active ? "Desativar" : "Ativar"}
-                          </button>
-                        </form>
-                      </td>
-                    )}
+      <section className="mb-10">
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-stone-900 dark:text-stone-100">
+          <Users size={17} className="text-stone-500 dark:text-stone-400" />
+          Colaboradores
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Card className="p-0">
+              <div className="border-b border-stone-200 px-6 py-4 dark:border-stone-800">
+                <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                  Utilizadores
+                </h3>
+              </div>
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
+                  <tr>
+                    <th className="px-6 py-3">Utilizador</th>
+                    <th className="px-6 py-3">Perfis</th>
+                    <th className="px-6 py-3">Estado</th>
+                    {admin && <th className="px-6 py-3">Ações</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-
-          {admin && (
-            <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
-                Novo Utilizador
-              </h2>
-              <CreateUserForm />
+                </thead>
+                <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td className="px-6 py-3 align-top">
+                        <div className="font-medium text-stone-900 dark:text-stone-100">{u.name}</div>
+                        <div className="text-xs text-stone-500 dark:text-stone-400">{u.email}</div>
+                        {u.employee && (
+                          <Link
+                            href={`/colaboradores/${u.employee.id}`}
+                            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
+                          >
+                            Gerir em Colaboradores
+                            <ArrowUpRight size={11} />
+                          </Link>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 align-top">
+                        {admin && !u.employee ? (
+                          <form
+                            action={updateUserRoles.bind(null, u.id)}
+                            className="space-y-2"
+                          >
+                            <div className="grid grid-cols-1 gap-1">
+                              {ROLES.map((role) => (
+                                <label
+                                  key={role}
+                                  className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    name="roles"
+                                    value={role}
+                                    defaultChecked={u.roles.some(
+                                      (r) => r.role === role
+                                    )}
+                                    className="rounded border-stone-300"
+                                  />
+                                  {ROLE_LABELS[role]}
+                                </label>
+                              ))}
+                            </div>
+                            <select
+                              name="departmentId"
+                              defaultValue={
+                                u.roles.find((r) => r.role === "GESTOR_EQUIPA")
+                                  ?.departmentId ?? ""
+                              }
+                              className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+                            >
+                              <option value="">
+                                Âmbito (departamento) p/ Gestor de Equipa
+                              </option>
+                              {departments.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="submit"
+                              className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900 dark:bg-violet-600 dark:hover:bg-violet-700"
+                            >
+                              Guardar perfis
+                            </button>
+                          </form>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {u.roles.length === 0 ? (
+                              <span className="text-xs text-stone-500 dark:text-stone-400">—</span>
+                            ) : (
+                              u.roles.map((r) => (
+                                <Badge key={r.id} color="blue">
+                                  {ROLE_LABELS[r.role]}
+                                  {r.department ? ` · ${r.department.name}` : ""}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 align-top">
+                        <Badge color={u.active ? "green" : "red"}>
+                          {u.active ? "Ativo" : "Desativado"}
+                        </Badge>
+                      </td>
+                      {admin && (
+                        <td className="px-6 py-3 align-top">
+                          <form action={toggleUserActive.bind(null, u.id, !u.active)}>
+                            <button
+                              type="submit"
+                              className="rounded-md border border-stone-300 px-2.5 py-1 text-xs hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
+                            >
+                              {u.active ? "Desativar" : "Ativar"}
+                            </button>
+                          </form>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </Card>
-          )}
-        </div>
 
+            {admin && (
+              <Card>
+                <h3 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                  Novo Utilizador
+                </h3>
+                <CreateUserForm />
+              </Card>
+            )}
+          </div>
+
+          <Card>
+            <h3 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+              Log de Auditoria
+            </h3>
+            <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-xs">
+              {auditLog.map((log) => (
+                <li key={log.id} className="border-b border-stone-100 pb-2 dark:border-stone-800">
+                  <div className="font-medium text-stone-700 dark:text-stone-300">
+                    {log.action} · {log.entity}
+                  </div>
+                  <div className="text-stone-500 dark:text-stone-400">{log.details}</div>
+                  <div className="text-stone-500 dark:text-stone-400">
+                    {log.user?.name ?? "Sistema"} —{" "}
+                    {log.createdAt.toLocaleString("pt-PT")}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-stone-900 dark:text-stone-100">
+          <KeySquare size={17} className="text-stone-500 dark:text-stone-400" />
+          Perfis
+        </h2>
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
-            Log de Auditoria
-          </h2>
-          <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-xs">
-            {auditLog.map((log) => (
-              <li key={log.id} className="border-b border-stone-100 pb-2 dark:border-stone-800">
-                <div className="font-medium text-stone-700 dark:text-stone-300">
-                  {log.action} · {log.entity}
-                </div>
-                <div className="text-stone-500 dark:text-stone-400">{log.details}</div>
-                <div className="text-stone-500 dark:text-stone-400">
-                  {log.user?.name ?? "Sistema"} —{" "}
-                  {log.createdAt.toLocaleString("pt-PT")}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-4 text-sm text-stone-500 dark:text-stone-400">
+            Para cada perfil, defina a que módulos tem acesso e se pode fazer edições ou apenas
+            consultar.
+          </p>
+          <PermissionsMatrix matrix={getMatrixSnapshot()} canEdit={admin} />
         </Card>
-      </div>
+      </section>
     </div>
   );
 }

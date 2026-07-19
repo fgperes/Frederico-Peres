@@ -2,7 +2,16 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { isSystemAdmin, ROLES, type Role } from "@/lib/roles";
+import {
+  isSystemAdmin,
+  ROLES,
+  MODULES,
+  CONFIGURABLE_ROLES,
+  applyMatrixOverrides,
+  type Role,
+  type Module,
+  type AccessLevel,
+} from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -125,4 +134,51 @@ export async function updateUserRoles(userId: string, formData: FormData) {
   });
 
   revalidatePath("/acessos");
+}
+
+const VALID_LEVELS: AccessLevel[] = ["none", "ro", "rw"];
+
+// Grava a matriz de acessos (perfil × módulo) editada em Perfis e Acessos.
+// O Colaborador fica de fora (os seus módulos são "own", não configurável
+// aqui) e o próprio Administrador do Sistema nunca perde escrita em
+// "acessos" — evita ficar bloqueado por engano.
+export async function updateRolePermissions(formData: FormData) {
+  const admin = await assertSystemAdmin();
+
+  const changes: { role: Role; module: Module; accessLevel: AccessLevel }[] = [];
+  for (const role of CONFIGURABLE_ROLES) {
+    for (const mod of MODULES) {
+      const raw = String(formData.get(`perm_${role}_${mod}`) ?? "none");
+      const accessLevel: AccessLevel = VALID_LEVELS.includes(raw as AccessLevel)
+        ? (raw as AccessLevel)
+        : "none";
+      changes.push({ role, module: mod, accessLevel });
+    }
+  }
+
+  // Salvaguarda: o Administrador do Sistema mantém sempre escrita em Acessos.
+  const adminAcessos = changes.find((c) => c.role === "ADMIN_SISTEMA" && c.module === "acessos");
+  if (adminAcessos) adminAcessos.accessLevel = "rw";
+
+  await prisma.$transaction(
+    changes.map((c) =>
+      prisma.rolePermission.upsert({
+        where: { role_module: { role: c.role, module: c.module } },
+        create: { role: c.role, module: c.module, accessLevel: c.accessLevel, updatedById: admin.id },
+        update: { accessLevel: c.accessLevel, updatedById: admin.id },
+      })
+    )
+  );
+
+  applyMatrixOverrides(changes);
+
+  await logAudit({
+    userId: admin.id,
+    action: "UPDATE",
+    entity: "RolePermission",
+    details: "Matriz de acessos (perfil × módulo) atualizada",
+  });
+
+  revalidatePath("/acessos");
+  revalidatePath("/", "layout");
 }

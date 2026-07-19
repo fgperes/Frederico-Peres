@@ -104,6 +104,20 @@ model AuditLog {
   createdAt DateTime @default(now())
 }
 
+// Substitui/complementa a matriz de acessos por omissão (lib/roles.ts) —
+// só guarda desvios definidos pelo Administrador do Sistema em Perfis e
+// Acessos. Perfil+módulo sem registo aqui usam o valor por omissão.
+model RolePermission {
+  id          String   @id @default(cuid())
+  role        Role
+  module      String
+  accessLevel String // rw | ro | none
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@unique([role, module])
+}
+
 // ---------------------------------------------------------------------------
 // Gestão de Recursos (secção 5)
 // ---------------------------------------------------------------------------

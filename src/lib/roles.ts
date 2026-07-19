@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/prisma";
+
 export const ROLES = [
   "ADMIN_SISTEMA",
   "ADMIN_RH",
@@ -32,7 +34,42 @@ export type Module =
   | "integracoes"
   | "payroll";
 
-const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
+export const MODULES: Module[] = [
+  "recursos",
+  "horarios",
+  "picagens",
+  "ausencias",
+  "contratos",
+  "acessos",
+  "integracoes",
+  "payroll",
+];
+
+export const MODULE_LABELS: Record<Module, string> = {
+  recursos: "Colaboradores e Estrutura",
+  horarios: "Horários",
+  picagens: "Picagens",
+  ausencias: "Ausências",
+  contratos: "Contratos",
+  acessos: "Perfis e Acessos",
+  integracoes: "Integrações",
+  payroll: "Payroll",
+};
+
+// Perfis cujo acesso pode ser reconfigurado em Perfis e Acessos. O
+// Colaborador fica de fora: os seus módulos são "own" (dados próprios),
+// um conceito diferente de rw/ro/none que não faz sentido reatribuir aqui.
+export const CONFIGURABLE_ROLES: Role[] = [
+  "ADMIN_SISTEMA",
+  "ADMIN_RH",
+  "GESTOR_EQUIPA",
+  "RH_CONTRATOS",
+  "AUDITOR",
+];
+
+// Matriz por omissão — usada como base sempre que não existir um desvio
+// gravado em RolePermission (BD). Alterada em runtime por loadMatrixOverrides().
+const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
   ADMIN_SISTEMA: {
     recursos: "rw",
     horarios: "rw",
@@ -95,8 +132,59 @@ const MATRIX: Record<Role, Record<Module, AccessLevel>> = {
   },
 };
 
+function cloneMatrix() {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_MATRIX).map(([role, mods]) => [role, { ...mods }])
+  ) as Record<Role, Record<Module, AccessLevel>>;
+}
+
+// Matriz efetiva em memória: começa igual à matriz por omissão e é
+// atualizada com os desvios gravados pelo Administrador do Sistema. As
+// funções accessFor/canWrite/canRead continuam síncronas (usadas em
+// dezenas de páginas) — a carga a partir da BD acontece uma única vez por
+// processo, em getCurrentUser(), antes de qualquer verificação de acesso.
+let runtimeMatrix: Record<Role, Record<Module, AccessLevel>> = cloneMatrix();
+let matrixLoaded = false;
+
+export async function ensureMatrixLoaded(): Promise<void> {
+  if (matrixLoaded) return;
+  matrixLoaded = true; // marca já para não disparar várias cargas em paralelo
+  try {
+    const overrides = await prisma.rolePermission.findMany();
+    const next = cloneMatrix();
+    for (const o of overrides) {
+      const role = o.role as Role;
+      const mod = o.module as Module;
+      if (next[role] && mod in next[role]) {
+        next[role][mod] = o.accessLevel as AccessLevel;
+      }
+    }
+    runtimeMatrix = next;
+  } catch {
+    // Sem BD acessível (ex.: build estático) — mantém a matriz por omissão.
+    matrixLoaded = false;
+  }
+}
+
+export function getMatrixSnapshot(): Record<Role, Record<Module, AccessLevel>> {
+  return runtimeMatrix;
+}
+
+// Aplica imediatamente as alterações guardadas, sem esperar por um reload —
+// chamado pela server action que grava a matriz em Perfis e Acessos.
+export function applyMatrixOverrides(
+  changes: { role: Role; module: Module; accessLevel: AccessLevel }[]
+): void {
+  const next = { ...runtimeMatrix };
+  for (const c of changes) {
+    next[c.role] = { ...next[c.role], [c.module]: c.accessLevel };
+  }
+  runtimeMatrix = next;
+  matrixLoaded = true;
+}
+
 export function accessFor(roles: Role[], mod: Module): AccessLevel {
-  const levels = roles.map((r) => MATRIX[r]?.[mod] ?? "none");
+  const levels = roles.map((r) => runtimeMatrix[r]?.[mod] ?? "none");
   if (levels.includes("rw")) return "rw";
   if (levels.includes("ro")) return "ro";
   if (levels.includes("own")) return "own";

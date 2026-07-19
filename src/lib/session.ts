@@ -1,13 +1,18 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { ROLES, type Role } from "@/lib/roles";
+import { ROLES, ensureMatrixLoaded, type Role } from "@/lib/roles";
 
 export const VIEW_AS_COOKIE = "sgrh_view_as";
 
 export async function getCurrentUser() {
   const session = await auth();
   if (!session?.user) return null;
+
+  // Garante que a matriz de acessos (com os desvios gravados em Perfis e
+  // Acessos) está carregada antes de qualquer verificação canWrite/canRead
+  // nesta requisição — só faz a query à BD uma vez por processo.
+  await ensureMatrixLoaded();
 
   const realRoles = session.user.roles;
   const isRealSystemAdmin = realRoles.includes("ADMIN_SISTEMA");

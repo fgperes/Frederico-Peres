@@ -90,6 +90,7 @@ const COMBOS: Record<string, Describer> = {
   "REVERT_IMPORT:DemandForecast": () => "Reverteu uma importação de previsão de procura",
 
   "UPDATE:PayrollSettings": () => "Atualizou os pressupostos de payroll",
+  "UPDATE:RolePermission": () => "Atualizou a matriz de acessos (perfis e módulos)",
   "UPDATE:IrsBracket": (d) => withDetails("Atualizou um escalão de IRS", d),
   "DELETE:IrsBracket": () => "Eliminou um escalão de IRS",
   "UPDATE:EmployeePayrollProfile": () => "Atualizou o perfil de payroll de um colaborador",
@@ -154,6 +155,7 @@ const ENTITY_LABELS: Record<string, string> = {
   PayrollSettings: "pressupostos de payroll",
   IrsBracket: "escalão de IRS",
   EmployeePayrollProfile: "perfil de payroll",
+  RolePermission: "matriz de acessos",
   PayrollComponent: "componente de payroll",
   Payslip: "recibo de vencimento",
   Task: "tarefa",
