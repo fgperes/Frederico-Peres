@@ -13,10 +13,14 @@ export function CalendarPanel({
   year,
   marks,
   interactive,
+  employeeId,
+  isSelf = true,
 }: {
   year: number;
   marks: Record<string, DayMark>;
   interactive: boolean;
+  employeeId: string;
+  isSelf?: boolean;
 }) {
   const [view, setView] = useState<ViewMode>("month");
   const [monthIndex, setMonthIndex] = useState(
@@ -47,6 +51,7 @@ export function CalendarPanel({
       run(async () => {
         const formData = new FormData();
         formData.set("date", dateKey);
+        formData.set("employeeId", employeeId);
         await toggleVacationDay(formData);
         router.refresh();
       }, "Calendário atualizado.");
@@ -98,10 +103,18 @@ export function CalendarPanel({
         </div>
       </div>
 
-      {interactive && (
+      {interactive && isSelf && (
         <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
           Clique num dia útil para pedir férias (fica <strong>amarelo</strong>, pendente de aprovação).
-          Depois de aprovado fica <strong>verde</strong>. Clique novamente para cancelar.
+          Depois de aprovado fica <strong>verde</strong>. Clique novamente para cancelar um pedido
+          pendente; num dia já aprovado, gera um pedido de cancelamento (fica{" "}
+          <strong>laranja</strong> até ser confirmado).
+        </p>
+      )}
+      {interactive && !isSelf && (
+        <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+          Clique num dia útil para marcar férias já aprovadas para este colaborador. Clique
+          novamente para cancelar.
         </p>
       )}
 

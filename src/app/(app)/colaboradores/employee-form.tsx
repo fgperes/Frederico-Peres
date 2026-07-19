@@ -35,6 +35,12 @@ export function EmployeeForm({
           Dados Pessoais
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field
+            label="Número de Colaborador"
+            name="employeeNumber"
+            type="number"
+            defaultValue={employee?.employeeNumber ?? ""}
+          />
           <Field label="Nome próprio" name="firstName" defaultValue={employee?.firstName} required />
           <Field label="Apelido" name="lastName" defaultValue={employee?.lastName} required />
           <Field label="Email" name="email" type="email" defaultValue={employee?.email} required />

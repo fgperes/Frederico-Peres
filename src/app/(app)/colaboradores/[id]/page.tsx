@@ -57,7 +57,11 @@ export default async function ColaboradorDetailPage({
       <PageHeader
         icon={User}
         title={`${employee.firstName} ${employee.lastName}`}
-        description={employee.jobTitle}
+        description={
+          employee.employeeNumber
+            ? `${employee.jobTitle} · Nº ${employee.employeeNumber}`
+            : employee.jobTitle
+        }
         action={
           <div className="flex items-center gap-3">
             <Badge color={employee.status === "ACTIVE" ? "green" : "slate"}>
@@ -147,6 +151,7 @@ function ReadOnlyView({
   employee,
 }: {
   employee: {
+    employeeNumber: string | null;
     email: string;
     phone: string | null;
     jobTitle: string;
@@ -166,6 +171,7 @@ function ReadOnlyView({
 
   return (
     <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+      <Info label="Número de Colaborador" value={employee.employeeNumber ?? "—"} />
       <Info label="Email" value={employee.email} />
       <Info label="Telefone" value={employee.phone ?? "—"} />
       <Info label="Função" value={employee.jobTitle} />

@@ -164,6 +164,11 @@ model Employee {
   userId String? @unique
   user   User?   @relation(fields: [userId], references: [id])
 
+  // Número de colaborador — identificador numérico interno, sem limite de
+  // dígitos (guardado como texto só com dígitos para não ficar limitado à
+  // gama de um Int/BigInt nem a problemas de serialização de BigInt).
+  employeeNumber String? @unique
+
   // Dados pessoais
   firstName          String
   lastName           String

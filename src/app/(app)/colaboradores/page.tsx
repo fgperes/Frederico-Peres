@@ -128,6 +128,7 @@ export default async function ColaboradoresPage({
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
               <tr>
+                <th className="px-4 py-3">Nº</th>
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">Função</th>
                 <th className="px-4 py-3">Departamento</th>
@@ -139,6 +140,9 @@ export default async function ColaboradoresPage({
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {employees.map((e) => (
                 <tr key={e.id} className="hover:bg-stone-50 dark:hover:bg-stone-900">
+                  <td className="px-4 py-3 text-stone-500 dark:text-stone-400">
+                    {e.employeeNumber ?? "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/colaboradores/${e.id}`}

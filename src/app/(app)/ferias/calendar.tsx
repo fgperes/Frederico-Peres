@@ -1,16 +1,20 @@
 "use client";
 
+import { toDateKey } from "@/lib/vacation";
+
 const WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-export type DayMark = { status: "PENDING" | "APPROVED"; title?: string; overlap?: boolean };
+export type DayMark = {
+  status: "PENDING" | "APPROVED" | "CANCEL_PENDING";
+  title?: string;
+  overlap?: boolean;
+};
 
-function toKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const toKey = toDateKey;
 
 function buildMonthWeeks(year: number, month: number): (Date | null)[][] {
   const first = new Date(year, month, 1);
@@ -77,6 +81,8 @@ function MonthGrid({
 
                 if (mark?.status === "APPROVED") {
                   cellClasses += " bg-emerald-500 text-white";
+                } else if (mark?.status === "CANCEL_PENDING") {
+                  cellClasses += " bg-orange-500 text-white";
                 } else if (mark?.status === "PENDING") {
                   cellClasses += " bg-amber-400 text-white";
                 } else {
@@ -147,5 +153,3 @@ export function VacationCalendar({
     </div>
   );
 }
-
-export { toKey as dateKey };

@@ -14,12 +14,14 @@ export function SearchableSelect({
   defaultValue = "",
   placeholder = "Selecione...",
   required = false,
+  onChange,
 }: {
   name: string;
   options: SearchableOption[];
   defaultValue?: string;
   placeholder?: string;
   required?: boolean;
+  onChange?: (value: string) => void;
 }) {
   const initialOption = options.find((o) => o.value === defaultValue) ?? null;
   const [value, setValue] = useState(defaultValue);
@@ -55,6 +57,7 @@ export function SearchableSelect({
     setValue(option.value);
     setQuery(option.label);
     setOpen(false);
+    onChange?.(option.value);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

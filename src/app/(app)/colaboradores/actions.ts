@@ -12,6 +12,10 @@ import { parseExcelFile } from "@/lib/excel";
 import { ID_DOCUMENT_TYPES } from "@/lib/employee-constants";
 
 const employeeSchema = z.object({
+  employeeNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d+$/.test(v), "Número de colaborador deve conter apenas dígitos"),
   firstName: z.string().min(1, "Nome próprio obrigatório"),
   lastName: z.string().min(1, "Apelido obrigatório"),
   email: z.string().email("Email inválido"),
@@ -122,8 +126,14 @@ export async function createEmployee(formData: FormData) {
   }
   const data = parsed.data;
 
+  if (data.employeeNumber) {
+    const exists = await prisma.employee.findUnique({ where: { employeeNumber: data.employeeNumber } });
+    if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
+  }
+
   const employee = await prisma.employee.create({
     data: {
+      employeeNumber: toNullable(data.employeeNumber),
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email.toLowerCase().trim(),
@@ -193,9 +203,15 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     where: { id: employeeId },
   });
 
+  if (data.employeeNumber && data.employeeNumber !== before.employeeNumber) {
+    const exists = await prisma.employee.findUnique({ where: { employeeNumber: data.employeeNumber } });
+    if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
+  }
+
   const employee = await prisma.employee.update({
     where: { id: employeeId },
     data: {
+      employeeNumber: toNullable(data.employeeNumber),
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email.toLowerCase().trim(),

@@ -5,6 +5,28 @@ import { prisma } from "@/lib/prisma";
 // isVacation=true. Cada dia de férias pedido é um Absence de um só dia
 // (startDate === endDate), o que simplifica marcar/desmarcar dias soltos no
 // calendário; dias consecutivos são agrupados em "períodos" para aprovação.
+//
+// Um dia já aprovado não pode ser desmarcado diretamente pelo colaborador —
+// fica marcado com este "reason" sentinela (sem alterar o status, que
+// continua APPROVED) enquanto aguarda confirmação de cancelamento por quem
+// tem perfil de gestão. Este campo nunca é preenchido pelo próprio
+// colaborador com texto livre no módulo de Férias, por isso é seguro
+// reutilizá-lo como sinalizador.
+export const CANCEL_REQUEST_MARKER = "__CANCEL_REQUEST__";
+
+export type EffectiveStatus = "PENDING" | "APPROVED" | "CANCEL_PENDING";
+
+export function effectiveStatus(row: { status: string; reason: string | null }): EffectiveStatus {
+  if (row.status === "APPROVED" && row.reason === CANCEL_REQUEST_MARKER) return "CANCEL_PENDING";
+  return row.status as EffectiveStatus;
+}
+
+// Datas de férias são guardadas à meia-noite local. toISOString() converte
+// para UTC e pode "recuar" um dia consoante o fuso horário do processo —
+// esta função lê sempre os componentes locais, tal como o calendário.
+export function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export async function getVacationType() {
   const type = await prisma.absenceType.findFirst({ where: { isVacation: true } });
@@ -89,12 +111,12 @@ export type VacationPeriod = {
   startDate: Date;
   endDate: Date;
   absenceIds: string[];
-  status: string;
-  reason: string | null;
+  kind: EffectiveStatus;
 };
 
 // Agrupa dias (um Absence por dia) consecutivos do mesmo colaborador e do
-// mesmo estado em períodos contínuos — usado na aprovação e nos resumos.
+// mesmo tipo efetivo (pedido novo / aprovado / pedido de cancelamento) em
+// períodos contínuos — usado na aprovação e nos resumos.
 export function groupIntoPeriods(rows: VacationDayRow[]): VacationPeriod[] {
   const sorted = [...rows].sort((a, b) => {
     if (a.employeeId !== b.employeeId) return a.employeeId < b.employeeId ? -1 : 1;
@@ -103,11 +125,12 @@ export function groupIntoPeriods(rows: VacationDayRow[]): VacationPeriod[] {
 
   const periods: VacationPeriod[] = [];
   for (const row of sorted) {
+    const kind = effectiveStatus(row);
     const last = periods[periods.length - 1];
     if (
       last &&
       last.employeeId === row.employeeId &&
-      last.status === row.status &&
+      last.kind === kind &&
       nextBusinessDay(last.endDate).getTime() === row.date.getTime()
     ) {
       last.endDate = row.date;
@@ -119,8 +142,7 @@ export function groupIntoPeriods(rows: VacationDayRow[]): VacationPeriod[] {
         startDate: row.date,
         endDate: row.date,
         absenceIds: [row.id],
-        status: row.status,
-        reason: row.reason,
+        kind,
       });
     }
   }
@@ -129,8 +151,13 @@ export function groupIntoPeriods(rows: VacationDayRow[]): VacationPeriod[] {
 
 // Cria (se ainda não existir) uma tarefa de validação para a chefia de
 // equipa (Gestor de Equipa do departamento) e para os Administradores de RH,
-// sempre que um colaborador submete um pedido de férias.
-export async function ensureVacationTask(employeeId: string, employeeName: string) {
+// sempre que um colaborador submete um pedido de férias ou um pedido de
+// cancelamento de férias já aprovadas.
+export async function ensureVacationTask(
+  employeeId: string,
+  employeeName: string,
+  kind: "REQUEST" | "CANCELLATION" = "REQUEST"
+) {
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
     select: { departmentId: true },
@@ -171,10 +198,19 @@ export async function ensureVacationTask(employeeId: string, employeeName: strin
   const toCreate = Array.from(assigneeIds).filter((id) => !already.has(id));
   if (toCreate.length === 0) return;
 
+  const title =
+    kind === "CANCELLATION"
+      ? `Pedido de cancelamento de férias — ${employeeName}`
+      : `Pedido de férias — ${employeeName}`;
+  const description =
+    kind === "CANCELLATION"
+      ? `${employeeName} pediu para cancelar dias de férias já aprovados. Reveja em Férias → Para Aprovação.`
+      : `${employeeName} submeteu um pedido de férias. Reveja e aprove/rejeite em Férias → Para Aprovação.`;
+
   await prisma.task.createMany({
     data: toCreate.map((assigneeId) => ({
-      title: `Pedido de férias — ${employeeName}`,
-      description: `${employeeName} submeteu um pedido de férias. Reveja e aprove/rejeite em Férias → Para Aprovação.`,
+      title,
+      description,
       type: "VACATION_REQUEST",
       assigneeId,
       employeeId,
@@ -183,12 +219,22 @@ export async function ensureVacationTask(employeeId: string, employeeName: strin
 }
 
 // Fecha as tarefas de validação de férias de um colaborador quando já não
-// tem nenhum dia pendente por decidir.
+// tem nenhum pedido novo nem pedido de cancelamento por decidir.
 export async function resolveVacationTasksIfClear(employeeId: string) {
-  const stillPending = await prisma.absence.count({
-    where: { employeeId, status: "PENDING", absenceType: { isVacation: true } },
-  });
-  if (stillPending > 0) return;
+  const [stillPending, stillCancelPending] = await Promise.all([
+    prisma.absence.count({
+      where: { employeeId, status: "PENDING", absenceType: { isVacation: true } },
+    }),
+    prisma.absence.count({
+      where: {
+        employeeId,
+        status: "APPROVED",
+        reason: CANCEL_REQUEST_MARKER,
+        absenceType: { isVacation: true },
+      },
+    }),
+  ]);
+  if (stillPending > 0 || stillCancelPending > 0) return;
 
   await prisma.task.updateMany({
     where: { type: "VACATION_REQUEST", employeeId, status: "OPEN" },

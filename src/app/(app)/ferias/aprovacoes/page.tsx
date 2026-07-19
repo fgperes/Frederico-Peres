@@ -2,8 +2,8 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { getVacationType, groupIntoPeriods, type VacationDayRow } from "@/lib/vacation";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { getVacationType, groupIntoPeriods, CANCEL_REQUEST_MARKER, type VacationDayRow } from "@/lib/vacation";
+import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { FeriasTabs } from "../tabs";
 import { ApprovalActions } from "./approval-actions";
 import { redirect } from "next/navigation";
@@ -24,7 +24,14 @@ export default async function FeriasAprovacoesPage() {
   const type = await getVacationType().catch(() => null);
   const pendingAbsences = type
     ? await prisma.absence.findMany({
-        where: { employeeId: { in: scopedIds }, absenceTypeId: type.id, status: "PENDING" },
+        where: {
+          employeeId: { in: scopedIds },
+          absenceTypeId: type.id,
+          OR: [
+            { status: "PENDING" },
+            { status: "APPROVED", reason: CANCEL_REQUEST_MARKER },
+          ],
+        },
         orderBy: { startDate: "asc" },
       })
     : [];
@@ -40,12 +47,14 @@ export default async function FeriasAprovacoesPage() {
 
   const periods = groupIntoPeriods(rows);
 
-  // Sobreposição: dois períodos de colaboradores diferentes com datas cruzadas.
+  // Sobreposição: só relevante entre pedidos novos (não faz sentido para
+  // pedidos de cancelamento de férias já aprovadas).
+  const requestPeriods = periods.filter((p) => p.kind === "PENDING");
   const overlapKeys = new Set<string>();
-  for (let i = 0; i < periods.length; i++) {
-    for (let j = i + 1; j < periods.length; j++) {
-      const a = periods[i];
-      const b = periods[j];
+  for (let i = 0; i < requestPeriods.length; i++) {
+    for (let j = i + 1; j < requestPeriods.length; j++) {
+      const a = requestPeriods[i];
+      const b = requestPeriods[j];
       if (a.employeeId === b.employeeId) continue;
       if (a.startDate <= b.endDate && b.startDate <= a.endDate) {
         overlapKeys.add(`${a.employeeId}-${a.startDate.toISOString()}`);
@@ -77,6 +86,9 @@ export default async function FeriasAprovacoesPage() {
                 <li key={key} className="py-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
+                      <Badge color={p.kind === "CANCEL_PENDING" ? "amber" : "blue"}>
+                        {p.kind === "CANCEL_PENDING" ? "Pedido de cancelamento" : "Pedido de férias"}
+                      </Badge>{" "}
                       <span className="font-medium text-stone-900 dark:text-stone-100">
                         {p.employeeName}
                       </span>{" "}
