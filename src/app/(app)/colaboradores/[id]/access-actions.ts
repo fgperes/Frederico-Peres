@@ -60,23 +60,27 @@ export async function resetEmployeeUserPassword(
   _prev: ResetPasswordState,
   _formData: FormData
 ): Promise<ResetPasswordState> {
-  const actor = await assertCanManage();
+  try {
+    const actor = await assertCanManage();
 
-  const password = generatePassword(14);
-  const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.update({
-    where: { id: userId },
-    data: { passwordHash, mustChangePassword: true },
-  });
+    const password = generatePassword(14);
+    const passwordHash = await bcrypt.hash(password, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: true },
+    });
 
-  await logAudit({
-    userId: actor.id,
-    action: "RESET_PASSWORD",
-    entity: "User",
-    entityId: userId,
-    details: "Password redefinida via ficha de colaborador",
-  });
+    await logAudit({
+      userId: actor.id,
+      action: "RESET_PASSWORD",
+      entity: "User",
+      entityId: userId,
+      details: "Password redefinida via ficha de colaborador",
+    });
 
-  revalidatePath(`/colaboradores/${employeeId}`);
-  return { password };
+    revalidatePath(`/colaboradores/${employeeId}`);
+    return { password };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Ocorreu um erro ao redefinir a password." };
+  }
 }

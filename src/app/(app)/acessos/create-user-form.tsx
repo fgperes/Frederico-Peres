@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { createUserAction, type CreateUserState } from "./actions";
 import { ROLES, ROLE_LABELS } from "@/lib/roles";
+import { SaveBanner } from "@/components/save-banner";
 
 const initialState: CreateUserState = {};
 
@@ -46,6 +47,7 @@ export function CreateUserForm() {
         </div>
       ) : (
         <form action={formAction} className="space-y-3">
+          <SaveBanner status={state.error ? "error" : "idle"} message={state.error} />
           <p className="rounded-md bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:bg-stone-800/60 dark:text-stone-400">
             Para criar a conta de acesso de um colaborador, faça-o na respetiva
             ficha em Colaboradores. Este formulário é para contas sem ficha de
@@ -85,12 +87,6 @@ export function CreateUserForm() {
               ))}
             </div>
           </div>
-
-          {state.error && (
-            <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
-              {state.error}
-            </p>
-          )}
 
           <button
             type="submit"

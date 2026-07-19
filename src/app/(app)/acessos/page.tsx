@@ -1,10 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canRead, isSystemAdmin, getMatrixSnapshot, ROLES, ROLE_LABELS } from "@/lib/roles";
+import { canRead, isSystemAdmin, getMatrixSnapshot, ROLE_LABELS } from "@/lib/roles";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
 import { PermissionsMatrix } from "./permissions-matrix";
-import { toggleUserActive, updateUserRoles } from "./actions";
+import { UserRolesForm } from "./user-roles-form";
+import { ToggleActiveButton } from "./toggle-active-button";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ArrowUpRight, Users, KeySquare } from "lucide-react";
@@ -80,53 +81,15 @@ export default async function AcessosPage() {
                       </td>
                       <td className="px-6 py-3 align-top">
                         {admin && !u.employee ? (
-                          <form
-                            action={updateUserRoles.bind(null, u.id)}
-                            className="space-y-2"
-                          >
-                            <div className="grid grid-cols-1 gap-1">
-                              {ROLES.map((role) => (
-                                <label
-                                  key={role}
-                                  className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    name="roles"
-                                    value={role}
-                                    defaultChecked={u.roles.some(
-                                      (r) => r.role === role
-                                    )}
-                                    className="rounded border-stone-300"
-                                  />
-                                  {ROLE_LABELS[role]}
-                                </label>
-                              ))}
-                            </div>
-                            <select
-                              name="departmentId"
-                              defaultValue={
-                                u.roles.find((r) => r.role === "GESTOR_EQUIPA")
-                                  ?.departmentId ?? ""
-                              }
-                              className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-                            >
-                              <option value="">
-                                Âmbito (departamento) p/ Gestor de Equipa
-                              </option>
-                              {departments.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="submit"
-                              className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900 dark:bg-violet-600 dark:hover:bg-violet-700"
-                            >
-                              Guardar perfis
-                            </button>
-                          </form>
+                          <UserRolesForm
+                            userId={u.id}
+                            currentRoles={u.roles.map((r) => r.role)}
+                            currentDepartmentId={
+                              u.roles.find((r) => r.role === "GESTOR_EQUIPA")
+                                ?.departmentId ?? null
+                            }
+                            departments={departments}
+                          />
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {u.roles.length === 0 ? (
@@ -149,14 +112,7 @@ export default async function AcessosPage() {
                       </td>
                       {admin && (
                         <td className="px-6 py-3 align-top">
-                          <form action={toggleUserActive.bind(null, u.id, !u.active)}>
-                            <button
-                              type="submit"
-                              className="rounded-md border border-stone-300 px-2.5 py-1 text-xs hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
-                            >
-                              {u.active ? "Desativar" : "Ativar"}
-                            </button>
-                          </form>
+                          <ToggleActiveButton userId={u.id} active={u.active} />
                         </td>
                       )}
                     </tr>

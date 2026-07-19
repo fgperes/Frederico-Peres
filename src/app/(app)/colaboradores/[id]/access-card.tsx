@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { Badge, EmptyState } from "@/components/ui";
 import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
@@ -9,6 +10,7 @@ import {
   resetEmployeeUserPassword,
   type ResetPasswordState,
 } from "./access-actions";
+import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
 
 type UserRoleInfo = { id: string; role: Role; departmentId: string | null; departmentName: string | null };
 
@@ -45,6 +47,19 @@ export function AccessCard({
     initialResetState
   );
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
+  const [rolesPending, startRolesTransition] = useTransition();
+  const rolesFeedback = useSaveFeedback();
+
+  function handleRolesSubmit(formData: FormData) {
+    if (!boundUpdateRoles) return;
+    startRolesTransition(() => {
+      rolesFeedback.run(async () => {
+        await boundUpdateRoles(formData);
+        router.refresh();
+      }, "Perfis atualizados com sucesso.");
+    });
+  }
 
   if (!hasUser) {
     return (
@@ -76,7 +91,8 @@ export function AccessCard({
           Perfis de acesso
         </h3>
         {canManage && boundUpdateRoles ? (
-          <form action={boundUpdateRoles} className="space-y-3">
+          <form action={handleRolesSubmit} className="space-y-3">
+            <SaveBanner status={rolesFeedback.status} message={rolesFeedback.message} />
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {ROLES.map((role) => (
                 <label key={role} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
@@ -105,9 +121,10 @@ export function AccessCard({
             </select>
             <button
               type="submit"
-              className="rounded-md bg-violet-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
+              disabled={rolesPending}
+              className="rounded-md bg-violet-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
             >
-              Guardar perfis
+              {rolesPending ? "A guardar..." : "Guardar perfis"}
             </button>
           </form>
         ) : (
@@ -131,6 +148,7 @@ export function AccessCard({
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
             Password
           </h3>
+          <SaveBanner status={resetState.error ? "error" : "idle"} message={resetState.error} />
           {resetState.password ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
               <p className="font-medium text-emerald-800 dark:text-emerald-400">
