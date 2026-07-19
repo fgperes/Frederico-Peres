@@ -46,6 +46,9 @@ export async function requestAbsence(formData: FormData) {
   if (endDate < startDate) throw new Error("Data de fim anterior à data de início.");
 
   const type = await prisma.absenceType.findUniqueOrThrow({ where: { id: absenceTypeId } });
+  if (type.isVacation) {
+    throw new Error("Férias têm um módulo próprio — use Férias no menu para marcar dias no calendário.");
+  }
   if (type.requiresDocument && !documentName) {
     throw new Error(`O tipo de ausência "${type.name}" exige documento comprovativo.`);
   }

@@ -370,6 +370,8 @@ model AbsenceType {
   annualLimitDays  Float?
   approvalLevels   Int              @default(1)
   affectsBalance   Boolean          @default(true)
+  // Marca o tipo "Férias", gerido pelo módulo dedicado (não pelas Ausências).
+  isVacation       Boolean          @default(false)
   createdAt        DateTime         @default(now())
   absences         Absence[]
   balances         AbsenceBalance[]
@@ -406,6 +408,8 @@ model AbsenceBalance {
   absenceType   AbsenceType @relation(fields: [absenceTypeId], references: [id])
   year          Int
   entitledDays  Float
+  // Dias transitados do ano anterior (só relevante para Férias; RH edita).
+  carryOverDays Float       @default(0)
   usedDays      Float       @default(0)
   plannedDays   Float       @default(0)
 

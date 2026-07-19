@@ -10,6 +10,22 @@ export async function parseExcelFile(
   return XLSX.utils.sheet_to_json(sheet, { defval: "" });
 }
 
+// Gera um workbook genérico a partir de colunas + linhas — usado pelas
+// exportações do módulo de Relatórios.
+export function buildRowsWorkbook(
+  columns: string[],
+  rows: (string | number)[][],
+  sheetName: string = "Relatório"
+): ArrayBuffer {
+  const worksheet = XLSX.utils.aoa_to_sheet([columns, ...rows]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
+  const buffer: Buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  const arrayBuffer = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(arrayBuffer).set(buffer);
+  return arrayBuffer;
+}
+
 export function buildTemplateWorkbook(
   headers: string[],
   sampleRow: Record<string, string | number>

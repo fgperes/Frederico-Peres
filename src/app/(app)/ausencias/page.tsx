@@ -24,16 +24,19 @@ export default async function AusenciasPage() {
   const scope = await employeeScopeWhere(user);
   const year = new Date().getFullYear();
 
-  const absenceTypes = await prisma.absenceType.findMany({ orderBy: { name: "asc" } });
+  const absenceTypes = await prisma.absenceType.findMany({
+    where: { isVacation: false },
+    orderBy: { name: "asc" },
+  });
 
   const [myBalances, myAbsences] = user.employeeId
     ? await Promise.all([
         prisma.absenceBalance.findMany({
-          where: { employeeId: user.employeeId, year },
+          where: { employeeId: user.employeeId, year, absenceType: { isVacation: false } },
           include: { absenceType: true },
         }),
         prisma.absence.findMany({
-          where: { employeeId: user.employeeId },
+          where: { employeeId: user.employeeId, absenceType: { isVacation: false } },
           include: { absenceType: true },
           orderBy: { startDate: "desc" },
           take: 15,
@@ -50,7 +53,7 @@ export default async function AusenciasPage() {
     const scopedIds = scopedEmployees.map((e) => e.id);
 
     pendingApprovals = await prisma.absence.findMany({
-      where: { employeeId: { in: scopedIds }, status: "PENDING" },
+      where: { employeeId: { in: scopedIds }, status: "PENDING", absenceType: { isVacation: false } },
       include: { employee: true, absenceType: true },
       orderBy: { startDate: "asc" },
     });
@@ -62,6 +65,7 @@ export default async function AusenciasPage() {
       where: {
         employeeId: { in: scopedIds },
         status: { in: ["APPROVED", "PENDING"] },
+        absenceType: { isVacation: false },
         startDate: { lte: monthEnd },
         endDate: { gte: monthStart },
       },
@@ -70,7 +74,12 @@ export default async function AusenciasPage() {
     });
 
     const yearAbsences = await prisma.absence.findMany({
-      where: { employeeId: { in: scopedIds }, status: "APPROVED", startDate: { gte: new Date(year, 0, 1) } },
+      where: {
+        employeeId: { in: scopedIds },
+        status: "APPROVED",
+        absenceType: { isVacation: false },
+        startDate: { gte: new Date(year, 0, 1) },
+      },
       include: { absenceType: true },
     });
     const grouped = new Map<string, { days: number; count: number }>();

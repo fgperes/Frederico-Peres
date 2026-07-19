@@ -55,20 +55,24 @@ export type Module =
   | "horarios"
   | "picagens"
   | "ausencias"
+  | "ferias"
   | "contratos"
   | "acessos"
   | "integracoes"
-  | "payroll";
+  | "payroll"
+  | "relatorios";
 
 export const MODULES: Module[] = [
   "recursos",
   "horarios",
   "picagens",
   "ausencias",
+  "ferias",
   "contratos",
   "acessos",
   "integracoes",
   "payroll",
+  "relatorios",
 ];
 
 export const MODULE_LABELS: Record<Module, string> = {
@@ -76,10 +80,12 @@ export const MODULE_LABELS: Record<Module, string> = {
   horarios: "Horários",
   picagens: "Picagens",
   ausencias: "Ausências",
+  ferias: "Férias",
   contratos: "Contratos",
   acessos: "Perfis e Acessos",
   integracoes: "Integrações",
   payroll: "Payroll",
+  relatorios: "Relatórios",
 };
 
 function allNoneRow(): Record<Module, AccessLevel> {
@@ -96,60 +102,72 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     horarios: "rw",
     picagens: "rw",
     ausencias: "rw",
+    ferias: "rw",
     contratos: "rw",
     acessos: "rw",
     integracoes: "rw",
     payroll: "rw",
+    relatorios: "rw",
   },
   ADMIN_RH: {
     recursos: "rw",
     horarios: "rw",
     picagens: "rw",
     ausencias: "rw",
+    ferias: "rw",
     contratos: "rw",
     acessos: "ro",
     integracoes: "rw",
     payroll: "rw",
+    relatorios: "rw",
   },
   GESTOR_EQUIPA: {
     recursos: "rw",
     horarios: "rw",
     picagens: "rw",
     ausencias: "rw",
+    ferias: "rw",
     contratos: "ro",
     acessos: "none",
     integracoes: "none",
     payroll: "none",
+    relatorios: "ro",
   },
   COLABORADOR: {
     recursos: "own",
     horarios: "own",
     picagens: "own",
     ausencias: "own",
+    ferias: "own",
     contratos: "own",
     acessos: "none",
     integracoes: "none",
     payroll: "own",
+    relatorios: "none",
   },
   RH_CONTRATOS: {
     recursos: "ro",
     horarios: "ro",
     picagens: "ro",
     ausencias: "ro",
+    ferias: "ro",
     contratos: "rw",
     acessos: "none",
     integracoes: "none",
     payroll: "ro",
+    relatorios: "ro",
   },
   AUDITOR: {
     recursos: "ro",
     horarios: "ro",
     picagens: "ro",
     ausencias: "ro",
+    ferias: "ro",
     contratos: "ro",
     acessos: "ro",
     integracoes: "ro",
     payroll: "ro",
+    relatorios: "ro",
   },
 };
 

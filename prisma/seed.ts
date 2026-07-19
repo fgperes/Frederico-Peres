@@ -61,7 +61,7 @@ async function main() {
   console.log("Seed: tipos de ausência...");
   await prisma.absenceType.upsert({
     where: { name: "Férias" },
-    update: {},
+    update: { isVacation: true },
     create: {
       name: "Férias",
       paid: true,
@@ -69,6 +69,7 @@ async function main() {
       unitType: "WORKING_DAYS",
       annualLimitDays: 22,
       approvalLevels: 1,
+      isVacation: true,
     },
   });
   await prisma.absenceType.upsert({

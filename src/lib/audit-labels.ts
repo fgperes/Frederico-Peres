@@ -61,6 +61,7 @@ const COMBOS: Record<string, Describer> = {
   "REJECT:Absence": () => "Rejeitou um pedido de ausência",
   "CANCEL:Absence": () => "Cancelou um pedido de ausência",
   "CREATE:AbsenceType": (d) => withDetails("Criou um novo tipo de ausência", d),
+  "UPDATE:AbsenceBalance": (d) => withDetails("Atualizou o saldo de férias de um colaborador", d),
 
   "SEND_MESSAGE:Message": () => "Enviou uma mensagem rápida",
 
@@ -155,6 +156,7 @@ const ENTITY_LABELS: Record<string, string> = {
   TimeClockEntry: "picagem",
   Absence: "ausência",
   AbsenceType: "tipo de ausência",
+  AbsenceBalance: "saldo de férias/ausência",
   PayrollSettings: "pressupostos de payroll",
   IrsBracket: "escalão de IRS",
   EmployeePayrollProfile: "perfil de payroll",
