@@ -180,5 +180,6 @@ export async function updateRolePermissions(formData: FormData) {
   });
 
   revalidatePath("/acessos");
+  revalidatePath("/acessos/perfis");
   revalidatePath("/", "layout");
 }
