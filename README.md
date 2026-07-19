@@ -7,8 +7,8 @@ picagens, ausências e contratos de trabalho, desenvolvida com base no
 ## Stack técnica
 
 - **Next.js 16** (App Router, Server Actions) + TypeScript
-- **Prisma** + **SQLite** (base de dados local; fácil de trocar para
-  PostgreSQL/MySQL alterando `provider` em `prisma/schema.prisma`)
+- **Prisma** + **PostgreSQL** (ex.: Supabase; fácil de trocar de fornecedor
+  alterando apenas `DATABASE_URL` em `.env`)
 - **NextAuth v5** (Credentials, sessão JWT) para autenticação
 - **Tailwind CSS** para a interface
 - **xlsx** para importação/exportação de ficheiros Excel
@@ -17,11 +17,17 @@ picagens, ausências e contratos de trabalho, desenvolvida com base no
 
 ```bash
 npm install
-cp .env.example .env      # e defina um AUTH_SECRET próprio
+cp .env.example .env      # defina DATABASE_URL (Postgres) e um AUTH_SECRET próprio
 npx prisma migrate deploy
 npm run db:seed           # cria a estrutura base e o utilizador administrador
 npm run dev
 ```
+
+`DATABASE_URL` deve apontar para uma base de dados PostgreSQL (ex.: um
+projeto gratuito no [Supabase](https://supabase.com)). Se a rede não tiver
+IPv6, use a connection string do "Session pooler" em vez da ligação
+direta — ver *Project Settings → Database → Connection Pooling* no
+painel do Supabase.
 
 Abra [http://localhost:3000](http://localhost:3000). Vai ser redirecionado
 para `/login`.
@@ -66,14 +72,17 @@ antes da publicação.
 - **SSO / MFA** (PA-05): autenticação atual é email + password (bcrypt).
   Preparado para evoluir para OAuth2/SSO adicionando providers ao
   NextAuth.
-- **Upload real de documentos** (contratos, comprovativos de ausência,
-  documentos de colaborador): atualmente é guardado apenas o nome do
-  ficheiro, sem armazenamento binário — para produção, ligar a um serviço
-  de blob storage (S3, Azure Blob, etc.).
+- **Upload real de documentos**: os anexos da ficha de colaborador
+  (`/colaboradores/[id]/anexos`) já guardam o ficheiro completo (data URI,
+  limite ~2MB). Os documentos de contratos e comprovativos de ausência
+  continuam a guardar apenas o nome do ficheiro — para produção, ligar a
+  um serviço de blob storage (S3, Azure Blob, etc.).
 - **Terminais físicos de picagem** (PI-07): fora de âmbito nesta fase.
 - **Recalibração do modelo preditivo** (HP-09): não implementado.
-- **Base de dados**: SQLite é adequado para desenvolvimento/demonstração;
-  para produção recomenda-se PostgreSQL.
+- **Foto de perfil via Google Drive/Microsoft OneDrive**: por agora só é
+  possível carregar uma foto do computador ou escolher um avatar — a
+  integração com Drive/OneDrive requer registar uma app OAuth nessas
+  plataformas (client ID/secret), que não está configurada.
 
 ## Scripts
 
