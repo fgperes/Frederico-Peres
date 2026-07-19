@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Department, Location, Team, Employee } from "@prisma/client";
 import { ID_DOCUMENT_TYPES, ID_DOCUMENT_TYPE_LABELS } from "@/lib/employee-constants";
+import { SearchableSelect } from "@/components/searchable-select";
 
 export function EmployeeForm({
   action,
@@ -10,16 +11,22 @@ export function EmployeeForm({
   teams,
   locations,
   managers,
+  jobTitles,
   employee,
+  canCreateUser = false,
 }: {
   action: (formData: FormData) => void;
   departments: Department[];
   teams: Team[];
   locations: Location[];
   managers: Employee[];
+  jobTitles: string[];
   employee?: Employee | null;
+  canCreateUser?: boolean;
 }) {
   const [noExpiry, setNoExpiry] = useState(employee?.idDocumentNoExpiry ?? false);
+  const [createUser, setCreateUser] = useState(false);
+  const showCreateUserOption = canCreateUser && !employee?.userId;
 
   return (
     <form action={action} className="space-y-8">
@@ -86,33 +93,59 @@ export function EmployeeForm({
           Dados Organizacionais
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Função / Cargo" name="jobTitle" defaultValue={employee?.jobTitle} required />
-          <SelectField
-            label="Departamento"
-            name="departmentId"
-            defaultValue={employee?.departmentId ?? ""}
-            options={departments.map((d) => ({ value: d.id, label: d.name }))}
+          <DatalistField
+            label="Função / Cargo"
+            name="jobTitle"
+            defaultValue={employee?.jobTitle}
+            options={jobTitles}
+            required
           />
-          <SelectField
-            label="Equipa"
-            name="teamId"
-            defaultValue={employee?.teamId ?? ""}
-            options={teams.map((t) => ({ value: t.id, label: t.name }))}
-          />
-          <SelectField
-            label="Local de trabalho"
-            name="locationId"
-            defaultValue={employee?.locationId ?? ""}
-            options={locations.map((l) => ({ value: l.id, label: l.name }))}
-          />
-          <SelectField
-            label="Chefia direta"
-            name="managerId"
-            defaultValue={employee?.managerId ?? ""}
-            options={managers
-              .filter((m) => m.id !== employee?.id)
-              .map((m) => ({ value: m.id, label: `${m.firstName} ${m.lastName}` }))}
-          />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Departamento
+            </label>
+            <SearchableSelect
+              name="departmentId"
+              defaultValue={employee?.departmentId ?? ""}
+              placeholder="Escreva para procurar..."
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Equipa
+            </label>
+            <SearchableSelect
+              name="teamId"
+              defaultValue={employee?.teamId ?? ""}
+              placeholder="Escreva para procurar..."
+              options={teams.map((t) => ({ value: t.id, label: t.name }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Local de trabalho
+            </label>
+            <SearchableSelect
+              name="locationId"
+              defaultValue={employee?.locationId ?? ""}
+              placeholder="Escreva para procurar..."
+              options={locations.map((l) => ({ value: l.id, label: l.name }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Chefia direta
+            </label>
+            <SearchableSelect
+              name="managerId"
+              defaultValue={employee?.managerId ?? ""}
+              placeholder="Escreva para procurar..."
+              options={managers
+                .filter((m) => m.id !== employee?.id)
+                .map((m) => ({ value: m.id, label: `${m.firstName} ${m.lastName}` }))}
+            />
+          </div>
           <Field label="Data de admissão" name="hireDate" type="date"
             defaultValue={employee?.hireDate ? employee.hireDate.toISOString().slice(0, 10) : ""} />
         </div>
@@ -161,6 +194,38 @@ export function EmployeeForm({
         </div>
       </section>
 
+      {showCreateUserOption && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+            Acesso à Aplicação
+          </h2>
+          <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+            <input
+              type="checkbox"
+              name="createUser"
+              checked={createUser}
+              onChange={(e) => setCreateUser(e.target.checked)}
+              className="rounded border-stone-300"
+            />
+            Criar também utilizador de acesso para este colaborador
+          </label>
+          {createUser && (
+            <div className="mt-3 max-w-sm">
+              <Field
+                label="Password inicial"
+                name="userPassword"
+                type="password"
+                required={createUser}
+              />
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                Mín. 10 caracteres. O utilizador terá de a alterar no primeiro login. A conta
+                fica com o perfil &quot;Colaborador&quot; — pode ajustar depois em Perfis e Acessos.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="flex justify-end gap-3">
         <button
           type="submit"
@@ -203,6 +268,45 @@ function Field({
         required={required}
         className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
       />
+    </div>
+  );
+}
+
+// Campo de texto com sugestões (lista de valores já usados), mas continua
+// a aceitar texto livre — usado para a Função/Cargo.
+function DatalistField({
+  label,
+  name,
+  defaultValue,
+  options,
+  required,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string | null;
+  options: string[];
+  required?: boolean;
+}) {
+  const listId = `${name}-options`;
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+        {label}
+      </label>
+      <input
+        type="text"
+        name={name}
+        list={listId}
+        defaultValue={defaultValue ?? ""}
+        required={required}
+        autoComplete="off"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+      />
+      <datalist id={listId}>
+        {options.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
     </div>
   );
 }

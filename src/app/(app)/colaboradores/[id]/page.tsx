@@ -1,10 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite, canRead } from "@/lib/roles";
+import { canWrite, canRead, canManageEmployeeAccess } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, Button, LinkButton } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
 import { ColaboradorTabs } from "./tabs";
+import { AccessCard } from "./access-card";
 import { updateEmployee, setEmployeeStatus } from "../actions";
 import { ID_DOCUMENT_TYPE_LABELS, type IdDocumentType } from "@/lib/employee-constants";
 import { notFound } from "next/navigation";
@@ -21,19 +22,29 @@ export default async function ColaboradorDetailPage({
 
   const employee = await prisma.employee.findFirst({
     where: { AND: [{ id }, scope] },
-    include: { history: { orderBy: { createdAt: "desc" }, take: 10 } },
+    include: {
+      history: { orderBy: { createdAt: "desc" }, take: 10 },
+      user: { include: { roles: { include: { department: true } } } },
+    },
   });
 
   if (!employee) notFound();
 
-  const [departments, teams, locations, managers] = await Promise.all([
+  const [departments, teams, locations, managers, jobTitleRows] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.location.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({ orderBy: { firstName: "asc" } }),
+    prisma.employee.findMany({
+      distinct: ["jobTitle"],
+      select: { jobTitle: true },
+      orderBy: { jobTitle: "asc" },
+    }),
   ]);
+  const jobTitles = jobTitleRows.map((r) => r.jobTitle);
 
   const canEdit = canWrite(user.roles, "recursos");
+  const canManageAccess = canManageEmployeeAccess(user.roles);
   const boundUpdate = updateEmployee.bind(null, employee.id);
   const toggleStatus = setEmployeeStatus.bind(
     null,
@@ -78,11 +89,35 @@ export default async function ColaboradorDetailPage({
             teams={teams}
             locations={locations}
             managers={managers}
+            jobTitles={jobTitles}
             employee={employee}
           />
         ) : (
           <ReadOnlyView employee={employee} />
         )}
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+          Perfis e Acessos
+        </h2>
+        <AccessCard
+          employeeId={employee.id}
+          hasUser={!!employee.user}
+          userId={employee.user?.id ?? null}
+          userEmail={employee.user?.email ?? null}
+          userActive={employee.user?.active ?? null}
+          userRoles={
+            employee.user?.roles.map((r) => ({
+              id: r.id,
+              role: r.role,
+              departmentId: r.departmentId,
+              departmentName: r.department?.name ?? null,
+            })) ?? []
+          }
+          departments={departments}
+          canManage={canManageAccess}
+        />
       </Card>
 
       {employee.history.length > 0 && (

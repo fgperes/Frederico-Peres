@@ -3,11 +3,10 @@
 import { useActionState, useState } from "react";
 import { createUserAction, type CreateUserState } from "./actions";
 import { ROLES, ROLE_LABELS } from "@/lib/roles";
-import type { Employee } from "@prisma/client";
 
 const initialState: CreateUserState = {};
 
-export function CreateUserForm({ employees }: { employees: Employee[] }) {
+export function CreateUserForm() {
   const [state, formAction, pending] = useActionState(
     createUserAction,
     initialState
@@ -17,20 +16,20 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
   return (
     <div>
       {state.success ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm">
-          <p className="font-medium text-emerald-800">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
+          <p className="font-medium text-emerald-800 dark:text-emerald-400">
             Utilizador criado com sucesso.
           </p>
-          <p className="mt-2 text-stone-700">
+          <p className="mt-2 text-stone-700 dark:text-stone-300">
             Email: <span className="font-mono">{state.success.email}</span>
           </p>
-          <p className="text-stone-700">
+          <p className="text-stone-700 dark:text-stone-300">
             Password temporária:{" "}
             <span className="font-mono font-semibold">
               {state.success.password}
             </span>
           </p>
-          <p className="mt-2 text-xs text-amber-700">
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
             Esta password só é apresentada uma vez. Guarde-a e partilhe-a de
             forma segura — o utilizador terá de a alterar no primeiro login.
           </p>
@@ -40,58 +39,47 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
               navigator.clipboard.writeText(state.success!.password);
               setCopied(true);
             }}
-            className="mt-2 rounded-md border border-stone-300 px-3 py-1 text-xs hover:bg-white"
+            className="mt-2 rounded-md border border-stone-300 px-3 py-1 text-xs hover:bg-white dark:border-stone-700 dark:hover:bg-stone-800"
           >
             {copied ? "Copiado!" : "Copiar password"}
           </button>
         </div>
       ) : (
         <form action={formAction} className="space-y-3">
+          <p className="rounded-md bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:bg-stone-800/60 dark:text-stone-400">
+            Para criar a conta de acesso de um colaborador, faça-o na respetiva
+            ficha em Colaboradores. Este formulário é para contas sem ficha de
+            colaborador (ex.: integrações, contas de sistema).
+          </p>
           <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
               Nome
             </label>
             <input
               name="name"
               required
-              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
               Email
             </label>
             <input
               name="email"
               type="email"
               required
-              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600">
-              Associar a colaborador (opcional)
-            </label>
-            <select
-              name="employeeId"
-              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-            >
-              <option value="">—</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.firstName} {e.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
               Perfis de acesso
             </label>
             <div className="grid grid-cols-2 gap-1.5">
               {ROLES.map((role) => (
-                <label key={role} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="roles" value={role} />
+                <label key={role} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                  <input type="checkbox" name="roles" value={role} className="rounded border-stone-300" />
                   {ROLE_LABELS[role]}
                 </label>
               ))}
@@ -99,7 +87,7 @@ export function CreateUserForm({ employees }: { employees: Employee[] }) {
           </div>
 
           {state.error && (
-            <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
               {state.error}
             </p>
           )}

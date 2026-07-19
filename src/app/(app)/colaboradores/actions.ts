@@ -2,11 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { canWrite, canManageEmployeeAccess, type Role } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { parseExcelFile } from "@/lib/excel";
 import { ID_DOCUMENT_TYPES } from "@/lib/employee-constants";
 
@@ -43,6 +44,8 @@ const employeeSchema = z.object({
   shiftPreferences: z.string().optional(),
   skills: z.string().optional(),
   hireDate: z.string().optional(),
+  createUser: z.coerce.boolean().optional(),
+  userPassword: z.string().optional(),
 });
 
 async function assertCanWrite() {
@@ -55,6 +58,58 @@ async function assertCanWrite() {
 
 function toNullable(v?: string) {
   return v && v.length > 0 ? v : null;
+}
+
+// Cria a conta de utilizador ligada a um colaborador — usado quando a
+// opção "Criar também utilizador de acesso" é marcada na ficha (na
+// criação, ou na edição se ainda não tiver conta). Perfil por omissão:
+// Colaborador — pode ser ajustado depois em Perfis e Acessos.
+async function maybeCreateLinkedUser(params: {
+  employeeId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  alreadyHasUser: boolean;
+  createUser?: boolean;
+  userPassword?: string;
+  actorId: string;
+  actorRoles: Role[];
+}) {
+  if (!params.createUser || params.alreadyHasUser) return;
+  if (!canManageEmployeeAccess(params.actorRoles)) {
+    throw new Error("Sem permissão para criar utilizadores de acesso.");
+  }
+  if (!params.userPassword || params.userPassword.length < 10) {
+    throw new Error("A password do utilizador deve ter pelo menos 10 caracteres.");
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email: params.email } });
+  if (existingUser) {
+    throw new Error("Já existe um utilizador com este email — não é possível criar outro.");
+  }
+
+  const passwordHash = await bcrypt.hash(params.userPassword, 12);
+  const newUser = await prisma.user.create({
+    data: {
+      name: `${params.firstName} ${params.lastName}`,
+      email: params.email,
+      passwordHash,
+      mustChangePassword: true,
+      roles: { create: [{ role: "COLABORADOR" }] },
+    },
+  });
+  await prisma.employee.update({
+    where: { id: params.employeeId },
+    data: { userId: newUser.id },
+  });
+
+  await logAudit({
+    userId: params.actorId,
+    action: "CREATE",
+    entity: "User",
+    entityId: newUser.id,
+    details: `Criado ${params.email} (conta de colaborador) com perfil: Colaborador`,
+  });
 }
 
 export async function createEmployee(formData: FormData) {
@@ -106,6 +161,18 @@ export async function createEmployee(formData: FormData) {
     entity: "Employee",
     entityId: employee.id,
     details: `${employee.firstName} ${employee.lastName}`,
+  });
+
+  await maybeCreateLinkedUser({
+    employeeId: employee.id,
+    email: employee.email,
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    alreadyHasUser: false,
+    createUser: data.createUser,
+    userPassword: data.userPassword,
+    actorId: user.id,
+    actorRoles: user.roles,
   });
 
   revalidatePath("/colaboradores");
@@ -194,6 +261,18 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     details: `${employee.firstName} ${employee.lastName}`,
   });
 
+  await maybeCreateLinkedUser({
+    employeeId: employee.id,
+    email: employee.email,
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    alreadyHasUser: !!before.userId,
+    createUser: data.createUser,
+    userPassword: data.userPassword,
+    actorId: user.id,
+    actorRoles: user.roles,
+  });
+
   revalidatePath("/colaboradores");
   revalidatePath(`/colaboradores/${employee.id}`);
 }
@@ -213,6 +292,20 @@ export async function setEmployeeStatus(employeeId: string, status: "ACTIVE" | "
     entityId: employee.id,
     details: `${employee.firstName} ${employee.lastName}`,
   });
+
+  // Ativar/inativar o colaborador reflete-se na conta de acesso ligada.
+  if (employee.userId) {
+    const active = status === "ACTIVE";
+    await prisma.user.update({ where: { id: employee.userId }, data: { active } });
+    await logAudit({
+      userId: user.id,
+      action: active ? "ACTIVATE" : "DEACTIVATE",
+      entity: "User",
+      entityId: employee.userId,
+      details: `Sincronizado a partir do colaborador ${employee.firstName} ${employee.lastName}`,
+    });
+    revalidatePath("/acessos");
+  }
 
   revalidatePath("/colaboradores");
   revalidatePath(`/colaboradores/${employee.id}`);

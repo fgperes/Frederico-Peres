@@ -26,7 +26,6 @@ export async function createUserAction(
 
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const employeeId = String(formData.get("employeeId") ?? "") || null;
   const selectedRoles = formData.getAll("roles").map(String) as Role[];
 
   if (!name || !email) return { error: "Nome e email são obrigatórios." };
@@ -38,6 +37,9 @@ export async function createUserAction(
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { error: "Já existe um utilizador com este email." };
 
+  // Este formulário cria utilizadores sem ficha de colaborador (ex.: contas
+  // de sistema/integrações). Para colaboradores, a conta cria-se na
+  // respetiva ficha em Colaboradores.
   const password = generatePassword(14);
   const passwordHash = await bcrypt.hash(password, 12);
 
@@ -47,7 +49,6 @@ export async function createUserAction(
       email,
       passwordHash,
       mustChangePassword: true,
-      employee: employeeId ? { connect: { id: employeeId } } : undefined,
       roles: { create: selectedRoles.map((role) => ({ role })) },
     },
   });
@@ -66,7 +67,11 @@ export async function createUserAction(
 
 export async function toggleUserActive(userId: string, active: boolean) {
   const admin = await assertSystemAdmin();
-  const user = await prisma.user.update({ where: { id: userId }, data: { active } });
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { active },
+    include: { employee: true },
+  });
   await logAudit({
     userId: admin.id,
     action: active ? "ACTIVATE" : "DEACTIVATE",
@@ -74,6 +79,24 @@ export async function toggleUserActive(userId: string, active: boolean) {
     entityId: user.id,
     details: user.email,
   });
+
+  // Se este utilizador estiver ligado a um colaborador, propaga o estado
+  // para a ficha do colaborador (pedido explícito: alterações feitas aqui
+  // pelo Administrador do Sistema devem refletir-se na tabela de colaboradores).
+  if (user.employee) {
+    const status = active ? "ACTIVE" : "INACTIVE";
+    await prisma.employee.update({ where: { id: user.employee.id }, data: { status } });
+    await logAudit({
+      userId: admin.id,
+      action: active ? "ACTIVATE" : "DEACTIVATE",
+      entity: "Employee",
+      entityId: user.employee.id,
+      details: `Sincronizado a partir do utilizador ${user.email}`,
+    });
+    revalidatePath("/colaboradores");
+    revalidatePath(`/colaboradores/${user.employee.id}`);
+  }
+
   revalidatePath("/acessos");
 }
 

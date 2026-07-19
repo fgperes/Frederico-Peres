@@ -21,6 +21,7 @@ type Describer = (details: string | null) => string;
 const COMBOS: Record<string, Describer> = {
   "LOGIN:User": () => "Iniciou sessão na aplicação",
   "CHANGE_PASSWORD:User": () => "Alterou a password da própria conta",
+  "RESET_PASSWORD:User": () => "Redefiniu a password de um utilizador",
   "UPDATE_AVATAR:User": () => "Alterou a foto de perfil",
   "CREATE:User": (d) => withDetails("Criou um novo utilizador", d),
   "UPDATE:User": (d) => withDetails("Atualizou um utilizador", d),
@@ -128,6 +129,7 @@ const ACTION_COLOR: Record<string, Color> = {
   REMOVE_WEEK: "red",
   REVERT_IMPORT: "red",
   JUSTIFY: "amber",
+  RESET_PASSWORD: "amber",
   MEAL_ALERT: "amber",
 };
 

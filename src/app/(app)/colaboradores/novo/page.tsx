@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { canWrite, canManageEmployeeAccess } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, Card } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
@@ -13,12 +13,18 @@ export default async function NovoColaboradorPage() {
     redirect("/colaboradores");
   }
 
-  const [departments, teams, locations, managers] = await Promise.all([
+  const [departments, teams, locations, managers, jobTitleRows] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.location.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({ orderBy: { firstName: "asc" } }),
+    prisma.employee.findMany({
+      distinct: ["jobTitle"],
+      select: { jobTitle: true },
+      orderBy: { jobTitle: "asc" },
+    }),
   ]);
+  const jobTitles = jobTitleRows.map((r) => r.jobTitle);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -34,6 +40,8 @@ export default async function NovoColaboradorPage() {
           teams={teams}
           locations={locations}
           managers={managers}
+          jobTitles={jobTitles}
+          canCreateUser={canManageEmployeeAccess(user.roles)}
         />
       </Card>
     </div>

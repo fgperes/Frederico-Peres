@@ -5,7 +5,8 @@ import { PageHeader, Card, Badge } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
 import { toggleUserActive, updateUserRoles } from "./actions";
 import { redirect } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, ArrowUpRight } from "lucide-react";
 
 export default async function AcessosPage() {
   const user = await requireUser();
@@ -13,16 +14,12 @@ export default async function AcessosPage() {
 
   const admin = isSystemAdmin(user.roles);
 
-  const [users, departments, employees, auditLog] = await Promise.all([
+  const [users, departments, auditLog] = await Promise.all([
     prisma.user.findMany({
       include: { roles: { include: { department: true } }, employee: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
-    prisma.employee.findMany({
-      where: { user: null },
-      orderBy: { firstName: "asc" },
-    }),
     prisma.auditLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 30,
@@ -35,19 +32,23 @@ export default async function AcessosPage() {
       <PageHeader
         icon={ShieldCheck}
         title="Perfis e Acessos"
-        description="Gestão de utilizadores, perfis de acesso (RBAC) e auditoria."
+        description={
+          admin
+            ? "Gestão de utilizadores, perfis de acesso (RBAC) e auditoria."
+            : "Consulta de utilizadores, perfis de acesso (RBAC) e auditoria — só de leitura."
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card className="p-0">
-            <div className="border-b border-stone-200 px-6 py-4">
-              <h2 className="text-sm font-semibold text-stone-900">
+            <div className="border-b border-stone-200 px-6 py-4 dark:border-stone-800">
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                 Utilizadores
               </h2>
             </div>
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
                 <tr>
                   <th className="px-6 py-3">Utilizador</th>
                   <th className="px-6 py-3">Perfis</th>
@@ -55,15 +56,24 @@ export default async function AcessosPage() {
                   {admin && <th className="px-6 py-3">Ações</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                 {users.map((u) => (
                   <tr key={u.id}>
                     <td className="px-6 py-3 align-top">
-                      <div className="font-medium text-stone-900">{u.name}</div>
-                      <div className="text-xs text-stone-500">{u.email}</div>
+                      <div className="font-medium text-stone-900 dark:text-stone-100">{u.name}</div>
+                      <div className="text-xs text-stone-500 dark:text-stone-400">{u.email}</div>
+                      {u.employee && (
+                        <Link
+                          href={`/colaboradores/${u.employee.id}`}
+                          className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
+                        >
+                          Gerir em Colaboradores
+                          <ArrowUpRight size={11} />
+                        </Link>
+                      )}
                     </td>
                     <td className="px-6 py-3 align-top">
-                      {admin ? (
+                      {admin && !u.employee ? (
                         <form
                           action={updateUserRoles.bind(null, u.id)}
                           className="space-y-2"
@@ -72,7 +82,7 @@ export default async function AcessosPage() {
                             {ROLES.map((role) => (
                               <label
                                 key={role}
-                                className="flex items-center gap-2 text-xs text-stone-700"
+                                className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300"
                               >
                                 <input
                                   type="checkbox"
@@ -81,6 +91,7 @@ export default async function AcessosPage() {
                                   defaultChecked={u.roles.some(
                                     (r) => r.role === role
                                   )}
+                                  className="rounded border-stone-300"
                                 />
                                 {ROLE_LABELS[role]}
                               </label>
@@ -92,7 +103,7 @@ export default async function AcessosPage() {
                               u.roles.find((r) => r.role === "GESTOR_EQUIPA")
                                 ?.departmentId ?? ""
                             }
-                            className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs"
+                            className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
                           >
                             <option value="">
                               Âmbito (departamento) p/ Gestor de Equipa
@@ -105,19 +116,23 @@ export default async function AcessosPage() {
                           </select>
                           <button
                             type="submit"
-                            className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900"
+                            className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900 dark:bg-violet-600 dark:hover:bg-violet-700"
                           >
                             Guardar perfis
                           </button>
                         </form>
                       ) : (
                         <div className="flex flex-wrap gap-1">
-                          {u.roles.map((r) => (
-                            <Badge key={r.id} color="blue">
-                              {ROLE_LABELS[r.role]}
-                              {r.department ? ` · ${r.department.name}` : ""}
-                            </Badge>
-                          ))}
+                          {u.roles.length === 0 ? (
+                            <span className="text-xs text-stone-500 dark:text-stone-400">—</span>
+                          ) : (
+                            u.roles.map((r) => (
+                              <Badge key={r.id} color="blue">
+                                {ROLE_LABELS[r.role]}
+                                {r.department ? ` · ${r.department.name}` : ""}
+                              </Badge>
+                            ))
+                          )}
                         </div>
                       )}
                     </td>
@@ -131,7 +146,7 @@ export default async function AcessosPage() {
                         <form action={toggleUserActive.bind(null, u.id, !u.active)}>
                           <button
                             type="submit"
-                            className="rounded-md border border-stone-300 px-2.5 py-1 text-xs hover:bg-stone-50"
+                            className="rounded-md border border-stone-300 px-2.5 py-1 text-xs hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
                           >
                             {u.active ? "Desativar" : "Ativar"}
                           </button>
@@ -146,26 +161,26 @@ export default async function AcessosPage() {
 
           {admin && (
             <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900">
+              <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
                 Novo Utilizador
               </h2>
-              <CreateUserForm employees={employees} />
+              <CreateUserForm />
             </Card>
           )}
         </div>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
             Log de Auditoria
           </h2>
           <ul className="max-h-[32rem] space-y-3 overflow-y-auto text-xs">
             {auditLog.map((log) => (
-              <li key={log.id} className="border-b border-stone-100 pb-2">
-                <div className="font-medium text-stone-700">
+              <li key={log.id} className="border-b border-stone-100 pb-2 dark:border-stone-800">
+                <div className="font-medium text-stone-700 dark:text-stone-300">
                   {log.action} · {log.entity}
                 </div>
-                <div className="text-stone-500">{log.details}</div>
-                <div className="text-stone-500">
+                <div className="text-stone-500 dark:text-stone-400">{log.details}</div>
+                <div className="text-stone-500 dark:text-stone-400">
                   {log.user?.name ?? "Sistema"} —{" "}
                   {log.createdAt.toLocaleString("pt-PT")}
                 </div>

@@ -121,3 +121,9 @@ export function isManagerLike(roles: Role[]): boolean {
 export function isSystemAdmin(roles: Role[]): boolean {
   return roles.includes("ADMIN_SISTEMA");
 }
+
+// Só o Administrador do Sistema e o Administrador de RH podem criar/gerir a
+// conta de acesso de um colaborador diretamente na ficha do colaborador.
+export function canManageEmployeeAccess(roles: Role[]): boolean {
+  return roles.includes("ADMIN_SISTEMA") || roles.includes("ADMIN_RH");
+}
