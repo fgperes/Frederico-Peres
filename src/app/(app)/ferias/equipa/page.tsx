@@ -2,10 +2,11 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { getOrCreateVacationBalance, computeHeadcount, getVacationType } from "@/lib/vacation";
+import { getOrCreateVacationBalance, computeHeadcount, getVacationType, effectiveStatus } from "@/lib/vacation";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "../tabs";
 import { BalanceEditor } from "./balance-editor";
+import { VacationLegend } from "../calendar";
 import { redirect } from "next/navigation";
 import { Plane, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +14,7 @@ import Link from "next/link";
 const STATUS_BG: Record<string, string> = {
   PENDING: "bg-amber-400",
   APPROVED: "bg-emerald-500",
+  CANCEL_PENDING: "bg-orange-500",
 };
 
 function parseIdList(value: string | undefined): string[] {
@@ -81,7 +83,7 @@ export default async function FeriasEquipaPage({
   for (const a of absences) {
     const day = a.startDate.getDate();
     if (!grid.has(a.employeeId)) grid.set(a.employeeId, new Map());
-    grid.get(a.employeeId)!.set(day, a.status);
+    grid.get(a.employeeId)!.set(day, effectiveStatus(a));
     if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day)!.push(a.employeeId);
   }
@@ -217,6 +219,8 @@ export default async function FeriasEquipaPage({
           </div>
         </div>
 
+        <VacationLegend />
+
         {employees.length === 0 ? (
           <EmptyState icon={Plane} message="Sem colaboradores para os filtros selecionados." />
         ) : (
@@ -261,7 +265,17 @@ export default async function FeriasEquipaPage({
                           return (
                             <td key={day} className="p-0.5 text-center">
                               <div
-                                title={status ? `${e.firstName} ${e.lastName} — ${status === "APPROVED" ? "aprovado" : "pendente"}` : undefined}
+                                title={
+                                  status
+                                    ? `${e.firstName} ${e.lastName} — ${
+                                        status === "APPROVED"
+                                          ? "aprovado"
+                                          : status === "CANCEL_PENDING"
+                                            ? "pedido de cancelamento"
+                                            : "pendente"
+                                      }`
+                                    : undefined
+                                }
                                 className={`mx-auto h-5 w-5 rounded ${
                                   status ? `${STATUS_BG[status]} text-white` : ""
                                 } ${overlap ? "ring-2 ring-inset ring-rose-600" : ""} flex items-center justify-center text-[9px] font-medium`}

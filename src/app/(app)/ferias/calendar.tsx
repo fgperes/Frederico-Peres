@@ -16,6 +16,25 @@ export type DayMark = {
 
 const toKey = toDateKey;
 
+const LEGEND_ITEMS: { color: string; label: string }[] = [
+  { color: "bg-amber-400", label: "Pendente de aprovação" },
+  { color: "bg-emerald-500", label: "Aprovado" },
+  { color: "bg-orange-500", label: "Pedido de cancelamento" },
+];
+
+export function VacationLegend() {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-stone-600 dark:text-stone-400">
+      {LEGEND_ITEMS.map((item) => (
+        <span key={item.label} className="flex items-center gap-1.5">
+          <span className={`h-3 w-3 shrink-0 rounded ${item.color}`} />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function buildMonthWeeks(year: number, month: number): (Date | null)[][] {
   const first = new Date(year, month, 1);
   const startOffset = (first.getDay() + 6) % 7; // segunda = 0

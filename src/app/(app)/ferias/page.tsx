@@ -40,7 +40,7 @@ export default async function FeriasPage({
     if (params.employeeId && employees.some((e) => e.id === params.employeeId)) {
       targetEmployeeId = params.employeeId;
     } else {
-      targetEmployeeId = user.employeeId ?? employees[0]?.id ?? null;
+      targetEmployeeId = null;
     }
     isSelf = targetEmployeeId === user.employeeId;
   } else {
@@ -71,7 +71,11 @@ export default async function FeriasPage({
       {!targetEmployeeId ? (
         <EmptyState
           icon={Plane}
-          message="Sem ficha de colaborador associada — não tem calendário próprio."
+          message={
+            canManage
+              ? "Selecione um colaborador acima para ver o respetivo calendário de férias."
+              : "Sem ficha de colaborador associada — não tem calendário próprio."
+          }
         />
       ) : (
         <FeriasCalendar employeeId={targetEmployeeId} year={year} isSelf={isSelf} />

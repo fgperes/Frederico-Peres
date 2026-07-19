@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { VacationCalendar, type DayMark } from "./calendar";
+import { VacationCalendar, VacationLegend, type DayMark } from "./calendar";
 import { toggleVacationDay } from "./actions";
 import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
 
@@ -105,10 +105,8 @@ export function CalendarPanel({
 
       {interactive && isSelf && (
         <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
-          Clique num dia útil para pedir férias (fica <strong>amarelo</strong>, pendente de aprovação).
-          Depois de aprovado fica <strong>verde</strong>. Clique novamente para cancelar um pedido
-          pendente; num dia já aprovado, gera um pedido de cancelamento (fica{" "}
-          <strong>laranja</strong> até ser confirmado).
+          Clique num dia útil para pedir férias. Clique novamente para cancelar um pedido
+          pendente; num dia já aprovado, gera um pedido de cancelamento até ser confirmado.
         </p>
       )}
       {interactive && !isSelf && (
@@ -117,6 +115,8 @@ export function CalendarPanel({
           novamente para cancelar.
         </p>
       )}
+
+      <VacationLegend />
 
       <VacationCalendar
         view={view}
