@@ -42,30 +42,32 @@ export default async function CiclosPage() {
                 <EmptyState message="Sem ciclos definidos." />
               </div>
             ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                  <tr>
-                    <th className="px-4 py-3">Nome</th>
-                    <th className="px-4 py-3">Duração</th>
-                    <th className="px-4 py-3">Início</th>
-                    <th className="px-4 py-3">Colaboradores</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {cycles.map((c) => (
-                    <tr key={c.id} className="hover:bg-stone-50">
-                      <td className="px-4 py-3">
-                        <Link href={`/horarios/ciclos/${c.id}`} className="font-medium text-violet-700 hover:underline">
-                          {c.name}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">{c.weeks} semanas</td>
-                      <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
-                      <td className="px-4 py-3">{c._count.assignments}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left text-sm">
+                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                    <tr>
+                      <th className="px-4 py-3">Nome</th>
+                      <th className="px-4 py-3">Duração</th>
+                      <th className="px-4 py-3">Início</th>
+                      <th className="px-4 py-3">Colaboradores</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {cycles.map((c) => (
+                      <tr key={c.id} className="hover:bg-stone-50">
+                        <td className="px-4 py-3">
+                          <Link href={`/horarios/ciclos/${c.id}`} className="font-medium text-violet-700 hover:underline">
+                            {c.name}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3">{c.weeks} semanas</td>
+                        <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
+                        <td className="px-4 py-3">{c._count.assignments}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </Card>
 

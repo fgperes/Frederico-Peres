@@ -7,6 +7,7 @@ import { getNotifications, getUnreadMessageCount } from "@/lib/notifications";
 import { getAllowedRecipients } from "@/lib/messaging";
 import { getOpenTasks } from "@/lib/tasks";
 import { getTodayMealStatus } from "@/lib/meal-rules";
+import { MobileNavProvider } from "@/components/mobile-nav-context";
 
 export default async function AppLayout({
   children,
@@ -39,35 +40,37 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-1">
-      <Nav
-        roles={user.roles}
-        name={user.name ?? ""}
-        email={user.email ?? ""}
-        avatarKey={dbUser?.avatarKey ?? null}
-        avatarImage={dbUser?.avatarImage ?? null}
-      />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar
-          notifications={notifications}
-          unreadMessageCount={unreadMessageCount}
-          recipients={recipients}
-          messages={messages}
-          tasks={tasks}
-          hasEmployee={!!user.employeeId}
-          mealStatus={mealStatus}
-          canPreviewRoles={user.realRoles.includes("ADMIN_SISTEMA")}
-          currentViewAs={user.isViewingAs ? user.roles[0] : null}
-          currentViewAsLabel={user.isViewingAs ? (ROLE_LABELS[user.roles[0]] ?? user.roles[0]) : null}
-          previewableRoles={ROLES.filter((r) => r !== "ADMIN_SISTEMA").map((key) => ({
-            key,
-            label: ROLE_LABELS[key],
-          }))}
+    <MobileNavProvider>
+      <div className="flex min-h-screen flex-1">
+        <Nav
+          roles={user.roles}
+          name={user.name ?? ""}
+          email={user.email ?? ""}
+          avatarKey={dbUser?.avatarKey ?? null}
+          avatarImage={dbUser?.avatarImage ?? null}
         />
-        <main className="flex-1 overflow-y-auto bg-stone-100 p-8 dark:bg-stone-950">
-          {children}
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <TopBar
+            notifications={notifications}
+            unreadMessageCount={unreadMessageCount}
+            recipients={recipients}
+            messages={messages}
+            tasks={tasks}
+            hasEmployee={!!user.employeeId}
+            mealStatus={mealStatus}
+            canPreviewRoles={user.realRoles.includes("ADMIN_SISTEMA")}
+            currentViewAs={user.isViewingAs ? user.roles[0] : null}
+            currentViewAsLabel={user.isViewingAs ? (ROLE_LABELS[user.roles[0]] ?? user.roles[0]) : null}
+            previewableRoles={ROLES.filter((r) => r !== "ADMIN_SISTEMA").map((key) => ({
+              key,
+              label: ROLE_LABELS[key],
+            }))}
+          />
+          <main className="flex-1 overflow-y-auto bg-stone-100 p-4 sm:p-6 lg:p-8 dark:bg-stone-950">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </MobileNavProvider>
   );
 }

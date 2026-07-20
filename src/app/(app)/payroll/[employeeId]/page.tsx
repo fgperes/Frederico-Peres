@@ -56,40 +56,42 @@ export default async function EmployeePayrollPage({
             {employee.payslips.length === 0 ? (
               <EmptyState message="Sem recibos gerados ainda." />
             ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
-                  <tr>
-                    <th className="py-2">Período</th>
-                    <th className="py-2">Bruto</th>
-                    <th className="py-2">Líquido</th>
-                    <th className="py-2">Custo empresa</th>
-                    <th className="py-2"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {employee.payslips.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-2">
-                        {new Date(p.year, p.month - 1, 1).toLocaleDateString("pt-PT", { month: "long", year: "numeric" })}
-                        {p.belowMinimumWage && (
-                          <Badge color="red">abaixo do SMN</Badge>
-                        )}
-                      </td>
-                      <td className="py-2">{p.grossTotal.toFixed(2)} €</td>
-                      <td className="py-2 font-medium">{p.netTotal.toFixed(2)} €</td>
-                      <td className="py-2">{p.employerCost.toFixed(2)} €</td>
-                      <td className="py-2 text-right">
-                        <Link
-                          href={`/payroll/${employee.id}/${p.year}/${p.month}`}
-                          className="text-xs font-medium text-violet-700 hover:underline"
-                        >
-                          ver recibo →
-                        </Link>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left text-sm">
+                  <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+                    <tr>
+                      <th className="py-2">Período</th>
+                      <th className="py-2">Bruto</th>
+                      <th className="py-2">Líquido</th>
+                      <th className="py-2">Custo empresa</th>
+                      <th className="py-2"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {employee.payslips.map((p) => (
+                      <tr key={p.id}>
+                        <td className="py-2">
+                          {new Date(p.year, p.month - 1, 1).toLocaleDateString("pt-PT", { month: "long", year: "numeric" })}
+                          {p.belowMinimumWage && (
+                            <Badge color="red">abaixo do SMN</Badge>
+                          )}
+                        </td>
+                        <td className="py-2">{p.grossTotal.toFixed(2)} €</td>
+                        <td className="py-2 font-medium">{p.netTotal.toFixed(2)} €</td>
+                        <td className="py-2">{p.employerCost.toFixed(2)} €</td>
+                        <td className="py-2 text-right">
+                          <Link
+                            href={`/payroll/${employee.id}/${p.year}/${p.month}`}
+                            className="text-xs font-medium text-violet-700 hover:underline"
+                          >
+                            ver recibo →
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             <div className="mt-4 border-t border-stone-100 pt-4">

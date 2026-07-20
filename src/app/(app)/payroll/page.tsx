@@ -85,36 +85,38 @@ export default async function PayrollPage({
             <EmptyState message="Sem colaboradores no seu âmbito." />
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-              <tr>
-                <th className="px-4 py-3">Colaborador</th>
-                <th className="px-4 py-3">Salário base</th>
-                <th className="px-4 py-3">Estado do recibo</th>
-                <th className="px-4 py-3">Líquido</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {employees.map((e) => {
-                const payslip = payslipByEmployee.get(e.id);
-                const baseSalary = e.contracts[0]?.baseSalary;
-                return (
-                  <tr key={e.id} className="hover:bg-stone-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/payroll/${e.id}`} className="font-medium text-violet-700 hover:underline">
-                        {e.firstName} {e.lastName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">{baseSalary ? `${baseSalary.toFixed(2)} €` : "—"}</td>
-                    <td className="px-4 py-3">
-                      <Badge color={payslip ? "green" : "amber"}>{payslip ? "Gerado" : "Por gerar"}</Badge>
-                    </td>
-                    <td className="px-4 py-3">{payslip ? `${payslip.netTotal.toFixed(2)} €` : "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                <tr>
+                  <th className="px-4 py-3">Colaborador</th>
+                  <th className="px-4 py-3">Salário base</th>
+                  <th className="px-4 py-3">Estado do recibo</th>
+                  <th className="px-4 py-3">Líquido</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {employees.map((e) => {
+                  const payslip = payslipByEmployee.get(e.id);
+                  const baseSalary = e.contracts[0]?.baseSalary;
+                  return (
+                    <tr key={e.id} className="hover:bg-stone-50">
+                      <td className="px-4 py-3">
+                        <Link href={`/payroll/${e.id}`} className="font-medium text-violet-700 hover:underline">
+                          {e.firstName} {e.lastName}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3">{baseSalary ? `${baseSalary.toFixed(2)} €` : "—"}</td>
+                      <td className="px-4 py-3">
+                        <Badge color={payslip ? "green" : "amber"}>{payslip ? "Gerado" : "Por gerar"}</Badge>
+                      </td>
+                      <td className="px-4 py-3">{payslip ? `${payslip.netTotal.toFixed(2)} €` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>

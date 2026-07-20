@@ -279,24 +279,26 @@ export default async function AusenciasPage() {
               {reportByType.length === 0 ? (
                 <EmptyState message="Sem dados." />
               ) : (
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                    <tr>
-                      <th className="py-2">Tipo</th>
-                      <th className="py-2">Pedidos</th>
-                      <th className="py-2">Dias totais</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {reportByType.map((r) => (
-                      <tr key={r.name}>
-                        <td className="py-2">{r.name}</td>
-                        <td className="py-2">{r.count}</td>
-                        <td className="py-2">{r.days}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[360px] text-left text-sm">
+                    <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                      <tr>
+                        <th className="py-2">Tipo</th>
+                        <th className="py-2">Pedidos</th>
+                        <th className="py-2">Dias totais</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {reportByType.map((r) => (
+                        <tr key={r.name}>
+                          <td className="py-2">{r.name}</td>
+                          <td className="py-2">{r.count}</td>
+                          <td className="py-2">{r.days}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </Card>
           </div>

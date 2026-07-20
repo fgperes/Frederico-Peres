@@ -124,34 +124,36 @@ export default async function PayrollSettingsPage() {
           <p className="mb-4 text-xs text-stone-500">
             Taxa marginal aplicada ao valor bruto tributável do mês, em escalões progressivos.
           </p>
-          <table className="mb-4 w-full text-left text-sm">
-            <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
-              <tr>
-                <th className="py-2">Ordem</th>
-                <th className="py-2">Até (€)</th>
-                <th className="py-2">Taxa</th>
-                <th className="py-2"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {brackets.map((b) => (
-                <tr key={b.id}>
-                  <td className="py-2">{b.order}</td>
-                  <td className="py-2">{b.upToGross ?? "—"}</td>
-                  <td className="py-2">
-                    <Badge color="blue">{(b.rate * 100).toFixed(1)}%</Badge>
-                  </td>
-                  <td className="py-2 text-right">
-                    <form action={deleteIrsBracket.bind(null, b.id)}>
-                      <button type="submit" className="text-xs text-rose-600 hover:underline">
-                        remover
-                      </button>
-                    </form>
-                  </td>
+          <div className="mb-4 overflow-x-auto">
+            <table className="w-full min-w-[440px] text-left text-sm">
+              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+                <tr>
+                  <th className="py-2">Ordem</th>
+                  <th className="py-2">Até (€)</th>
+                  <th className="py-2">Taxa</th>
+                  <th className="py-2"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {brackets.map((b) => (
+                  <tr key={b.id}>
+                    <td className="py-2">{b.order}</td>
+                    <td className="py-2">{b.upToGross ?? "—"}</td>
+                    <td className="py-2">
+                      <Badge color="blue">{(b.rate * 100).toFixed(1)}%</Badge>
+                    </td>
+                    <td className="py-2 text-right">
+                      <form action={deleteIrsBracket.bind(null, b.id)}>
+                        <button type="submit" className="text-xs text-rose-600 hover:underline">
+                          remover
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <form action={upsertIrsBracket} className="grid grid-cols-4 gap-2">
             <input

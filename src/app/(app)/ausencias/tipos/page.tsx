@@ -25,36 +25,38 @@ export default async function TiposAusenciaPage() {
           {types.length === 0 ? (
             <div className="p-6"><EmptyState message="Sem tipos configurados." /></div>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                <tr>
-                  <th className="px-4 py-3">Nome</th>
-                  <th className="px-4 py-3">Remunerada</th>
-                  <th className="px-4 py-3">Documento</th>
-                  <th className="px-4 py-3">Unidade</th>
-                  <th className="px-4 py-3">Limite anual</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {types.map((t) => (
-                  <tr key={t.id}>
-                    <td className="px-4 py-3 font-medium">{t.name}</td>
-                    <td className="px-4 py-3">
-                      <Badge color={t.paid ? "green" : "slate"}>{t.paid ? "Sim" : "Não"}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge color={t.requiresDocument ? "amber" : "slate"}>
-                        {t.requiresDocument ? "Obrigatório" : "Não exige"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      {t.unitType === "WORKING_DAYS" ? "Dias úteis" : "Dias corridos"}
-                    </td>
-                    <td className="px-4 py-3">{t.annualLimitDays ?? "—"}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] text-left text-sm">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                  <tr>
+                    <th className="px-4 py-3">Nome</th>
+                    <th className="px-4 py-3">Remunerada</th>
+                    <th className="px-4 py-3">Documento</th>
+                    <th className="px-4 py-3">Unidade</th>
+                    <th className="px-4 py-3">Limite anual</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {types.map((t) => (
+                    <tr key={t.id}>
+                      <td className="px-4 py-3 font-medium">{t.name}</td>
+                      <td className="px-4 py-3">
+                        <Badge color={t.paid ? "green" : "slate"}>{t.paid ? "Sim" : "Não"}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge color={t.requiresDocument ? "amber" : "slate"}>
+                          {t.requiresDocument ? "Obrigatório" : "Não exige"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {t.unitType === "WORKING_DAYS" ? "Dias úteis" : "Dias corridos"}
+                      </td>
+                      <td className="px-4 py-3">{t.annualLimitDays ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 

@@ -54,26 +54,28 @@ export function PredictiveForm({ departments }: { departments: Department[] }) {
             {state.result.createdShifts} turnos criados em modo rascunho.
           </p>
           {state.result.windows.length > 0 && (
-            <table className="w-full text-left">
-              <thead className="text-stone-500">
-                <tr>
-                  <th className="py-1">Dia</th>
-                  <th className="py-1">Turno</th>
-                  <th className="py-1">Necessário</th>
-                  <th className="py-1">Atribuído</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.result.windows.map((w, i) => (
-                  <tr key={i} className={w.assigned < w.required ? "text-amber-700" : "text-stone-700"}>
-                    <td className="py-1">{w.day}</td>
-                    <td className="py-1">{w.window}</td>
-                    <td className="py-1">{w.required}</td>
-                    <td className="py-1">{w.assigned}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-left">
+                <thead className="text-stone-500">
+                  <tr>
+                    <th className="py-1">Dia</th>
+                    <th className="py-1">Turno</th>
+                    <th className="py-1">Necessário</th>
+                    <th className="py-1">Atribuído</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {state.result.windows.map((w, i) => (
+                    <tr key={i} className={w.assigned < w.required ? "text-amber-700" : "text-stone-700"}>
+                      <td className="py-1">{w.day}</td>
+                      <td className="py-1">{w.window}</td>
+                      <td className="py-1">{w.required}</td>
+                      <td className="py-1">{w.assigned}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           <Link href="/horarios" className="mt-2 inline-block text-violet-700 hover:underline">
             Rever e ajustar no horário manual →

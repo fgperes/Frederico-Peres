@@ -199,34 +199,36 @@ export default async function PicagensPage() {
             {weeklyReport.length === 0 ? (
               <EmptyState message="Sem dados para esta semana." />
             ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                  <tr>
-                    <th className="py-2">Colaborador</th>
-                    <th className="py-2">Horas trabalhadas</th>
-                    <th className="py-2">Horas contratuais</th>
-                    <th className="py-2">Banco de horas</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {weeklyReport.map((r, i) => {
-                    const diff = r.worked - r.contracted;
-                    return (
-                      <tr key={i}>
-                        <td className="py-2">{r.name}</td>
-                        <td className="py-2">{r.worked.toFixed(1)}h</td>
-                        <td className="py-2">{r.contracted.toFixed(1)}h</td>
-                        <td className="py-2">
-                          <Badge color={diff >= 0 ? "green" : "red"}>
-                            {diff >= 0 ? "+" : ""}
-                            {diff.toFixed(1)}h
-                          </Badge>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-left text-sm">
+                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                    <tr>
+                      <th className="py-2">Colaborador</th>
+                      <th className="py-2">Horas trabalhadas</th>
+                      <th className="py-2">Horas contratuais</th>
+                      <th className="py-2">Banco de horas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {weeklyReport.map((r, i) => {
+                      const diff = r.worked - r.contracted;
+                      return (
+                        <tr key={i}>
+                          <td className="py-2">{r.name}</td>
+                          <td className="py-2">{r.worked.toFixed(1)}h</td>
+                          <td className="py-2">{r.contracted.toFixed(1)}h</td>
+                          <td className="py-2">
+                            <Badge color={diff >= 0 ? "green" : "red"}>
+                              {diff >= 0 ? "+" : ""}
+                              {diff.toFixed(1)}h
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </Card>
         </>

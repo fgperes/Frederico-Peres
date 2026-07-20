@@ -54,99 +54,101 @@ export function WeeksGrid({
 
   return (
     <div className={pending ? "pointer-events-none opacity-60 transition-opacity" : ""}>
-      <table className="w-full min-w-[700px] text-left text-sm">
-        <thead className="text-xs uppercase text-stone-500">
-          <tr>
-            {canEdit && <th className="w-6 px-1 py-2"></th>}
-            <th className="px-2 py-2">Semana</th>
-            {WEEKDAY_LABELS.map((d) => (
-              <th key={d} className="px-2 py-2 text-center">
-                {d}
-              </th>
-            ))}
-            {canEdit && <th className="px-2 py-2 text-right">Ações</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-stone-100">
-          {weekIndices.map((weekIndex, position) => (
-            <tr
-              key={weekIndex}
-              draggable={canEdit}
-              onDragStart={() => setDragIndex(position)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverIndex(position);
-              }}
-              onDrop={() => handleDrop(position)}
-              onDragEnd={() => {
-                setDragIndex(null);
-                setDragOverIndex(null);
-              }}
-              className={
-                dragOverIndex === position && dragIndex !== null && dragIndex !== position
-                  ? "bg-violet-50"
-                  : ""
-              }
-            >
-              {canEdit && (
-                <td className="cursor-grab px-1 py-2 text-stone-400 active:cursor-grabbing">
-                  <GripVertical size={15} />
-                </td>
-              )}
-              <td className="px-2 py-2 font-medium text-stone-700">
-                Semana {position + 1}
-              </td>
-              {Array.from({ length: 7 }, (_, dayOfWeek) => (
-                <td key={dayOfWeek} className="px-2 py-2">
-                  {canEdit ? (
-                    <PatternCell
-                      cycleId={cycleId}
-                      weekIndex={weekIndex}
-                      dayOfWeek={dayOfWeek}
-                      currentTemplateId={patternFor(weekIndex, dayOfWeek)?.shiftTemplateId}
-                      templates={templates}
-                    />
-                  ) : (
-                    <span className="text-xs text-stone-500">
-                      {templates.find(
-                        (t) => t.id === patternFor(weekIndex, dayOfWeek)?.shiftTemplateId
-                      )?.name ?? "Folga"}
-                    </span>
-                  )}
-                </td>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[700px] text-left text-sm">
+          <thead className="text-xs uppercase text-stone-500">
+            <tr>
+              {canEdit && <th className="w-6 px-1 py-2"></th>}
+              <th className="px-2 py-2">Semana</th>
+              {WEEKDAY_LABELS.map((d) => (
+                <th key={d} className="px-2 py-2 text-center">
+                  {d}
+                </th>
               ))}
-              {canEdit && (
-                <td className="px-2 py-2">
-                  <div className="flex justify-end gap-1">
-                    <button
-                      type="button"
-                      title="Duplicar semana"
-                      onClick={() => startTransition(() => duplicateWeek(cycleId, weekIndex))}
-                      className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700"
-                    >
-                      <Copy size={14} />
-                    </button>
-                    {weeksCount > 1 && (
+              {canEdit && <th className="px-2 py-2 text-right">Ações</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {weekIndices.map((weekIndex, position) => (
+              <tr
+                key={weekIndex}
+                draggable={canEdit}
+                onDragStart={() => setDragIndex(position)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverIndex(position);
+                }}
+                onDrop={() => handleDrop(position)}
+                onDragEnd={() => {
+                  setDragIndex(null);
+                  setDragOverIndex(null);
+                }}
+                className={
+                  dragOverIndex === position && dragIndex !== null && dragIndex !== position
+                    ? "bg-violet-50"
+                    : ""
+                }
+              >
+                {canEdit && (
+                  <td className="cursor-grab px-1 py-2 text-stone-400 active:cursor-grabbing">
+                    <GripVertical size={15} />
+                  </td>
+                )}
+                <td className="px-2 py-2 font-medium text-stone-700">
+                  Semana {position + 1}
+                </td>
+                {Array.from({ length: 7 }, (_, dayOfWeek) => (
+                  <td key={dayOfWeek} className="px-2 py-2">
+                    {canEdit ? (
+                      <PatternCell
+                        cycleId={cycleId}
+                        weekIndex={weekIndex}
+                        dayOfWeek={dayOfWeek}
+                        currentTemplateId={patternFor(weekIndex, dayOfWeek)?.shiftTemplateId}
+                        templates={templates}
+                      />
+                    ) : (
+                      <span className="text-xs text-stone-500">
+                        {templates.find(
+                          (t) => t.id === patternFor(weekIndex, dayOfWeek)?.shiftTemplateId
+                        )?.name ?? "Folga"}
+                      </span>
+                    )}
+                  </td>
+                ))}
+                {canEdit && (
+                  <td className="px-2 py-2">
+                    <div className="flex justify-end gap-1">
                       <button
                         type="button"
-                        title="Remover semana"
-                        onClick={() => {
-                          if (confirm(`Remover a Semana ${position + 1}? Esta ação não pode ser desfeita.`)) {
-                            startTransition(() => removeWeek(cycleId, weekIndex));
-                          }
-                        }}
-                        className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600"
+                        title="Duplicar semana"
+                        onClick={() => startTransition(() => duplicateWeek(cycleId, weekIndex))}
+                        className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700"
                       >
-                        <Trash2 size={14} />
+                        <Copy size={14} />
                       </button>
-                    )}
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                      {weeksCount > 1 && (
+                        <button
+                          type="button"
+                          title="Remover semana"
+                          onClick={() => {
+                            if (confirm(`Remover a Semana ${position + 1}? Esta ação não pode ser desfeita.`)) {
+                              startTransition(() => removeWeek(cycleId, weekIndex));
+                            }
+                          }}
+                          className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {canEdit && (
         <button

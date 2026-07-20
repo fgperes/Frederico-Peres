@@ -39,53 +39,55 @@ function RoleList({
     <div>
       <SaveBanner status={status} message={message} />
       <div className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
-            <tr>
-              <th className="px-4 py-2.5">Perfil</th>
-              <th className="px-4 py-2.5">Chave interna</th>
-              <th className="px-4 py-2.5">Utilizadores</th>
-              <th className="px-4 py-2.5">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-            {roleDefs.map((def) => {
-              const count = roleUserCounts[def.key] ?? 0;
-              const isEditing = editingId === def.id;
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
+              <tr>
+                <th className="px-4 py-2.5">Perfil</th>
+                <th className="px-4 py-2.5">Chave interna</th>
+                <th className="px-4 py-2.5">Utilizadores</th>
+                <th className="px-4 py-2.5">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+              {roleDefs.map((def) => {
+                const count = roleUserCounts[def.key] ?? 0;
+                const isEditing = editingId === def.id;
 
-              return (
-                <RoleRow
-                  key={def.id}
-                  def={def}
-                  count={count}
-                  isEditing={isEditing}
-                  pending={pending}
-                  onEdit={() => setEditingId(def.id)}
-                  onCancelEdit={() => setEditingId(null)}
-                  onSaveEdit={(label) => {
-                    startTransition(() => {
-                      run(async () => {
-                        const formData = new FormData();
-                        formData.set("label", label);
-                        await updateRole(def.id, formData);
-                        router.refresh();
-                      }, "Perfil atualizado com sucesso.");
-                    });
-                    setEditingId(null);
-                  }}
-                  onDelete={() => {
-                    startTransition(() => {
-                      run(async () => {
-                        await deleteRole(def.id);
-                        router.refresh();
-                      }, "Perfil eliminado com sucesso.");
-                    });
-                  }}
-                />
-              );
-            })}
-          </tbody>
-        </table>
+                return (
+                  <RoleRow
+                    key={def.id}
+                    def={def}
+                    count={count}
+                    isEditing={isEditing}
+                    pending={pending}
+                    onEdit={() => setEditingId(def.id)}
+                    onCancelEdit={() => setEditingId(null)}
+                    onSaveEdit={(label) => {
+                      startTransition(() => {
+                        run(async () => {
+                          const formData = new FormData();
+                          formData.set("label", label);
+                          await updateRole(def.id, formData);
+                          router.refresh();
+                        }, "Perfil atualizado com sucesso.");
+                      });
+                      setEditingId(null);
+                    }}
+                    onDelete={() => {
+                      startTransition(() => {
+                        run(async () => {
+                          await deleteRole(def.id);
+                          router.refresh();
+                        }, "Perfil eliminado com sucesso.");
+                      });
+                    }}
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

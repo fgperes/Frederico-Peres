@@ -30,32 +30,34 @@ export default async function ModelosTurnoPage() {
               <EmptyState message="Sem modelos de turno." />
             </div>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                <tr>
-                  <th className="px-4 py-3">Nome</th>
-                  <th className="px-4 py-3">Início</th>
-                  <th className="px-4 py-3">Fim</th>
-                  <th className="px-4 py-3">Pausa (min)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {templates.map((t) => (
-                  <tr key={t.id}>
-                    <td className="px-4 py-3">
-                      <span
-                        className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
-                        style={{ backgroundColor: t.color }}
-                      />
-                      {t.name}
-                    </td>
-                    <td className="px-4 py-3">{t.startTime}</td>
-                    <td className="px-4 py-3">{t.endTime}</td>
-                    <td className="px-4 py-3">{t.breakMins}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-left text-sm">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                  <tr>
+                    <th className="px-4 py-3">Nome</th>
+                    <th className="px-4 py-3">Início</th>
+                    <th className="px-4 py-3">Fim</th>
+                    <th className="px-4 py-3">Pausa (min)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {templates.map((t) => (
+                    <tr key={t.id}>
+                      <td className="px-4 py-3">
+                        <span
+                          className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
+                          style={{ backgroundColor: t.color }}
+                        />
+                        {t.name}
+                      </td>
+                      <td className="px-4 py-3">{t.startTime}</td>
+                      <td className="px-4 py-3">{t.endTime}</td>
+                      <td className="px-4 py-3">{t.breakMins}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 

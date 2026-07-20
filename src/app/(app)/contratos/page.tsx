@@ -89,39 +89,41 @@ export default async function ContratosPage({
         {contracts.length === 0 ? (
           <div className="p-6"><EmptyState message="Sem contratos registados." /></div>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-              <tr>
-                <th className="px-4 py-3">Colaborador</th>
-                <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Início</th>
-                <th className="px-4 py-3">Fim</th>
-                <th className="px-4 py-3">Horas/semana</th>
-                <th className="px-4 py-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {contracts.map((c) => (
-                <tr key={c.id} className="hover:bg-stone-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/contratos/${c.id}`} className="font-medium text-violet-700 hover:underline">
-                      {c.employee.firstName} {c.employee.lastName}
-                    </Link>
-                    {c.version > 1 && <span className="ml-2 text-xs text-stone-500">v{c.version}</span>}
-                  </td>
-                  <td className="px-4 py-3">{CONTRACT_TYPE_LABELS[c.contractType] ?? c.contractType}</td>
-                  <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
-                  <td className="px-4 py-3">{c.endDate ? c.endDate.toLocaleDateString("pt-PT") : "—"}</td>
-                  <td className="px-4 py-3">{c.weeklyHours}h</td>
-                  <td className="px-4 py-3">
-                    <Badge color={c.status === "ACTIVE" ? "green" : c.status === "EXPIRED" ? "amber" : "slate"}>
-                      {c.status}
-                    </Badge>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                <tr>
+                  <th className="px-4 py-3">Colaborador</th>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3">Início</th>
+                  <th className="px-4 py-3">Fim</th>
+                  <th className="px-4 py-3">Horas/semana</th>
+                  <th className="px-4 py-3">Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {contracts.map((c) => (
+                  <tr key={c.id} className="hover:bg-stone-50">
+                    <td className="px-4 py-3">
+                      <Link href={`/contratos/${c.id}`} className="font-medium text-violet-700 hover:underline">
+                        {c.employee.firstName} {c.employee.lastName}
+                      </Link>
+                      {c.version > 1 && <span className="ml-2 text-xs text-stone-500">v{c.version}</span>}
+                    </td>
+                    <td className="px-4 py-3">{CONTRACT_TYPE_LABELS[c.contractType] ?? c.contractType}</td>
+                    <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
+                    <td className="px-4 py-3">{c.endDate ? c.endDate.toLocaleDateString("pt-PT") : "—"}</td>
+                    <td className="px-4 py-3">{c.weeklyHours}h</td>
+                    <td className="px-4 py-3">
+                      <Badge color={c.status === "ACTIVE" ? "green" : c.status === "EXPIRED" ? "amber" : "slate"}>
+                        {c.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 
