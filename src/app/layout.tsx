@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
@@ -13,8 +13,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const brandFont = Bricolage_Grotesque({
+  variable: "--font-brand",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "SGRH — Sistema de Gestão de Recursos Humanos",
+  title: "Talenza — Talento, no ritmo certo.",
   description: "Gestão de Recursos, Horários, Picagens, Ausências e Contratos de Trabalho",
 };
 
@@ -26,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

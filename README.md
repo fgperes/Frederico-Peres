@@ -1,8 +1,8 @@
-# SGRH — Sistema de Gestão de Recursos Humanos
+# Talenza — Talento, no ritmo certo.
 
 Aplicação web para gestão integrada de colaboradores, horários de trabalho,
 picagens, ausências e contratos de trabalho, desenvolvida com base no
-[Documento Funcional SGRH v1.0].
+[Documento Funcional SGRH v1.0] (nome de trabalho interno do projeto).
 
 ## Stack técnica
 

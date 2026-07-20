@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, ArrowRight, Users, CalendarClock, Fingerprint } from "lucide-react";
+import { TalenzaMark } from "@/components/brand/logo";
 
 function LoginForm() {
   const router = useRouter();
@@ -44,13 +45,16 @@ function LoginForm() {
         <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white,transparent_35%),radial-gradient(circle_at_80%_70%,white,transparent_35%)]" />
 
         <div className="relative flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-sm font-bold backdrop-blur-sm">
-            S
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm">
+            <TalenzaMark className="h-5 w-5" />
           </span>
-          <span className="text-lg font-semibold">SGRH</span>
+          <span className="font-brand text-lg font-bold">Talenza</span>
         </div>
 
         <div className="relative">
+          <p className="mb-3 text-sm font-medium uppercase tracking-wide text-violet-200/80">
+            Talento, no ritmo certo.
+          </p>
           <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight">
             Uma só plataforma para gerir pessoas, horários e assiduidade.
           </h2>
@@ -82,7 +86,7 @@ function LoginForm() {
         </div>
 
         <p className="relative text-xs text-violet-200/70">
-          Sistema de Gestão de Recursos Humanos
+          Gestão de Recursos Humanos
         </p>
       </div>
 
@@ -91,11 +95,16 @@ function LoginForm() {
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <div className="mb-3 flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-sm font-bold text-white">
-                S
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
+                <TalenzaMark className="h-5 w-5" />
               </span>
-              <span className="text-lg font-semibold text-stone-900 dark:text-stone-100">SGRH</span>
+              <span className="font-brand text-lg font-bold text-stone-900 dark:text-stone-100">
+                Talenza
+              </span>
             </div>
+            <p className="text-xs font-medium uppercase tracking-wide text-violet-600 dark:text-violet-400">
+              Talento, no ritmo certo.
+            </p>
           </div>
 
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">

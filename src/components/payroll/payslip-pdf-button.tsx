@@ -41,7 +41,7 @@ export function PayslipPdfButton({ data }: { data: PayslipPdfData }) {
     doc.text("Recibo de Vencimento", 14, 18);
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text("SGRH — Sistema de Gestão de Recursos Humanos", 14, 24);
+    doc.text("Talenza — Talento, no ritmo certo.", 14, 24);
 
     doc.setTextColor(0);
     doc.setFontSize(11);

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { canRead, ROLE_LABELS, type Module, type Role } from "@/lib/roles";
 import { AvatarImage } from "@/lib/avatars";
+import { TalenzaMark } from "@/components/brand/logo";
 
 const NAV_ITEMS: { href: string; label: string; module: Module; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Dashboard", module: "recursos", icon: LayoutGrid },
@@ -61,12 +62,16 @@ export function Nav({
   return (
     <div className="flex h-full w-64 shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900">
       <div className="flex items-center gap-2.5 border-b border-stone-200 px-5 py-4 dark:border-stone-800">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-sm font-bold text-white shadow-sm shadow-violet-600/30">
-          S
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-sm shadow-violet-600/30">
+          <TalenzaMark className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-sm font-semibold leading-tight text-stone-900 dark:text-stone-100">SGRH</p>
-          <p className="text-xs leading-tight text-stone-500 dark:text-stone-400">Gestão de RH</p>
+          <p className="font-brand text-sm font-bold leading-tight text-stone-900 dark:text-stone-100">
+            Talenza
+          </p>
+          <p className="text-xs leading-tight text-stone-500 dark:text-stone-400">
+            Talento, no ritmo certo.
+          </p>
         </div>
       </div>
 

@@ -19,6 +19,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+.font-brand {
+  font-family: var(--font-brand), var(--font-geist-sans), sans-serif;
+  letter-spacing: -0.01em;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
