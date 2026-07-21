@@ -9,7 +9,7 @@ import { MessagesPanel } from "./messages-panel";
 import { ClockPanel } from "./clock-panel";
 import { ViewAsSwitcher } from "./view-as-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { TalenzaMark } from "@/components/brand/logo";
+import { LogoMark } from "@/components/brand/logo";
 import { useMobileNav } from "@/components/mobile-nav-context";
 import type { NotificationItem } from "@/lib/notifications";
 import type { Recipient } from "@/lib/messaging";
@@ -71,7 +71,7 @@ export function TopBar({
           <Menu size={19} />
         </button>
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-600 to-indigo-600 text-white lg:hidden">
-          <TalenzaMark className="h-4 w-4" />
+          <LogoMark className="h-4 w-4" />
         </span>
         {canPreviewRoles && (
           <div className="hidden sm:block">

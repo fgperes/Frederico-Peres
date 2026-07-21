@@ -1,33 +1,49 @@
 /**
- * Marca "Em Foco" — dois cantos de enquadramento com um ponto central,
- * a ficha do colaborador em destaque. Usa `currentColor`, controla-se a
- * cor com uma classe de texto (ex.: text-white, text-violet-600) no elemento
- * onde é usada.
+ * Marca "Elo" — dois elos entrelaçados, ligação sem peça central.
+ * Usa `currentColor`, controla-se a cor com uma classe de texto
+ * (ex.: text-white, text-violet-600) no elemento onde é usada.
  */
-export function TalenzaMark({ className }: { className?: string }) {
+export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
-      <path
-        d="M22,46 L22,22 L46,22"
+      <rect
+        x="14"
+        y="38"
+        width="44"
+        height="24"
+        rx="12"
         fill="none"
         stroke="currentColor"
-        strokeWidth="10"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeWidth="8"
+        transform="rotate(-18 36 50)"
       />
-      <path
-        d="M78,54 L78,78 L54,78"
+      <rect
+        x="42"
+        y="38"
+        width="44"
+        height="24"
+        rx="12"
         fill="none"
         stroke="currentColor"
-        strokeWidth="10"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeWidth="8"
+        transform="rotate(18 64 50)"
       />
-      <circle cx="50" cy="50" r="13" fill="currentColor" />
     </svg>
   );
 }
 
-export function TalenzaWordmark({ className }: { className?: string }) {
-  return <span className={`font-brand font-bold ${className ?? ""}`}>Talenza</span>;
+export function PeopleWordmark({
+  className,
+  fourClassName,
+}: {
+  className?: string;
+  fourClassName?: string;
+}) {
+  return (
+    <span className={`font-brand font-bold ${className ?? ""}`}>
+      people
+      <span className={fourClassName ?? "text-violet-600 dark:text-violet-400"}>4</span>
+      people
+    </span>
+  );
 }

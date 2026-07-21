@@ -19,7 +19,7 @@ const brandFont = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Talenza — Talento, no ritmo certo.",
+  title: "people4people — SGRH · Menos processos, mais pessoas.",
   description: "Gestão de Recursos, Horários, Picagens, Ausências e Contratos de Trabalho",
 };
 

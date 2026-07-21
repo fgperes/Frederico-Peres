@@ -45,7 +45,7 @@ export function SchedulePdfButton({
     doc.setFontSize(8);
     doc.setTextColor(140);
     doc.text(
-      `Gerado em ${new Date().toLocaleString("pt-PT")} — Talenza`,
+      `Gerado em ${new Date().toLocaleString("pt-PT")} — people4people`,
       14,
       doc.internal.pageSize.getHeight() - 10
     );

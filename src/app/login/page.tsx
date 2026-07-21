@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, ArrowRight, Users, CalendarClock, Fingerprint } from "lucide-react";
-import { TalenzaMark } from "@/components/brand/logo";
+import { LogoMark, PeopleWordmark } from "@/components/brand/logo";
 
 function LoginForm() {
   const router = useRouter();
@@ -46,14 +46,19 @@ function LoginForm() {
 
         <div className="relative flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm">
-            <TalenzaMark className="h-5 w-5" />
+            <LogoMark className="h-5 w-5" />
           </span>
-          <span className="font-brand text-lg font-bold">Talenza</span>
+          <div className="flex items-baseline gap-2">
+            <PeopleWordmark className="text-lg" fourClassName="text-violet-200" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-200/70">
+              SGRH
+            </span>
+          </div>
         </div>
 
         <div className="relative">
           <p className="mb-3 text-sm font-medium uppercase tracking-wide text-violet-200/80">
-            Talento, no ritmo certo.
+            Menos processos, mais pessoas.
           </p>
           <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight">
             Uma só plataforma para gerir pessoas, horários e assiduidade.
@@ -86,7 +91,7 @@ function LoginForm() {
         </div>
 
         <p className="relative text-xs text-violet-200/70">
-          Gestão de Recursos Humanos
+          Software SGRH da people4people
         </p>
       </div>
 
@@ -96,14 +101,17 @@ function LoginForm() {
           <div className="mb-8 lg:hidden">
             <div className="mb-3 flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
-                <TalenzaMark className="h-5 w-5" />
+                <LogoMark className="h-5 w-5" />
               </span>
-              <span className="font-brand text-lg font-bold text-stone-900 dark:text-stone-100">
-                Talenza
-              </span>
+              <div className="flex items-baseline gap-2">
+                <PeopleWordmark className="text-lg" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">
+                  SGRH
+                </span>
+              </div>
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-violet-600 dark:text-violet-400">
-              Talento, no ritmo certo.
+              Menos processos, mais pessoas.
             </p>
           </div>
 

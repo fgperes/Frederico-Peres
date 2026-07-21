@@ -1,8 +1,11 @@
-# Talenza — Talento, no ritmo certo.
+# people4people — SGRH
+
+Software de gestão de recursos humanos da **people4people** — "Menos processos,
+mais pessoas."
 
 Aplicação web para gestão integrada de colaboradores, horários de trabalho,
 picagens, ausências e contratos de trabalho, desenvolvida com base no
-[Documento Funcional SGRH v1.0] (nome de trabalho interno do projeto).
+[Documento Funcional SGRH v1.0].
 
 ## Stack técnica
 
