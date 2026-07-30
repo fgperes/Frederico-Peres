@@ -4,7 +4,13 @@ import type { Role } from "@/lib/roles";
 // Configuração "edge-safe": sem Prisma/bcrypt, usada pelo middleware.
 // A configuração completa (com o provider Credentials) está em auth.ts.
 export const authConfig: NextAuthConfig = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Sessão expira ao fim de 4 horas — obriga a novo login em vez de
+    // ficar sempre autenticado indefinidamente.
+    maxAge: 60 * 60 * 4,
+    updateAge: 60 * 60 * 4,
+  },
   pages: { signIn: "/login" },
   providers: [],
   callbacks: {
