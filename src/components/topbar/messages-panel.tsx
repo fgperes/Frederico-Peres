@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { MessageCircle, Send } from "lucide-react";
 import { sendMessageAction, markMessageRead, type SendMessageState } from "./actions";
 import type { Recipient } from "@/lib/messaging";
+import { formatDateTime } from "@/lib/format";
 
 type InboxMessage = {
   id: string;
@@ -73,7 +74,7 @@ export function MessagesPanel({
                   </div>
                   <p className="mt-0.5 line-clamp-2 text-stone-600 dark:text-stone-400">{m.body}</p>
                   <p className="mt-0.5 text-xs text-stone-400">
-                    {new Date(m.createdAt).toLocaleString("pt-PT")}
+                    {formatDateTime(new Date(m.createdAt))}
                   </p>
                 </li>
               ))}

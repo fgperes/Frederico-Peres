@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
 import { computeWorkedHoursByDay } from "@/lib/hours";
+import { formatDateTime } from "@/lib/format";
 
 export type ReportResult = { columns: string[]; rows: (string | number)[][] };
 export type ReportFilters = { from: Date; to: Date; employeeIds?: string[] };
@@ -118,7 +119,7 @@ async function reportPicagens(filters: ReportFilters): Promise<ReportResult> {
     rows: entries.map((e) => [
       `${e.employee.firstName} ${e.employee.lastName}`,
       CLOCK_TYPE_LABELS[e.type] ?? e.type,
-      e.timestamp.toLocaleString("pt-PT"),
+      formatDateTime(e.timestamp),
       e.location ?? "",
       e.hasDeviation ? e.deviationType ?? "Sim" : "",
     ]),

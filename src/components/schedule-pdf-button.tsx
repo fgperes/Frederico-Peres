@@ -2,6 +2,7 @@
 
 import { FileDown } from "lucide-react";
 import { Button } from "@/components/ui";
+import { formatDateTime } from "@/lib/format";
 
 export type SchedulePdfRow = {
   employeeName: string;
@@ -45,7 +46,7 @@ export function SchedulePdfButton({
     doc.setFontSize(8);
     doc.setTextColor(140);
     doc.text(
-      `Gerado em ${new Date().toLocaleString("pt-PT")} — people4people`,
+      `Gerado em ${formatDateTime(new Date())} — people4people`,
       14,
       doc.internal.pageSize.getHeight() - 10
     );

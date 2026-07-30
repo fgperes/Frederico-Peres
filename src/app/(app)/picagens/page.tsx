@@ -12,6 +12,7 @@ import { LocationButton } from "./location-button";
 import { reviewJustification } from "./actions";
 import type { Prisma } from "@prisma/client";
 import { Fingerprint } from "lucide-react";
+import { formatDateTime } from "@/lib/format";
 
 const TYPE_LABELS: Record<string, string> = {
   CLOCK_IN: "Entrada",
@@ -111,7 +112,7 @@ export default async function PicagensPage() {
                     <div className="flex items-center justify-between">
                       <span>
                         {TYPE_LABELS[entry.type]} —{" "}
-                        {entry.timestamp.toLocaleString("pt-PT")}
+                        {formatDateTime(entry.timestamp)}
                       </span>
                       {entry.hasDeviation && (
                         <Badge color={entry.justificationStatus === "APPROVED" ? "green" : entry.justificationStatus === "REJECTED" ? "red" : "amber"}>
@@ -163,7 +164,7 @@ export default async function PicagensPage() {
                       — {TYPE_LABELS[entry.type]} ·{" "}
                       <Badge color="amber">{entry.deviationType}</Badge>
                       <p className="text-xs text-stone-500">
-                        {entry.timestamp.toLocaleString("pt-PT")} —{" "}
+                        {formatDateTime(entry.timestamp)} —{" "}
                         {entry.justification ?? "sem justificação"}
                       </p>
                       {entry.latitude != null && entry.longitude != null && (

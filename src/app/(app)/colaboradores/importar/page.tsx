@@ -6,6 +6,7 @@ import { ImportForm } from "./import-form";
 import { revertEmployeeImport } from "../actions";
 import { redirect } from "next/navigation";
 import { Upload } from "lucide-react";
+import { formatDateTime } from "@/lib/format";
 
 export default async function ImportarColaboradoresPage() {
   const user = await requireUser();
@@ -65,7 +66,7 @@ export default async function ImportarColaboradoresPage() {
                     <div className="font-medium text-stone-800">{log.fileName}</div>
                     <div className="text-xs text-stone-500">
                       {log.totalRows} linhas · {log.errorRows} erros ·{" "}
-                      {log.user?.name} · {log.createdAt.toLocaleString("pt-PT")}
+                      {log.user?.name} · {formatDateTime(log.createdAt)}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

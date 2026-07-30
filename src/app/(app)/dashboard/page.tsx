@@ -5,6 +5,7 @@ import { ROLE_LABELS, accessFor, canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { describeAuditLog } from "@/lib/audit-labels";
 import { AvatarImage } from "@/lib/avatars";
+import { formatDateTime } from "@/lib/format";
 import { addDays } from "date-fns";
 import {
   Users,
@@ -135,7 +136,7 @@ async function ManagementDashboard({
                       <span className="text-stone-700">{sentence}</span>
                     </div>
                     <div className="shrink-0 text-right text-xs text-stone-500">
-                      {log.createdAt.toLocaleString("pt-PT")}
+                      {formatDateTime(log.createdAt)}
                     </div>
                   </li>
                 );

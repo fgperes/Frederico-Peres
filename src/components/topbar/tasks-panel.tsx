@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { ListTodo, Check } from "lucide-react";
 import { completeTask } from "./actions";
 import type { TaskItem } from "@/lib/tasks";
+import { formatDateTime } from "@/lib/format";
 
 export function TasksPanel({ tasks }: { tasks: TaskItem[] }) {
   const [pending, startTransition] = useTransition();
@@ -31,7 +32,7 @@ export function TasksPanel({ tasks }: { tasks: TaskItem[] }) {
                   <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{task.description}</p>
                 )}
                 <p className="mt-0.5 text-[11px] text-stone-400">
-                  {task.createdAt.toLocaleString("pt-PT")}
+                  {formatDateTime(task.createdAt)}
                 </p>
               </div>
               <button
