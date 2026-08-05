@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant sidebar-collapsed (&:where(.sidebar-collapsed, .sidebar-collapsed *));
 
 :root {
   --background: #faf9f7;

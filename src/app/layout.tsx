@@ -35,14 +35,18 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Aplica o tema guardado antes da hidratação, para evitar o "flash"
-            de tema claro ao abrir uma página com o modo escuro ativo. */}
+        {/* Aplica o tema e o estado da barra lateral guardados antes da
+            hidratação, para evitar o "flash" de tema/barra errados ao abrir
+            uma página. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `try {
               var t = localStorage.getItem("sgrh-theme");
               if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
                 document.documentElement.classList.add("dark");
+              }
+              if (localStorage.getItem("sidebar-collapsed") === "1") {
+                document.documentElement.classList.add("sidebar-collapsed");
               }
             } catch (e) {}`,
           }}
