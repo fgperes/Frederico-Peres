@@ -2,11 +2,18 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canRead, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { getOrCreateVacationBalance, computeHeadcount, effectiveStatus, toDateKey } from "@/lib/vacation";
+import {
+  getOrCreateVacationBalance,
+  computeHeadcount,
+  effectiveStatus,
+  toDateKey,
+  getVacationHistory,
+} from "@/lib/vacation";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "./tabs";
 import { CalendarPanel } from "./calendar-panel";
 import { VacationHeadcountCard } from "./headcount-card";
+import { VacationHistoryTable } from "./history-table";
 import { EmployeePicker } from "./employee-picker";
 import type { DayMark } from "./calendar";
 import { redirect } from "next/navigation";
@@ -78,7 +85,7 @@ export default async function FeriasPage({
           }
         />
       ) : (
-        <FeriasCalendar employeeId={targetEmployeeId} year={year} isSelf={isSelf} />
+        <FeriasCalendar employeeId={targetEmployeeId} year={year} isSelf={isSelf} canManage={canManage} />
       )}
     </div>
   );
@@ -88,13 +95,16 @@ async function FeriasCalendar({
   employeeId,
   year,
   isSelf,
+  canManage,
 }: {
   employeeId: string;
   year: number;
   isSelf: boolean;
+  canManage: boolean;
 }) {
   const { type, balance } = await getOrCreateVacationBalance(employeeId, year);
   const headcount = computeHeadcount(balance);
+  const history = await getVacationHistory(employeeId);
 
   const absences = await prisma.absence.findMany({
     where: {
@@ -117,6 +127,7 @@ async function FeriasCalendar({
         <CalendarPanel year={year} marks={marks} interactive employeeId={employeeId} isSelf={isSelf} />
       </div>
       <VacationHeadcountCard title={`Resumo de férias — ${year}`} headcount={headcount} />
+      <VacationHistoryTable employeeId={employeeId} rows={history} canManage={canManage} />
     </div>
   );
 }

@@ -83,6 +83,20 @@ export function computeHeadcount(balance: {
   };
 }
 
+export type VacationHistoryRow = VacationHeadcount & { year: number };
+
+// Histórico de saldos de férias de um colaborador, ano a ano — inclui todos
+// os anos em que já existe um saldo (criado ao marcar férias ou editado por
+// RH), do mais recente para o mais antigo.
+export async function getVacationHistory(employeeId: string): Promise<VacationHistoryRow[]> {
+  const type = await getVacationType();
+  const balances = await prisma.absenceBalance.findMany({
+    where: { employeeId, absenceTypeId: type.id },
+    orderBy: { year: "desc" },
+  });
+  return balances.map((b) => ({ year: b.year, ...computeHeadcount(b) }));
+}
+
 export function isWeekday(date: Date): boolean {
   const day = date.getDay();
   return day !== 0 && day !== 6;
