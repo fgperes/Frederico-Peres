@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit";
 import {
   getEligibleTemplates,
   computeResult,
+  computeScaleScore,
   matchConsequence,
   resolveEvaluationTasks,
   type Respondent,
@@ -55,7 +56,10 @@ export async function scheduleEvaluation(employeeId: string, templateId: string,
 
 export type AnswerInput = {
   questionId: string;
-  score?: number;
+  // Só para SCALE: valor bruto escolhido pelo avaliador (ex.: 3 numa escala
+  // de 1 a 5) — a pontuação é calculada a partir daqui, proporcional ao
+  // peso da pergunta.
+  rawValue?: number;
   selectedOptionId?: string;
   textValue?: string;
 };
@@ -93,7 +97,13 @@ export async function submitEvaluationAnswers(
     if (!evaluation.template.hasSelfEvaluation) throw new Error("Este modelo não permite autoavaliação.");
   }
 
-  const resolvedAnswers: { questionId: string; score: number | null; selectedOptionId: string | null; textValue: string | null }[] = [];
+  const resolvedAnswers: {
+    questionId: string;
+    score: number | null;
+    rawValue: number | null;
+    selectedOptionId: string | null;
+    textValue: string | null;
+  }[] = [];
 
   for (const question of evaluation.template.questions) {
     const answer = answers.find((a) => a.questionId === question.id);
@@ -102,6 +112,7 @@ export async function submitEvaluationAnswers(
       resolvedAnswers.push({
         questionId: question.id,
         score: null,
+        rawValue: null,
         selectedOptionId: null,
         textValue: answer?.textValue?.trim() || null,
       });
@@ -109,14 +120,17 @@ export async function submitEvaluationAnswers(
     }
 
     if (question.type === "SCALE") {
-      const score = answer?.score;
-      if (score === undefined || score === null || Number.isNaN(score)) {
+      const rawValue = answer?.rawValue;
+      const scaleMin = question.scaleMin ?? 0;
+      const scaleMax = question.scaleMax ?? question.maxScore;
+      if (rawValue === undefined || rawValue === null || Number.isNaN(rawValue)) {
         throw new Error(`Falta responder à pergunta "${question.text}".`);
       }
-      if (score < 0 || score > question.maxScore) {
-        throw new Error(`Pontuação inválida para "${question.text}" (0-${question.maxScore}).`);
+      if (rawValue < scaleMin || rawValue > scaleMax) {
+        throw new Error(`Valor inválido para "${question.text}" (${scaleMin}-${scaleMax}).`);
       }
-      resolvedAnswers.push({ questionId: question.id, score, selectedOptionId: null, textValue: null });
+      const score = computeScaleScore(rawValue, scaleMax, question.maxScore);
+      resolvedAnswers.push({ questionId: question.id, score, rawValue, selectedOptionId: null, textValue: null });
       continue;
     }
 
@@ -126,6 +140,7 @@ export async function submitEvaluationAnswers(
     resolvedAnswers.push({
       questionId: question.id,
       score: option.points,
+      rawValue: null,
       selectedOptionId: option.id,
       textValue: null,
     });

@@ -36,6 +36,15 @@ export function validateTemplateWeights(
   }
 }
 
+// Converte o valor bruto escolhido pelo avaliador numa pergunta de escala
+// (ex.: 3 numa escala de 1 a 5) na pontuação proporcional ao peso da
+// pergunta (ex.: pergunta vale 5 pontos → 3/5*5 = 3 pontos; se valesse 10
+// pontos, 3/5*10 = 6 pontos).
+export function computeScaleScore(rawValue: number, scaleMax: number, maxScore: number): number {
+  if (scaleMax <= 0) return 0;
+  return Math.round((rawValue / scaleMax) * maxScore);
+}
+
 // Soma as respostas pontuáveis (não-TEXT) de um único respondente. Como os
 // pesos somam sempre 100, a pontuação total já É a percentagem.
 export function computeResult(
@@ -48,6 +57,22 @@ export function computeResult(
     .reduce((sum, a) => sum + (a.score ?? 0), 0);
   const percent = Math.max(0, Math.min(100, Math.round(score)));
   return { score, percent };
+}
+
+// Valida o intervalo de escala de perguntas SCALE (as restantes ficam
+// null/ignoradas). Lança erro com o texto da pergunta em causa.
+export function validateScaleBounds(
+  questions: { text: string; type: string; scaleMin: number | null; scaleMax: number | null }[]
+): void {
+  for (const q of questions) {
+    if (q.type !== "SCALE") continue;
+    if (q.scaleMin === null || q.scaleMax === null || !Number.isFinite(q.scaleMin) || !Number.isFinite(q.scaleMax)) {
+      throw new Error(`Defina o intervalo da escala (mínimo e máximo) na pergunta "${q.text}".`);
+    }
+    if (q.scaleMin >= q.scaleMax) {
+      throw new Error(`O mínimo da escala tem de ser inferior ao máximo na pergunta "${q.text}".`);
+    }
+  }
 }
 
 // Escolhe a faixa de consequência com o maior minPercent que ainda seja

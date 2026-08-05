@@ -1,16 +1,22 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
-import { validateTemplateWeights, type QuestionType } from "@/lib/evaluations";
+import { validateTemplateWeights, validateScaleBounds, type QuestionType } from "@/lib/evaluations";
 import { revalidatePath } from "next/cache";
 
+export type TemplateSectionInput = { key: string; title: string };
+
 export type TemplateQuestionInput = {
+  sectionKey: string;
   text: string;
   type: QuestionType;
   maxScore: number;
+  scaleMin?: number;
+  scaleMax?: number;
   options: { label: string; points: number }[];
 };
 
@@ -19,6 +25,7 @@ export type TemplateConsequenceInput = { minPercent: number; consequence: string
 export type TemplatePayload = {
   name: string;
   hasSelfEvaluation: boolean;
+  sections: TemplateSectionInput[];
   questions: TemplateQuestionInput[];
   consequenceRules: TemplateConsequenceInput[];
   teamIds: string[];
@@ -27,8 +34,29 @@ export type TemplatePayload = {
 
 function validatePayload(payload: TemplatePayload) {
   if (!payload.name.trim()) throw new Error("Indique um nome para o modelo.");
+  if (payload.sections.length === 0) throw new Error("Adicione pelo menos uma secção.");
+  for (const s of payload.sections) {
+    if (!s.title.trim()) throw new Error("Todas as secções têm de ter um título.");
+  }
   if (payload.questions.length === 0) throw new Error("Adicione pelo menos uma pergunta.");
+
+  const sectionKeys = new Set(payload.sections.map((s) => s.key));
+  for (const q of payload.questions) {
+    if (!sectionKeys.has(q.sectionKey)) {
+      throw new Error(`A pergunta "${q.text}" não está associada a nenhuma secção.`);
+    }
+  }
+
   validateTemplateWeights(payload.questions);
+  validateScaleBounds(
+    payload.questions.map((q) => ({
+      text: q.text,
+      type: q.type,
+      scaleMin: q.scaleMin ?? null,
+      scaleMax: q.scaleMax ?? null,
+    }))
+  );
+
   for (const q of payload.questions) {
     if (!q.text.trim()) throw new Error("Todas as perguntas têm de ter um enunciado.");
     if (q.type === "SINGLE_CHOICE") {
@@ -56,17 +84,42 @@ function assignmentsCreateData(payload: TemplatePayload) {
   ];
 }
 
-function questionsCreateData(payload: TemplatePayload) {
-  return payload.questions.map((q, i) => ({
-    order: i,
-    text: q.text.trim(),
-    type: q.type,
-    maxScore: q.type === "TEXT" ? 0 : q.maxScore,
-    options:
-      q.type === "SINGLE_CHOICE"
-        ? { create: q.options.map((o, oi) => ({ order: oi, label: o.label.trim(), points: o.points })) }
-        : undefined,
-  }));
+// Cria as secções (para obter os IDs reais) e só depois as perguntas,
+// resolvendo `sectionKey` (identificador local do formulário) para o
+// sectionId real de cada uma.
+async function createSectionsAndQuestions(
+  tx: Prisma.TransactionClient,
+  templateId: string,
+  payload: TemplatePayload
+) {
+  const sectionIdByKey = new Map<string, string>();
+  for (const [i, s] of payload.sections.entries()) {
+    const created = await tx.evaluationSection.create({
+      data: { templateId, order: i, title: s.title.trim() },
+    });
+    sectionIdByKey.set(s.key, created.id);
+  }
+
+  for (const [i, q] of payload.questions.entries()) {
+    const sectionId = sectionIdByKey.get(q.sectionKey);
+    if (!sectionId) throw new Error(`Secção inválida para a pergunta "${q.text}".`);
+    await tx.evaluationQuestion.create({
+      data: {
+        templateId,
+        sectionId,
+        order: i,
+        text: q.text.trim(),
+        type: q.type,
+        maxScore: q.type === "TEXT" ? 0 : q.maxScore,
+        scaleMin: q.type === "SCALE" ? q.scaleMin : null,
+        scaleMax: q.type === "SCALE" ? q.scaleMax : null,
+        options:
+          q.type === "SINGLE_CHOICE"
+            ? { create: q.options.map((o, oi) => ({ order: oi, label: o.label.trim(), points: o.points })) }
+            : undefined,
+      },
+    });
+  }
 }
 
 export async function createTemplate(payload: TemplatePayload) {
@@ -74,34 +127,37 @@ export async function createTemplate(payload: TemplatePayload) {
   if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
   validatePayload(payload);
 
-  const template = await prisma.evaluationTemplate.create({
-    data: {
-      name: payload.name.trim(),
-      hasSelfEvaluation: payload.hasSelfEvaluation,
-      createdById: user.id,
-      questions: { create: questionsCreateData(payload) },
-      consequenceRules: { create: payload.consequenceRules },
-      assignments: { create: assignmentsCreateData(payload) },
-    },
+  const templateId = await prisma.$transaction(async (tx) => {
+    const template = await tx.evaluationTemplate.create({
+      data: {
+        name: payload.name.trim(),
+        hasSelfEvaluation: payload.hasSelfEvaluation,
+        createdById: user.id,
+        consequenceRules: { create: payload.consequenceRules },
+        assignments: { create: assignmentsCreateData(payload) },
+      },
+    });
+    await createSectionsAndQuestions(tx, template.id, payload);
+    return template.id;
   });
 
   await logAudit({
     userId: user.id,
     action: "CREATE",
     entity: "EvaluationTemplate",
-    entityId: template.id,
-    details: `Criou o modelo de avaliação "${template.name}"`,
+    entityId: templateId,
+    details: `Criou o modelo de avaliação "${payload.name.trim()}"`,
   });
 
   revalidatePath("/avaliacoes");
-  return { id: template.id };
+  return { id: templateId };
 }
 
 // Editar um modelo já usado (com avaliações associadas) nunca mexe nas
-// perguntas/opções — apagá-las em cascata destruiria as respostas já dadas
-// nessas avaliações. Só nome, autoavaliação, consequências e atribuições
-// são editáveis nesse caso; um modelo ainda sem avaliações pode ser
-// reconstruído por inteiro.
+// secções/perguntas/opções — apagá-las em cascata destruiria as respostas
+// já dadas nessas avaliações. Só nome, autoavaliação, consequências e
+// atribuições são editáveis nesse caso; um modelo ainda sem avaliações pode
+// ser reconstruído por inteiro.
 export async function updateTemplate(templateId: string, payload: TemplatePayload) {
   const user = await requireUser();
   if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
@@ -139,10 +195,9 @@ export async function updateTemplate(templateId: string, payload: TemplatePayloa
     });
 
     if (!isUsed) {
-      await tx.evaluationQuestion.deleteMany({ where: { templateId } });
-      for (const q of questionsCreateData(payload)) {
-        await tx.evaluationQuestion.create({ data: { ...q, templateId } });
-      }
+      // Cascata: apaga secções → perguntas → opções.
+      await tx.evaluationSection.deleteMany({ where: { templateId } });
+      await createSectionsAndQuestions(tx, templateId, payload);
     }
   });
 

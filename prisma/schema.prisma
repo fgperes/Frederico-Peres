@@ -451,27 +451,49 @@ model EvaluationTemplate {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  sections         EvaluationSection[]
   questions        EvaluationQuestion[]
   consequenceRules EvaluationConsequenceRule[]
   assignments      EvaluationTemplateAssignment[]
   evaluations      Evaluation[]
 }
 
+// Agrupa perguntas dentro de um modelo (ex.: "Competências técnicas",
+// "Comportamento"). Puramente organizacional — não afeta o cálculo.
+model EvaluationSection {
+  id         String             @id @default(cuid())
+  templateId String
+  template   EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order      Int
+  title      String
+
+  questions EvaluationQuestion[]
+
+  @@index([templateId])
+}
+
 model EvaluationQuestion {
   id         String             @id @default(cuid())
   templateId String
   template   EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  sectionId  String?
+  section    EvaluationSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   order      Int
   text       String
   type       String // SCALE | SINGLE_CHOICE | TEXT
   // Peso da pergunta (0 para TEXT); a soma de SCALE+SINGLE_CHOICE tem de ser
   // exatamente 100 por modelo (validado em lib/evaluations.ts).
   maxScore   Int                @default(0)
+  // Só para SCALE: intervalo que o avaliador pode escolher (ex.: 1 a 5). A
+  // pontuação atribuída é proporcional: valorEscolhido/scaleMax * maxScore.
+  scaleMin   Int?
+  scaleMax   Int?
 
   options EvaluationQuestionOption[]
   answers EvaluationAnswer[]
 
   @@index([templateId])
+  @@index([sectionId])
 }
 
 model EvaluationQuestionOption {
@@ -555,6 +577,9 @@ model EvaluationAnswer {
   question         EvaluationQuestion        @relation(fields: [questionId], references: [id])
   respondent       String // MANAGER | SELF
   score            Int?
+  // Só para SCALE: o valor bruto escolhido pelo avaliador dentro de
+  // [question.scaleMin, question.scaleMax], antes da conversão para pontos.
+  rawValue         Int?
   selectedOptionId String?
   selectedOption   EvaluationQuestionOption? @relation(fields: [selectedOptionId], references: [id])
   textValue        String?

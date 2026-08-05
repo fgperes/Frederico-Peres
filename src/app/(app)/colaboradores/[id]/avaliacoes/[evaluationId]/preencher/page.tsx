@@ -7,6 +7,8 @@ import { AnswerForm } from "../answer-form";
 import { notFound, redirect } from "next/navigation";
 import { ClipboardCheck } from "lucide-react";
 
+const FALLBACK_SECTION_KEY = "__sem_seccao__";
+
 export default async function PreencherAvaliacaoPage({
   params,
 }: {
@@ -22,10 +24,22 @@ export default async function PreencherAvaliacaoPage({
 
   const evaluation = await prisma.evaluation.findFirst({
     where: { id: evaluationId, employeeId: employee.id },
-    include: { template: { include: { questions: { include: { options: true }, orderBy: { order: "asc" } } } } },
+    include: {
+      template: {
+        include: {
+          sections: { orderBy: { order: "asc" } },
+          questions: { include: { options: true }, orderBy: { order: "asc" } },
+        },
+      },
+    },
   });
   if (!evaluation) notFound();
   if (evaluation.status === "COMPLETED") redirect(`/colaboradores/${id}/avaliacoes`);
+
+  const sections = evaluation.template.sections.map((s) => ({ key: s.id, title: s.title }));
+  if (evaluation.template.questions.some((q) => !q.sectionId)) {
+    sections.push({ key: FALLBACK_SECTION_KEY, title: "Outras perguntas" });
+  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -37,11 +51,15 @@ export default async function PreencherAvaliacaoPage({
       <AnswerForm
         evaluationId={evaluation.id}
         respondent="MANAGER"
+        sections={sections}
         questions={evaluation.template.questions.map((q) => ({
           id: q.id,
+          sectionKey: q.sectionId ?? FALLBACK_SECTION_KEY,
           text: q.text,
           type: q.type as "SCALE" | "SINGLE_CHOICE" | "TEXT",
           maxScore: q.maxScore,
+          scaleMin: q.scaleMin ?? 1,
+          scaleMax: q.scaleMax ?? 5,
           options: q.options,
         }))}
       />

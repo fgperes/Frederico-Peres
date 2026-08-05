@@ -4,6 +4,7 @@ import { FileDown } from "lucide-react";
 import { Button } from "@/components/ui";
 
 export type EvaluationPdfQuestionRow = {
+  sectionTitle: string;
   text: string;
   answerLabel: string;
   scoreLabel: string;
@@ -39,10 +40,26 @@ export function EvaluationPdfButton({ data }: { data: EvaluationPdfData }) {
     doc.text(`Modelo: ${data.templateName}`, 14, 40);
     doc.text(`Data agendada: ${data.scheduledDateLabel}`, 14, 46);
 
+    const body: (string | { content: string; colSpan?: number; styles?: Record<string, unknown> })[][] = [];
+    let lastSectionTitle: string | null = null;
+    for (const q of data.questions) {
+      if (q.sectionTitle && q.sectionTitle !== lastSectionTitle) {
+        body.push([
+          {
+            content: q.sectionTitle,
+            colSpan: 3,
+            styles: { fontStyle: "bold", fillColor: [240, 240, 245], textColor: [40, 40, 40] },
+          },
+        ]);
+        lastSectionTitle = q.sectionTitle;
+      }
+      body.push([q.text, q.answerLabel, q.scoreLabel]);
+    }
+
     autoTable(doc, {
       startY: 54,
       head: [["Pergunta", "Resposta", "Pontuação"]],
-      body: data.questions.map((q) => [q.text, q.answerLabel, q.scoreLabel]),
+      body,
       theme: "striped",
       headStyles: { fillColor: [124, 58, 237] },
       columnStyles: { 2: { cellWidth: 28 } },

@@ -19,6 +19,7 @@ export default async function EditarModeloAvaliacaoPage({
     prisma.evaluationTemplate.findUnique({
       where: { id },
       include: {
+        sections: { orderBy: { order: "asc" } },
         questions: { orderBy: { order: "asc" }, include: { options: { orderBy: { order: "asc" } } } },
         consequenceRules: true,
         assignments: true,
@@ -35,6 +36,16 @@ export default async function EditarModeloAvaliacaoPage({
 
   if (!template) notFound();
 
+  // Modelos criados antes das secções existirem podem ter perguntas sem
+  // sectionId — ficam agrupadas numa secção "extra" só para não perdermos
+  // dados antigos ao abrir o construtor.
+  const FALLBACK_SECTION_KEY = "__sem_seccao__";
+  const hasOrphanQuestions = template.questions.some((q) => !q.sectionId);
+  const sections = template.sections.map((s) => ({ key: s.id, title: s.title }));
+  if (sections.length === 0 || hasOrphanQuestions) {
+    sections.push({ key: FALLBACK_SECTION_KEY, title: sections.length > 0 ? "Sem secção" : "Secção 1" });
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader icon={ClipboardCheck} title={`Editar modelo — ${template.name}`} />
@@ -45,11 +56,15 @@ export default async function EditarModeloAvaliacaoPage({
           id: template.id,
           name: template.name,
           hasSelfEvaluation: template.hasSelfEvaluation,
+          sections,
           questions: template.questions.map((q) => ({
             key: q.id,
+            sectionKey: q.sectionId ?? FALLBACK_SECTION_KEY,
             text: q.text,
             type: q.type as "SCALE" | "SINGLE_CHOICE" | "TEXT",
             maxScore: q.maxScore,
+            scaleMin: q.scaleMin ?? 1,
+            scaleMax: q.scaleMax ?? 5,
             options: q.options.map((o) => ({ key: o.id, label: o.label, points: o.points })),
           })),
           consequenceRules: template.consequenceRules.map((r) => ({

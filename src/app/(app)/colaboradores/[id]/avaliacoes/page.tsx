@@ -10,11 +10,16 @@ import type { EvaluationPdfData } from "@/components/evaluations/evaluation-pdf-
 import { notFound, redirect } from "next/navigation";
 import { User } from "lucide-react";
 
+const FALLBACK_SECTION_KEY = "__sem_seccao__";
+
 type QuestionWithOptions = {
   id: string;
+  sectionId: string | null;
   text: string;
   type: string;
   maxScore: number;
+  scaleMin: number | null;
+  scaleMax: number | null;
   options: { id: string; label: string; points: number }[];
 };
 
@@ -23,8 +28,15 @@ function buildPdfData(
   templateName: string,
   scheduledDate: Date,
   respondent: "MANAGER" | "SELF",
+  sectionTitleById: Map<string, string>,
   questions: QuestionWithOptions[],
-  answers: { questionId: string; score: number | null; selectedOptionId: string | null; textValue: string | null }[],
+  answers: {
+    questionId: string;
+    score: number | null;
+    rawValue: number | null;
+    selectedOptionId: string | null;
+    textValue: string | null;
+  }[],
   totalPercent: number | null,
   consequence: string | null
 ): EvaluationPdfData {
@@ -37,20 +49,25 @@ function buildPdfData(
     consequence,
     questions: questions.map((q) => {
       const answer = answers.find((a) => a.questionId === q.id);
+      const sectionTitle = sectionTitleById.get(q.sectionId ?? FALLBACK_SECTION_KEY) ?? "";
       if (q.type === "TEXT") {
-        return { text: q.text, answerLabel: answer?.textValue?.trim() || "—", scoreLabel: "—" };
+        return { sectionTitle, text: q.text, answerLabel: answer?.textValue?.trim() || "—", scoreLabel: "—" };
       }
       if (q.type === "SINGLE_CHOICE") {
         const option = q.options.find((o) => o.id === answer?.selectedOptionId);
         return {
+          sectionTitle,
           text: q.text,
           answerLabel: option?.label ?? "—",
           scoreLabel: answer?.score != null ? `${answer.score} pt(s)` : "—",
         };
       }
+      // SCALE
       return {
+        sectionTitle,
         text: q.text,
-        answerLabel: answer?.score != null ? `${answer.score}/${q.maxScore}` : "—",
+        answerLabel:
+          answer?.rawValue != null ? `${answer.rawValue}/${q.scaleMax ?? q.maxScore}` : "—",
         scoreLabel: answer?.score != null ? `${answer.score} pt(s)` : "—",
       };
     }),
@@ -80,7 +97,10 @@ export default async function ColaboradorAvaliacoesPage({
       where: { employeeId: employee.id },
       include: {
         template: {
-          include: { questions: { include: { options: true }, orderBy: { order: "asc" } } },
+          include: {
+            sections: { orderBy: { order: "asc" } },
+            questions: { include: { options: true }, orderBy: { order: "asc" } },
+          },
         },
         answers: true,
       },
@@ -92,6 +112,10 @@ export default async function ColaboradorAvaliacoesPage({
   const rows: EvaluationRow[] = evaluations.map((e) => {
     const managerAnswers = e.answers.filter((a) => a.respondent === "MANAGER");
     const selfAnswers = e.answers.filter((a) => a.respondent === "SELF");
+    const sectionTitleById = new Map(e.template.sections.map((s) => [s.id, s.title]));
+    if (e.template.questions.some((q) => !q.sectionId)) {
+      sectionTitleById.set(FALLBACK_SECTION_KEY, "Outras perguntas");
+    }
 
     return {
       id: e.id,
@@ -111,6 +135,7 @@ export default async function ColaboradorAvaliacoesPage({
             e.template.name,
             e.scheduledDate,
             "MANAGER",
+            sectionTitleById,
             e.template.questions,
             managerAnswers,
             e.managerPercent,
@@ -123,6 +148,7 @@ export default async function ColaboradorAvaliacoesPage({
             e.template.name,
             e.scheduledDate,
             "SELF",
+            sectionTitleById,
             e.template.questions,
             selfAnswers,
             e.selfPercent,
