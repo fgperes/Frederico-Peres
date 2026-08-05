@@ -10,10 +10,12 @@ import {
   getOrCreateVacationBalance,
   getVacationType,
   computeFirstYearEntitlement,
+  computeHeadcount,
   ensureVacationTask,
   resolveVacationTasksIfClear,
   isWeekday,
   CANCEL_REQUEST_MARKER,
+  type VacationHistoryRow,
 } from "@/lib/vacation";
 
 function revalidateFerias(employeeId?: string) {
@@ -398,7 +400,10 @@ export async function recalculateHireYearEntitlements(): Promise<{ updated: numb
 // ano em Férias/Equipa) — usado no botão "Criar contingente do ano
 // seguinte" na ficha do colaborador. O direito é calculado com a mesma
 // regra de sempre (pro-rata no ano de admissão, senão o valor por defeito).
-export async function createVacationBalanceForYear(employeeId: string, year: number) {
+export async function createVacationBalanceForYear(
+  employeeId: string,
+  year: number
+): Promise<VacationHistoryRow> {
   const user = await requireUser();
   if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para criar contingentes de férias.");
 
@@ -416,5 +421,5 @@ export async function createVacationBalanceForYear(employeeId: string, year: num
   });
 
   revalidateFerias(employeeId);
-  return balance;
+  return { year, ...computeHeadcount(balance) };
 }
