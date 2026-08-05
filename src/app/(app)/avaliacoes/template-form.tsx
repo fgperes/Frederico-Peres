@@ -269,13 +269,10 @@ export function TemplateForm({
       try {
         if (initial) {
           await updateTemplate(initial.id, payload);
-          setStatus("success");
-          setMessage("Modelo atualizado com sucesso.");
-          router.refresh();
         } else {
-          const created = await createTemplate(payload);
-          router.push(`/avaliacoes/${created.id}`);
+          await createTemplate(payload);
         }
+        router.push("/avaliacoes");
       } catch (err) {
         setStatus("error");
         setMessage(err instanceof Error ? err.message : "Ocorreu um erro ao gravar o modelo.");
