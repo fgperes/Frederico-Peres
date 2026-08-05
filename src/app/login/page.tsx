@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Lock, ArrowRight, Users, CalendarClock, Fingerprint } from "lucide-react";
+import { Mail, Lock, ArrowRight, Users, CalendarClock, Fingerprint, Building2 } from "lucide-react";
 import { LogoMark, PeopleWordmark } from "@/components/brand/logo";
 
 function LoginForm() {
@@ -11,6 +11,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
+  const [company, setCompany] = useState("people4people");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,13 +45,13 @@ function LoginForm() {
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-violet-700 via-indigo-700 to-violet-900 p-12 text-white lg:flex">
         <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white,transparent_35%),radial-gradient(circle_at_80%_70%,white,transparent_35%)]" />
 
-        <div className="relative flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm">
-            <LogoMark className="h-5 w-5" />
+        <div className="relative flex items-center gap-3">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 shadow-lg shadow-black/10 backdrop-blur-sm">
+            <LogoMark className="h-8 w-8" />
           </span>
           <div className="flex items-baseline gap-2">
-            <PeopleWordmark className="text-lg" fourClassName="text-violet-200" />
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-200/70">
+            <PeopleWordmark className="text-2xl" fourClassName="text-violet-200" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-violet-200/70">
               SGRH
             </span>
           </div>
@@ -64,8 +65,7 @@ function LoginForm() {
             Uma só plataforma para gerir pessoas, horários e assiduidade.
           </h2>
           <p className="mt-4 max-w-sm text-sm text-violet-100">
-            Colaboradores, horários, picagens, ausências e contratos —
-            centralizados, com controlo de acesso por perfil.
+            Colaboradores, horários, picagens, ausências e contratos.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 text-sm text-violet-100">
@@ -99,13 +99,13 @@ function LoginForm() {
       <div className="flex flex-1 items-center justify-center bg-stone-50 px-6 py-12 dark:bg-stone-950">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <div className="mb-3 flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
-                <LogoMark className="h-5 w-5" />
+            <div className="mb-3 flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-sm shadow-violet-600/30">
+                <LogoMark className="h-7 w-7" />
               </span>
               <div className="flex items-baseline gap-2">
-                <PeopleWordmark className="text-lg" />
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">
+                <PeopleWordmark className="text-xl" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">
                   SGRH
                 </span>
               </div>
@@ -123,6 +123,28 @@ function LoginForm() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">
+                Empresa
+              </label>
+              <div className="relative">
+                <Building2
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
+                />
+                <input
+                  type="text"
+                  required
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  className="w-full rounded-lg border border-stone-300 py-2.5 pl-9 pr-3 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+                  placeholder="people4people"
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-stone-400 dark:text-stone-500">
+                Identificador da empresa (o domínio de acesso da vossa organização).
+              </p>
+            </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">
                 Email
