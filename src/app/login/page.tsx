@@ -27,14 +27,18 @@ function LoginForm() {
 
       if (result?.error) {
         setError("Email ou palavra-passe inválidos.");
+        setLoading(false);
         return;
       }
 
+      // Sem setLoading(false) aqui de propósito: o botão mantém-se em
+      // "A entrar..." até a navegação para o dashboard estar concluída
+      // (a própria página muda), em vez de voltar ao normal antes da
+      // app ter realmente entrado.
       router.push(callbackUrl);
       router.refresh();
     } catch {
       setError("Não foi possível ligar ao servidor. Tente novamente.");
-    } finally {
       setLoading(false);
     }
   }
