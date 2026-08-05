@@ -355,12 +355,7 @@ async function TeamHeadcountTable({ employeeIds, year }: { employeeIds: string[]
                 {headcount.saldo}
               </td>
               <td className="px-3 py-2">
-                <BalanceEditor
-                  employeeId={employee.id}
-                  year={year}
-                  entitledDays={headcount.entitled}
-                  carryOverDays={headcount.carryOver}
-                />
+                <BalanceEditor employeeId={employee.id} year={year} totalDays={headcount.total} />
               </td>
             </tr>
           ))}

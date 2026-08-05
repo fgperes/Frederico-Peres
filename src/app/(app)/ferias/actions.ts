@@ -321,20 +321,29 @@ export async function decideVacationPeriod(
   throw new Error("Este período já foi decidido.");
 }
 
-// RH edita o saldo (entitlement/transição do ano anterior) de um colaborador.
+// RH edita o total de dias de férias do ano de um colaborador. Só o total é
+// editável — os dias gozados, aprovados e por gozar são sempre calculados
+// a partir do planeamento real (pedidos de férias) no módulo de Férias, e
+// nunca ajustáveis diretamente aqui. A transição do ano anterior mantém-se
+// como está; só o direito do próprio ano absorve a diferença.
 export async function updateVacationBalance(employeeId: string, year: number, formData: FormData) {
   const user = await requireUser();
   if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para editar saldos de férias.");
 
-  const entitledDays = Number(formData.get("entitledDays") ?? 22);
-  const carryOverDays = Number(formData.get("carryOverDays") ?? 0);
-  if (!Number.isFinite(entitledDays) || entitledDays < 0) throw new Error("Dias de férias do ano inválidos.");
-  if (!Number.isFinite(carryOverDays) || carryOverDays < 0) throw new Error("Dias transitados inválidos.");
+  const totalDays = Number(formData.get("totalDays") ?? 22);
+  if (!Number.isFinite(totalDays) || totalDays < 0) throw new Error("Total de dias inválido.");
 
   const { balance } = await getOrCreateVacationBalance(employeeId, year);
+  const entitledDays = totalDays - balance.carryOverDays;
+  if (entitledDays < 0) {
+    throw new Error(
+      `O total não pode ser inferior aos ${balance.carryOverDays} dia(s) transitado(s) do ano anterior.`
+    );
+  }
+
   await prisma.absenceBalance.update({
     where: { id: balance.id },
-    data: { entitledDays, carryOverDays },
+    data: { entitledDays },
   });
 
   await logAudit({
@@ -342,7 +351,7 @@ export async function updateVacationBalance(employeeId: string, year: number, fo
     action: "UPDATE",
     entity: "AbsenceBalance",
     entityId: balance.id,
-    details: `Férias ${year}: ${entitledDays} dia(s) + ${carryOverDays} transitado(s)`,
+    details: `Férias ${year}: total ajustado para ${totalDays} dia(s)`,
   });
 
   revalidateFerias();

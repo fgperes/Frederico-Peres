@@ -60,12 +60,7 @@ export function VacationHistoryTable({
                 {canManage && (
                   <td className="py-2 pr-3">
                     {isEditable(row.year) && (
-                      <BalanceEditor
-                        employeeId={employeeId}
-                        year={row.year}
-                        entitledDays={row.entitled}
-                        carryOverDays={row.carryOver}
-                      />
+                      <BalanceEditor employeeId={employeeId} year={row.year} totalDays={row.total} />
                     )}
                   </td>
                 )}

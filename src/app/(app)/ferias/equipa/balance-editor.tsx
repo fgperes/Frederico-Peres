@@ -9,17 +9,14 @@ import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
 export function BalanceEditor({
   employeeId,
   year,
-  entitledDays,
-  carryOverDays,
+  totalDays,
 }: {
   employeeId: string;
   year: number;
-  entitledDays: number;
-  carryOverDays: number;
+  totalDays: number;
 }) {
   const [editing, setEditing] = useState(false);
-  const [entitled, setEntitled] = useState(String(entitledDays));
-  const [carryOver, setCarryOver] = useState(String(carryOverDays));
+  const [total, setTotal] = useState(String(totalDays));
   const [pending, startTransition] = useTransition();
   const { status, message, run } = useSaveFeedback();
   const router = useRouter();
@@ -28,12 +25,11 @@ export function BalanceEditor({
     startTransition(() => {
       run(async () => {
         const formData = new FormData();
-        formData.set("entitledDays", entitled);
-        formData.set("carryOverDays", carryOver);
+        formData.set("totalDays", total);
         await updateVacationBalance(employeeId, year, formData);
         router.refresh();
         setEditing(false);
-      }, "Saldo atualizado com sucesso.");
+      }, "Total atualizado com sucesso.");
     });
   }
 
@@ -57,19 +53,10 @@ export function BalanceEditor({
         <input
           type="number"
           min={0}
-          value={entitled}
-          onChange={(e) => setEntitled(e.target.value)}
-          title="Dias de férias do ano"
-          className="w-14 rounded-md border border-stone-300 px-1.5 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-        />
-        <span className="text-xs text-stone-400">+</span>
-        <input
-          type="number"
-          min={0}
-          value={carryOver}
-          onChange={(e) => setCarryOver(e.target.value)}
-          title="Dias transitados do ano anterior"
-          className="w-14 rounded-md border border-stone-300 px-1.5 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+          value={total}
+          onChange={(e) => setTotal(e.target.value)}
+          title="Total de dias de férias do ano"
+          className="w-16 rounded-md border border-stone-300 px-1.5 py-1 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
         />
         <button
           type="button"
