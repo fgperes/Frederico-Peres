@@ -7,6 +7,8 @@ import { EmployeeForm } from "../employee-form";
 import { ColaboradorTabs } from "./tabs";
 import { AccessCard } from "./access-card";
 import { updateEmployee, setEmployeeStatus } from "../actions";
+import { getVacationHistory } from "@/lib/vacation";
+import { VacationHistoryTable } from "../../ferias/history-table";
 import { ID_DOCUMENT_TYPE_LABELS, type IdDocumentType } from "@/lib/employee-constants";
 import { notFound } from "next/navigation";
 import { User, Banknote } from "lucide-react";
@@ -45,6 +47,9 @@ export default async function ColaboradorDetailPage({
 
   const canEdit = canWrite(user.roles, "recursos");
   const canManageAccess = canManageEmployeeAccess(user.roles);
+  const canReadFerias = canRead(user.roles, "ferias");
+  const vacationHistory = canReadFerias ? await getVacationHistory(employee.id).catch(() => []) : [];
+  const currentYear = new Date().getFullYear();
   const boundUpdate = updateEmployee.bind(null, employee.id);
   const toggleStatus = setEmployeeStatus.bind(
     null,
@@ -124,6 +129,17 @@ export default async function ColaboradorDetailPage({
           canManage={canManageAccess}
         />
       </Card>
+
+      {canReadFerias && vacationHistory.length > 0 && (
+        <div className="mt-6">
+          <VacationHistoryTable
+            employeeId={employee.id}
+            rows={vacationHistory}
+            canManage={canWrite(user.roles, "ferias")}
+            editableYears={(year) => year >= currentYear - 1}
+          />
+        </div>
+      )}
 
       {employee.history.length > 0 && (
         <Card className="mt-6">

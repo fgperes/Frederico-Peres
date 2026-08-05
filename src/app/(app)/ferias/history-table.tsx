@@ -9,12 +9,18 @@ export function VacationHistoryTable({
   employeeId,
   rows,
   canManage,
+  editableYears,
 }: {
   employeeId: string;
   rows: VacationHistoryRow[];
   canManage: boolean;
+  // Restringe em que anos o botão de editar aparece (por defeito, todos).
+  // Usado na ficha do colaborador, onde só o ano atual e o anterior são
+  // editáveis — anos mais antigos só se editam em Férias → Equipa.
+  editableYears?: (year: number) => boolean;
 }) {
   if (rows.length === 0) return null;
+  const isEditable = editableYears ?? (() => true);
 
   return (
     <Card>
@@ -53,12 +59,14 @@ export function VacationHistoryTable({
                 </td>
                 {canManage && (
                   <td className="py-2 pr-3">
-                    <BalanceEditor
-                      employeeId={employeeId}
-                      year={row.year}
-                      entitledDays={row.entitled}
-                      carryOverDays={row.carryOver}
-                    />
+                    {isEditable(row.year) && (
+                      <BalanceEditor
+                        employeeId={employeeId}
+                        year={row.year}
+                        entitledDays={row.entitled}
+                        carryOverDays={row.carryOver}
+                      />
+                    )}
                   </td>
                 )}
               </tr>
