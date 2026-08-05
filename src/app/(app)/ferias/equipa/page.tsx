@@ -6,6 +6,7 @@ import { getOrCreateVacationBalance, computeHeadcount, getVacationType, effectiv
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "../tabs";
 import { BalanceEditor } from "./balance-editor";
+import { RecalculateButton } from "./recalculate-button";
 import { VacationLegend } from "../calendar";
 import { redirect } from "next/navigation";
 import { Plane, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
@@ -121,6 +122,7 @@ export default async function FeriasEquipaPage({
         icon={Plane}
         title="Férias"
         description="Planeamento de férias da equipa — filtre por departamento, equipa ou colaboradores."
+        action={<RecalculateButton />}
       />
 
       <FeriasTabs showTeamTabs />

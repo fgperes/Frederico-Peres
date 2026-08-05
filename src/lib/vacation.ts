@@ -38,6 +38,32 @@ export async function getVacationType() {
   return type;
 }
 
+// Direito a férias no ano de admissão (art. 239º do Código do Trabalho):
+// 2 dias por cada mês completo trabalhado até ao final desse ano — o mês da
+// admissão conta como completo (2 dias) se a entrada foi antes do dia 15,
+// caso contrário conta só 1 dia — com o teto legal de 20 dias.
+export function computeFirstYearEntitlement(hireDate: Date): number {
+  const hireMonth = hireDate.getMonth();
+  const hireDay = hireDate.getDate();
+
+  let days = hireDay < 15 ? 2 : 1;
+  for (let month = hireMonth + 1; month <= 11; month++) {
+    days += 2;
+  }
+  return Math.min(days, 20);
+}
+
+async function defaultEntitledDays(employeeId: string, year: number, fallback: number): Promise<number> {
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { hireDate: true },
+  });
+  if (employee?.hireDate && employee.hireDate.getFullYear() === year) {
+    return computeFirstYearEntitlement(employee.hireDate);
+  }
+  return fallback;
+}
+
 export async function getOrCreateVacationBalance(employeeId: string, year: number) {
   const type = await getVacationType();
   const existing = await prisma.absenceBalance.findUnique({
@@ -45,12 +71,13 @@ export async function getOrCreateVacationBalance(employeeId: string, year: numbe
   });
   if (existing) return { balance: existing, type };
 
+  const entitledDays = await defaultEntitledDays(employeeId, year, type.annualLimitDays ?? 22);
   const balance = await prisma.absenceBalance.create({
     data: {
       employeeId,
       absenceTypeId: type.id,
       year,
-      entitledDays: type.annualLimitDays ?? 22,
+      entitledDays,
     },
   });
   return { balance, type };

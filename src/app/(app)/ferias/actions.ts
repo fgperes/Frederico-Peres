@@ -8,6 +8,8 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import {
   getOrCreateVacationBalance,
+  getVacationType,
+  computeFirstYearEntitlement,
   ensureVacationTask,
   resolveVacationTasksIfClear,
   isWeekday,
@@ -341,4 +343,51 @@ export async function updateVacationBalance(employeeId: string, year: number, fo
   });
 
   revalidateFerias();
+}
+
+// Recalcula, para todos os colaboradores com data de admissão preenchida, o
+// direito a férias do ano de admissão (2 dias por mês completo, com o teto
+// legal de 20 dias) — corrige saldos criados antes desta regra existir, sem
+// tocar em dias já marcados/aprovados nem na transição de anos anteriores.
+export async function recalculateHireYearEntitlements(): Promise<{ updated: number; skipped: number }> {
+  const user = await requireUser();
+  if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para recalcular saldos de férias.");
+
+  const type = await getVacationType();
+  const employees = await prisma.employee.findMany({
+    where: { hireDate: { not: null } },
+    select: { id: true, hireDate: true },
+  });
+
+  let updated = 0;
+  let skipped = 0;
+
+  for (const employee of employees) {
+    const hireDate = employee.hireDate!;
+    const hireYear = hireDate.getFullYear();
+    const balance = await prisma.absenceBalance.findUnique({
+      where: { employeeId_absenceTypeId_year: { employeeId: employee.id, absenceTypeId: type.id, year: hireYear } },
+    });
+    if (!balance) {
+      skipped++;
+      continue;
+    }
+    const entitledDays = computeFirstYearEntitlement(hireDate);
+    if (balance.entitledDays === entitledDays) {
+      skipped++;
+      continue;
+    }
+    await prisma.absenceBalance.update({ where: { id: balance.id }, data: { entitledDays } });
+    updated++;
+  }
+
+  await logAudit({
+    userId: user.id,
+    action: "UPDATE",
+    entity: "AbsenceBalance",
+    details: `Recalculou saldos do ano de admissão: ${updated} atualizado(s), ${skipped} sem alteração`,
+  });
+
+  revalidateFerias();
+  return { updated, skipped };
 }
