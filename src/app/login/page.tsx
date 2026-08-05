@@ -22,21 +22,28 @@ function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), 15000)
+    );
 
-    setLoading(false);
+    try {
+      const result = await Promise.race([
+        signIn("credentials", { email, password, redirect: false }),
+        timeout,
+      ]);
 
-    if (result?.error) {
-      setError("Email ou palavra-passe inválidos.");
-      return;
+      if (result?.error) {
+        setError("Email ou palavra-passe inválidos.");
+        return;
+      }
+
+      router.push(callbackUrl);
+      router.refresh();
+    } catch {
+      setError("Não foi possível ligar ao servidor. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
-    router.refresh();
   }
 
   return (
