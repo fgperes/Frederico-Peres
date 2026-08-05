@@ -10,6 +10,7 @@ export function ColaboradorTabs({ employeeId }: { employeeId: string }) {
     { href: `/colaboradores/${employeeId}/acessos`, label: "Perfis e Acessos" },
     { href: `/colaboradores/${employeeId}/ferias`, label: "Férias" },
     { href: `/colaboradores/${employeeId}/anexos`, label: "Anexos" },
+    { href: `/colaboradores/${employeeId}/avaliacoes`, label: "Avaliações" },
   ];
 
   return (

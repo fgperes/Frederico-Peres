@@ -51,22 +51,28 @@ model User {
   sentMessages       Message[]        @relation("MessageSender")
   receivedMessages   Message[]        @relation("MessageRecipient")
   tasks              Task[]           @relation("TaskAssignee")
+
+  createdEvaluationTemplates EvaluationTemplate[]
+  createdEvaluations         Evaluation[]         @relation("EvaluationCreatedBy")
+  completedEvaluations       Evaluation[]         @relation("EvaluationCompletedBy")
 }
 
 // Tarefas atribuídas a um utilizador (ex.: gestor de RH/supervisor a
 // definir o horário de refeição de um colaborador).
 model Task {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  type        String    @default("GENERAL") // GENERAL | MEAL_BREAK_SCHEDULE
-  assigneeId  String
-  assignee    User      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
-  employeeId  String?
-  employee    Employee? @relation(fields: [employeeId], references: [id])
-  status      String    @default("OPEN") // OPEN | DONE
-  createdAt   DateTime  @default(now())
-  resolvedAt  DateTime?
+  id           String      @id @default(cuid())
+  title        String
+  description  String?
+  type         String      @default("GENERAL") // GENERAL | MEAL_BREAK_SCHEDULE
+  assigneeId   String
+  assignee     User        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  employeeId   String?
+  employee     Employee?   @relation(fields: [employeeId], references: [id])
+  evaluationId String?
+  evaluation   Evaluation? @relation(fields: [evaluationId], references: [id])
+  status       String      @default("OPEN") // OPEN | DONE
+  createdAt    DateTime    @default(now())
+  resolvedAt   DateTime?
 
   @@index([assigneeId, status])
 }
@@ -148,6 +154,8 @@ model Team {
   employees    Employee[]
   createdAt    DateTime   @default(now())
 
+  evaluationAssignments EvaluationTemplateAssignment[]
+
   @@unique([name, departmentId])
 }
 
@@ -224,6 +232,9 @@ model Employee {
   payrollComponents PayrollComponent[]
   payslips          Payslip[]
   tasks             Task[]
+
+  evaluationAssignments EvaluationTemplateAssignment[]
+  evaluations           Evaluation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -419,6 +430,136 @@ model AbsenceBalance {
   plannedDays   Float       @default(0)
 
   @@unique([employeeId, absenceTypeId, year])
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de Avaliação de Desempenho
+// ---------------------------------------------------------------------------
+// Um modelo (EvaluationTemplate) define perguntas pontuadas (SCALE ou
+// SINGLE_CHOICE, cujo maxScore/pontos somam sempre 100 no total) e perguntas
+// de texto livre (TEXT, sem pontuação). O resultado de uma Evaluation
+// preenchida é sempre a soma das respostas do avaliador (respondent=MANAGER)
+// — a autoavaliação (respondent=SELF) é só informativa, nunca entra no
+// cálculo nem na consequência.
+
+model EvaluationTemplate {
+  id                String   @id @default(cuid())
+  name              String
+  hasSelfEvaluation Boolean  @default(false)
+  createdById       String
+  createdBy         User     @relation(fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  questions        EvaluationQuestion[]
+  consequenceRules EvaluationConsequenceRule[]
+  assignments      EvaluationTemplateAssignment[]
+  evaluations      Evaluation[]
+}
+
+model EvaluationQuestion {
+  id         String             @id @default(cuid())
+  templateId String
+  template   EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order      Int
+  text       String
+  type       String // SCALE | SINGLE_CHOICE | TEXT
+  // Peso da pergunta (0 para TEXT); a soma de SCALE+SINGLE_CHOICE tem de ser
+  // exatamente 100 por modelo (validado em lib/evaluations.ts).
+  maxScore   Int                @default(0)
+
+  options EvaluationQuestionOption[]
+  answers EvaluationAnswer[]
+
+  @@index([templateId])
+}
+
+model EvaluationQuestionOption {
+  id         String             @id @default(cuid())
+  questionId String
+  question   EvaluationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+  label      String
+  points     Int // 0..question.maxScore
+
+  answers EvaluationAnswer[]
+}
+
+// Faixas de resultado → consequência (ex.: "a partir de 60%" → "Progressão de
+// carreira"). Ao calcular o resultado, escolhe-se a faixa com o maior
+// minPercent que ainda seja <= percentagem final.
+model EvaluationConsequenceRule {
+  id          String             @id @default(cuid())
+  templateId  String
+  template    EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  minPercent  Int
+  consequence String
+
+  @@index([templateId])
+}
+
+// Define quem pode ser avaliado com este modelo — por equipa (todos os
+// colaboradores atuais dessa equipa) e/ou por colaborador específico.
+model EvaluationTemplateAssignment {
+  id         String             @id @default(cuid())
+  templateId String
+  template   EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  teamId     String?
+  team       Team?              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employeeId String?
+  employee   Employee?          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now())
+
+  @@index([templateId])
+  @@index([teamId])
+  @@index([employeeId])
+}
+
+// Uma ocorrência agendada/realizada de um modelo para um colaborador.
+model Evaluation {
+  id            String             @id @default(cuid())
+  templateId    String
+  template      EvaluationTemplate @relation(fields: [templateId], references: [id])
+  employeeId    String
+  employee      Employee           @relation(fields: [employeeId], references: [id])
+  scheduledDate DateTime
+  status        String             @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
+  createdById   String
+  createdBy     User               @relation("EvaluationCreatedBy", fields: [createdById], references: [id])
+
+  managerCompletedAt   DateTime?
+  managerCompletedById String?
+  managerCompletedBy   User?     @relation("EvaluationCompletedBy", fields: [managerCompletedById], references: [id])
+  managerScore         Int?
+  managerPercent       Int?
+  managerConsequence   String?
+
+  selfCompletedAt DateTime?
+  selfScore       Int?
+  selfPercent     Int?
+
+  answers EvaluationAnswer[]
+  tasks   Task[]
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([status, scheduledDate])
+}
+
+model EvaluationAnswer {
+  id               String                    @id @default(cuid())
+  evaluationId     String
+  evaluation       Evaluation                @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         EvaluationQuestion        @relation(fields: [questionId], references: [id])
+  respondent       String // MANAGER | SELF
+  score            Int?
+  selectedOptionId String?
+  selectedOption   EvaluationQuestionOption? @relation(fields: [selectedOptionId], references: [id])
+  textValue        String?
+
+  @@unique([evaluationId, questionId, respondent])
 }
 
 // ---------------------------------------------------------------------------

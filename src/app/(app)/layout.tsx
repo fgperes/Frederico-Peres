@@ -7,6 +7,7 @@ import { getNotifications, getUnreadMessageCount } from "@/lib/notifications";
 import { getAllowedRecipients } from "@/lib/messaging";
 import { getOpenTasks } from "@/lib/tasks";
 import { getTodayMealStatus } from "@/lib/meal-rules";
+import { ensureEvaluationDueTasks } from "@/lib/evaluations";
 import { MobileNavProvider } from "@/components/mobile-nav-context";
 
 export default async function AppLayout({
@@ -15,6 +16,11 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+
+  // Sem cron disponível: cria (se ainda não existirem) as tarefas de aviso
+  // de avaliações agendadas para os próximos 30 dias a cada carregamento de
+  // página, antes de ler as tarefas abertas do utilizador abaixo.
+  await ensureEvaluationDueTasks();
 
   const [notifications, unreadMessageCount, recipients, messages, dbUser, tasks] = await Promise.all([
     getNotifications(user),
