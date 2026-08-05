@@ -112,6 +112,7 @@ export function Nav({
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
