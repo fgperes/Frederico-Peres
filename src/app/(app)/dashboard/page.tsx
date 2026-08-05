@@ -55,19 +55,17 @@ async function ManagementDashboard({
   user: Awaited<ReturnType<typeof requireUser>>;
 }) {
   const scope = await employeeScopeWhere(user);
-  const scopedEmployees = await prisma.employee.findMany({ where: scope, select: { id: true } });
-  const scopedIds = scopedEmployees.map((e) => e.id);
 
   const [employeeCount, pendingAbsences, expiringContracts, openDeviations, recentAudit] =
     await Promise.all([
       prisma.employee.count({ where: { ...scope, status: "ACTIVE" } }),
       canRead(user.roles, "ausencias")
-        ? prisma.absence.count({ where: { employeeId: { in: scopedIds }, status: "PENDING" } })
+        ? prisma.absence.count({ where: { employee: scope, status: "PENDING" } })
         : 0,
       canRead(user.roles, "contratos")
         ? prisma.contract.count({
             where: {
-              employeeId: { in: scopedIds },
+              employee: scope,
               status: "ACTIVE",
               endDate: { not: null, lte: addDays(new Date(), 30) },
             },
@@ -76,7 +74,7 @@ async function ManagementDashboard({
       canRead(user.roles, "picagens")
         ? prisma.timeClockEntry.count({
             where: {
-              employeeId: { in: scopedIds },
+              employee: scope,
               hasDeviation: true,
               justificationStatus: "PENDING",
             },
