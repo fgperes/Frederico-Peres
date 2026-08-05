@@ -16,10 +16,11 @@ import {
   CANCEL_REQUEST_MARKER,
 } from "@/lib/vacation";
 
-function revalidateFerias() {
+function revalidateFerias(employeeId?: string) {
   revalidatePath("/ferias");
   revalidatePath("/ferias/equipa");
   revalidatePath("/ferias/aprovacoes");
+  if (employeeId) revalidatePath(`/colaboradores/${employeeId}/ferias`);
   revalidatePath("/", "layout");
 }
 
@@ -390,4 +391,30 @@ export async function recalculateHireYearEntitlements(): Promise<{ updated: numb
 
   revalidateFerias();
   return { updated, skipped };
+}
+
+// Cria explicitamente o contingente de férias de um colaborador para um
+// dado ano (por defeito só é criado de forma implícita ao navegar para esse
+// ano em Férias/Equipa) — usado no botão "Criar contingente do ano
+// seguinte" na ficha do colaborador. O direito é calculado com a mesma
+// regra de sempre (pro-rata no ano de admissão, senão o valor por defeito).
+export async function createVacationBalanceForYear(employeeId: string, year: number) {
+  const user = await requireUser();
+  if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para criar contingentes de férias.");
+
+  const scope = await employeeScopeWhere(user);
+  const employee = await prisma.employee.findFirst({ where: { AND: [{ id: employeeId }, scope] } });
+  if (!employee) throw new Error("Colaborador fora do seu âmbito de gestão.");
+
+  const { balance } = await getOrCreateVacationBalance(employeeId, year);
+  await logAudit({
+    userId: user.id,
+    action: "CREATE",
+    entity: "AbsenceBalance",
+    entityId: balance.id,
+    details: `Criou contingente de férias de ${employee.firstName} ${employee.lastName} para ${year}`,
+  });
+
+  revalidateFerias(employeeId);
+  return balance;
 }
