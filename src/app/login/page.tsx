@@ -22,15 +22,8 @@ function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 15000)
-    );
-
     try {
-      const result = await Promise.race([
-        signIn("credentials", { email, password, redirect: false }),
-        timeout,
-      ]);
+      const result = await signIn("credentials", { email, password, redirect: false });
 
       if (result?.error) {
         setError("Email ou palavra-passe inválidos.");
