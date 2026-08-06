@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { HorariosTabs } from "../tabs";
-import { createCycle } from "./actions";
+import { CreateCycleForm } from "./create-cycle-form";
 import { UseTemplateForm } from "./use-template-form";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
@@ -102,33 +102,7 @@ export default async function CiclosPage() {
         {canEdit && (
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Ciclo</h2>
-            <form action={createCycle} className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
-                <input name="name" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Duração (semanas)</label>
-                <select name="weeks" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
-                  {[1, 2, 3, 4, 6, 8].map((w) => (
-                    <option key={w} value={w}>{w} semana{w > 1 ? "s" : ""}</option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-stone-500">
-                  Pode adicionar mais semanas depois, dentro do ciclo.
-                </p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Data de início (semana 1)</label>
-                <input name="startDate" type="date" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-              </div>
-              <p className="text-xs text-stone-500">
-                Depois de criado, entre no ciclo para associar os colaboradores.
-              </p>
-              <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-                Criar ciclo
-              </button>
-            </form>
+            <CreateCycleForm />
           </Card>
         )}
       </div>

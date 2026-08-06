@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { createCycleFromTemplate } from "./actions";
 
 export function UseTemplateForm({
@@ -11,6 +11,8 @@ export function UseTemplateForm({
   templateName: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   if (!open) {
     return (
@@ -26,9 +28,16 @@ export function UseTemplateForm({
 
   return (
     <form
-      action={async (formData) => {
-        await createCycleFromTemplate(formData);
-        setOpen(false);
+      action={(formData) => {
+        setError(null);
+        startTransition(async () => {
+          try {
+            await createCycleFromTemplate(formData);
+            setOpen(false);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Erro ao criar o ciclo.");
+          }
+        });
       }}
       className="mt-2 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3"
     >
@@ -49,9 +58,10 @@ export function UseTemplateForm({
       <div className="flex gap-2">
         <button
           type="submit"
-          className="flex-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700"
+          disabled={pending}
+          className="flex-1 rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-60"
         >
-          Criar ciclo
+          {pending ? "A criar…" : "Criar ciclo"}
         </button>
         <button
           type="button"
@@ -61,6 +71,9 @@ export function UseTemplateForm({
           Cancelar
         </button>
       </div>
+      {error && (
+        <p className="rounded-md bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{error}</p>
+      )}
     </form>
   );
 }

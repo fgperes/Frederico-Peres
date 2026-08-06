@@ -57,6 +57,24 @@ export async function createCycle(formData: FormData) {
   revalidatePath("/horarios/ciclos");
 }
 
+export type CreateCycleState = { error?: string };
+
+// Wrapper para useActionState — o formulário "Novo Ciclo" precisa de
+// mostrar o erro (ex.: permissões, dados em falta) em vez de falhar em
+// silêncio, que é o que acontecia com o form ligado diretamente a
+// createCycle (uma exceção não tratada não dá qualquer feedback visível).
+export async function createCycleAction(
+  _prev: CreateCycleState,
+  formData: FormData
+): Promise<CreateCycleState> {
+  try {
+    await createCycle(formData);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao criar o ciclo." };
+  }
+}
+
 // Adiciona uma semana em branco ao fim do ciclo.
 export async function addWeek(cycleId: string) {
   const user = await assertCanWrite();
