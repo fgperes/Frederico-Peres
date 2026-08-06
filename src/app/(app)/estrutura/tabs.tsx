@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const TABS = [
+const ALL_TABS = [
   { href: "/estrutura", label: "Visão Geral" },
   { href: "/estrutura/organograma", label: "Organograma" },
 ];
 
-export function EstruturaTabs() {
+export function EstruturaTabs({ showGeral = true }: { showGeral?: boolean }) {
   const pathname = usePathname();
+  const tabs = showGeral ? ALL_TABS : ALL_TABS.filter((tab) => tab.href !== "/estrutura");
   return (
     <div className="mb-6 flex gap-1 border-b border-stone-200 dark:border-stone-800">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = pathname === tab.href;
         return (
           <Link

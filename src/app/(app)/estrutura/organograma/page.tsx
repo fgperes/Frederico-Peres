@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { accessFor } from "@/lib/roles";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { AvatarImage } from "@/lib/avatars";
 import { EstruturaTabs } from "../tabs";
@@ -27,7 +28,9 @@ const LEVEL_ACCENTS = [
 ];
 
 export default async function OrganogramaPage() {
-  await requireUser();
+  const user = await requireUser();
+  const recursosAccess = accessFor(user.roles, "recursos");
+  const showGeral = recursosAccess === "rw" || recursosAccess === "ro";
 
   const employees = await prisma.employee.findMany({
     where: { status: "ACTIVE" },
@@ -78,7 +81,7 @@ export default async function OrganogramaPage() {
         description="Organograma — árvore de reporte (chefia direta), com departamento e função de cada colaborador."
       />
 
-      <EstruturaTabs />
+      <EstruturaTabs showGeral={showGeral} />
 
       <Card className="overflow-hidden p-0">
         {roots.length === 0 ? (

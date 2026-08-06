@@ -1,15 +1,18 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite } from "@/lib/roles";
+import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { EstruturaTabs } from "./tabs";
 import { createDepartment, createTeam, createLocation } from "./actions";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Building2, Users2, MapPin, ChevronRight } from "lucide-react";
 
 export default async function EstruturaPage() {
   const user = await requireUser();
   const canEdit = canWrite(user.roles, "recursos");
+  const recursosAccess = accessFor(user.roles, "recursos");
+  if (recursosAccess !== "rw" && recursosAccess !== "ro") redirect("/estrutura/organograma");
 
   const [departments, teams, locations] = await Promise.all([
     prisma.department.findMany({

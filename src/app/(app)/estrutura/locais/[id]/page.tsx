@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite } from "@/lib/roles";
+import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { updateLocation, deleteLocation } from "../../actions";
 import { DeleteSectionButton } from "../../delete-section-button";
 import { MigrateEmployeeForm } from "../../migrate-employee-form";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 
@@ -17,6 +17,8 @@ export default async function LocalDetailPage({
   const { id } = await params;
   const user = await requireUser();
   const canEdit = canWrite(user.roles, "recursos");
+  const recursosAccess = accessFor(user.roles, "recursos");
+  if (recursosAccess !== "rw" && recursosAccess !== "ro") redirect("/estrutura/organograma");
 
   const location = await prisma.location.findUnique({
     where: { id },
