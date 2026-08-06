@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/horarios", label: "Horário Manual" },
   { href: "/horarios/ciclos", label: "Horário em Ciclo" },
   { href: "/horarios/preditivo", label: "Horário Preditivo" },
   { href: "/horarios/modelos", label: "Modelos de Turno" },

@@ -6,11 +6,9 @@ import { createCycleFromTemplate } from "./actions";
 export function UseTemplateForm({
   templateId,
   templateName,
-  departments,
 }: {
   templateId: string;
   templateName: string;
-  departments: { id: string; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -48,14 +46,6 @@ export function UseTemplateForm({
         required
         className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
       />
-      <select name="departmentId" className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-        <option value="">Departamento (opcional)</option>
-        {departments.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.name}
-          </option>
-        ))}
-      </select>
       <div className="flex gap-2">
         <button
           type="submit"

@@ -12,7 +12,7 @@ export default async function CiclosPage() {
   const user = await requireUser();
   const canEdit = canWrite(user.roles, "horarios");
 
-  const [cycles, templates, departments] = await Promise.all([
+  const [cycles, templates] = await Promise.all([
     prisma.scheduleCycle.findMany({
       where: { isTemplate: false },
       include: { _count: { select: { assignments: true } } },
@@ -22,7 +22,6 @@ export default async function CiclosPage() {
       where: { isTemplate: true },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -90,7 +89,7 @@ export default async function CiclosPage() {
                         <span className="ml-2 text-xs text-stone-500">{t.weeks} semanas</span>
                       </div>
                       {canEdit && (
-                        <UseTemplateForm templateId={t.id} templateName={t.name} departments={departments} />
+                        <UseTemplateForm templateId={t.id} templateName={t.name} />
                       )}
                     </div>
                   </li>
@@ -123,15 +122,9 @@ export default async function CiclosPage() {
                 <label className="mb-1 block text-xs font-medium text-stone-600">Data de início (semana 1)</label>
                 <input name="startDate" type="date" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Departamento (opcional)</label>
-                <select name="departmentId" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
-                  <option value="">—</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
+              <p className="text-xs text-stone-500">
+                Depois de criado, entre no ciclo para associar os colaboradores.
+              </p>
               <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
                 Criar ciclo
               </button>

@@ -15,17 +15,42 @@ async function assertCanWrite() {
   return user;
 }
 
+function shiftDurationHours(startTime: string, endTime: string, breakMins: number): number {
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  let minutes = eh * 60 + em - (sh * 60 + sm);
+  if (minutes <= 0) minutes += 24 * 60; // turno passa a meia-noite
+  return Math.max(0, (minutes - breakMins) / 60);
+}
+
+// Média de horas semanais implícita no padrão do ciclo (soma de todas as
+// células com turno, dividida pelo número de semanas do ciclo).
+async function cycleWeeklyHours(cycleId: string, weeks: number): Promise<number> {
+  const pattern = await prisma.scheduleCyclePattern.findMany({ where: { cycleId } });
+  const templateIds = [...new Set(pattern.map((p) => p.shiftTemplateId).filter((id): id is string => !!id))];
+  const templates = await prisma.shiftTemplate.findMany({ where: { id: { in: templateIds } } });
+  const templateMap = new Map(templates.map((t) => [t.id, t]));
+
+  let totalHours = 0;
+  for (const cell of pattern) {
+    if (cell.isDayOff || !cell.shiftTemplateId) continue;
+    const t = templateMap.get(cell.shiftTemplateId);
+    if (!t) continue;
+    totalHours += shiftDurationHours(t.startTime, t.endTime, t.breakMins);
+  }
+  return weeks > 0 ? totalHours / weeks : 0;
+}
+
 export async function createCycle(formData: FormData) {
   const user = await assertCanWrite();
   const name = String(formData.get("name") ?? "").trim();
   const weeks = Number(formData.get("weeks") ?? 2);
   const startDate = String(formData.get("startDate") ?? "");
-  const departmentId = String(formData.get("departmentId") ?? "") || null;
 
   if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
 
   const cycle = await prisma.scheduleCycle.create({
-    data: { name, weeks, startDate: parseISO(startDate), departmentId },
+    data: { name, weeks, startDate: parseISO(startDate) },
   });
 
   await logAudit({ userId: user.id, action: "CREATE", entity: "ScheduleCycle", entityId: cycle.id, details: name });
@@ -175,7 +200,6 @@ export async function createCycleFromTemplate(formData: FormData) {
   const templateId = String(formData.get("templateId"));
   const name = String(formData.get("name") ?? "").trim();
   const startDate = String(formData.get("startDate") ?? "");
-  const departmentId = String(formData.get("departmentId") ?? "") || null;
 
   if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
 
@@ -189,7 +213,6 @@ export async function createCycleFromTemplate(formData: FormData) {
       name,
       weeks: template.weeks,
       startDate: parseISO(startDate),
-      departmentId,
       isTemplate: false,
       pattern: {
         create: template.pattern.map((p) => ({
@@ -232,20 +255,73 @@ export async function setPatternCell(formData: FormData) {
   revalidatePath(`/horarios/ciclos/${cycleId}`);
 }
 
-export async function assignEmployeeToCycle(formData: FormData) {
+// Associa vários colaboradores de uma vez ao ciclo, todos a começar na
+// mesma semana do ciclo (offsetWeeks). Valida que a carga semanal
+// contratada de cada colaborador corresponde à média semanal do padrão
+// do ciclo — se não corresponder, rejeita o pedido todo com uma mensagem
+// que identifica quem está em desacordo, para o gestor poder corrigir a
+// seleção (ex.: remover esse colaborador ou escolher outro ciclo).
+export async function assignEmployeesToCycle(
+  cycleId: string,
+  employeeIds: string[],
+  offsetWeeks: number
+) {
   const user = await assertCanWrite();
-  const cycleId = String(formData.get("cycleId"));
-  const employeeId = String(formData.get("employeeId"));
-  const offsetWeeks = Number(formData.get("offsetWeeks") ?? 0);
+  if (employeeIds.length === 0) throw new Error("Selecione pelo menos um colaborador.");
 
-  if (!employeeId) throw new Error("Selecione um colaborador.");
+  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
+  if (offsetWeeks < 0 || offsetWeeks >= cycle.weeks) {
+    throw new Error("Semana de início do ciclo inválida.");
+  }
 
-  await prisma.scheduleCycleAssignment.create({
-    data: { cycleId, employeeId, offsetWeeks },
+  const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds } } });
+  const avgWeeklyHours = await cycleWeeklyHours(cycleId, cycle.weeks);
+
+  const mismatched = employees.filter((e) => Math.abs(e.weeklyHours - avgWeeklyHours) > 0.01);
+  if (mismatched.length > 0) {
+    const names = mismatched
+      .map((e) => `${e.firstName} ${e.lastName} (${e.weeklyHours}h/semana)`)
+      .join(", ");
+    throw new Error(
+      `A carga semanal não corresponde à do ciclo (${avgWeeklyHours.toFixed(1)}h/semana em média): ${names}.`
+    );
+  }
+
+  const existing = await prisma.scheduleCycleAssignment.findMany({
+    where: { cycleId, employeeId: { in: employeeIds } },
   });
+  const alreadyAssigned = new Set(existing.map((a) => a.employeeId));
+  const toAssign = employees.filter((e) => !alreadyAssigned.has(e.id));
 
-  await logAudit({ userId: user.id, action: "CREATE", entity: "ScheduleCycleAssignment", entityId: cycleId });
+  if (toAssign.length === 0) {
+    throw new Error("Os colaboradores selecionados já estão associados a este ciclo.");
+  }
+
+  const created = await prisma.$transaction(
+    toAssign.map((e) =>
+      prisma.scheduleCycleAssignment.create({ data: { cycleId, employeeId: e.id, offsetWeeks } })
+    )
+  );
+
+  await logAudit({
+    userId: user.id,
+    action: "CREATE",
+    entity: "ScheduleCycleAssignment",
+    entityId: cycleId,
+    details: `${created.length} colaborador(es), semana +${offsetWeeks}`,
+  });
   revalidatePath(`/horarios/ciclos/${cycleId}`);
+
+  return created.map((a) => {
+    const e = toAssign.find((emp) => emp.id === a.employeeId)!;
+    return {
+      id: a.id,
+      employeeId: a.employeeId,
+      offsetWeeks: a.offsetWeeks,
+      firstName: e.firstName,
+      lastName: e.lastName,
+    };
+  });
 }
 
 export async function removeAssignment(assignmentId: string, cycleId: string) {
