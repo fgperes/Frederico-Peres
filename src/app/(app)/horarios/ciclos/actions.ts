@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
@@ -13,6 +14,34 @@ async function assertCanWrite() {
     throw new Error("Sem permissão para editar horários.");
   }
   return user;
+}
+
+// Impede nomes duplicados (ex.: cliques repetidos no botão antes do
+// primeiro pedido terminar). Ciclos e modelos têm namespaces de nome
+// independentes — a constraint em BD (@@unique([name, isTemplate])) é a
+// rede de segurança final para dois pedidos verdadeiramente em simultâneo.
+async function assertUniqueCycleName(name: string, isTemplate: boolean) {
+  const existing = await prisma.scheduleCycle.findFirst({ where: { name, isTemplate } });
+  if (existing) {
+    throw new Error(
+      isTemplate
+        ? `Já existe um modelo com o nome "${name}".`
+        : `Já existe um ciclo com o nome "${name}".`
+    );
+  }
+}
+
+// Rede de segurança para dois pedidos verdadeiramente em simultâneo que
+// ambos passem o pre-check acima antes de qualquer um confirmar a escrita.
+function duplicateNameError(e: unknown, name: string, isTemplate: boolean): never {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    throw new Error(
+      isTemplate
+        ? `Já existe um modelo com o nome "${name}".`
+        : `Já existe um ciclo com o nome "${name}".`
+    );
+  }
+  throw e;
 }
 
 function shiftDurationHours(startTime: string, endTime: string, breakMins: number): number {
@@ -48,10 +77,11 @@ export async function createCycle(formData: FormData) {
   const startDate = String(formData.get("startDate") ?? "");
 
   if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
+  await assertUniqueCycleName(name, false);
 
-  const cycle = await prisma.scheduleCycle.create({
-    data: { name, weeks, startDate: parseISO(startDate) },
-  });
+  const cycle = await prisma.scheduleCycle
+    .create({ data: { name, weeks, startDate: parseISO(startDate) } })
+    .catch((e) => duplicateNameError(e, name, false));
 
   await logAudit({ userId: user.id, action: "CREATE", entity: "ScheduleCycle", entityId: cycle.id, details: name });
   revalidatePath("/horarios/ciclos");
@@ -184,28 +214,31 @@ export async function saveAsTemplate(cycleId: string, formData: FormData) {
   const user = await assertCanWrite();
   const name = String(formData.get("templateName") ?? "").trim();
   if (!name) throw new Error("Indique um nome para o modelo.");
+  await assertUniqueCycleName(name, true);
 
   const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
     where: { id: cycleId },
     include: { pattern: true },
   });
 
-  const template = await prisma.scheduleCycle.create({
-    data: {
-      name,
-      weeks: cycle.weeks,
-      startDate: new Date(),
-      isTemplate: true,
-      pattern: {
-        create: cycle.pattern.map((p) => ({
-          weekIndex: p.weekIndex,
-          dayOfWeek: p.dayOfWeek,
-          shiftTemplateId: p.shiftTemplateId,
-          isDayOff: p.isDayOff,
-        })),
+  const template = await prisma.scheduleCycle
+    .create({
+      data: {
+        name,
+        weeks: cycle.weeks,
+        startDate: new Date(),
+        isTemplate: true,
+        pattern: {
+          create: cycle.pattern.map((p) => ({
+            weekIndex: p.weekIndex,
+            dayOfWeek: p.dayOfWeek,
+            shiftTemplateId: p.shiftTemplateId,
+            isDayOff: p.isDayOff,
+          })),
+        },
       },
-    },
-  });
+    })
+    .catch((e) => duplicateNameError(e, name, true));
 
   await logAudit({ userId: user.id, action: "SAVE_TEMPLATE", entity: "ScheduleCycle", entityId: template.id, details: name });
   revalidatePath("/horarios/ciclos");
@@ -220,28 +253,31 @@ export async function createCycleFromTemplate(formData: FormData) {
   const startDate = String(formData.get("startDate") ?? "");
 
   if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
+  await assertUniqueCycleName(name, false);
 
   const template = await prisma.scheduleCycle.findUniqueOrThrow({
     where: { id: templateId },
     include: { pattern: true },
   });
 
-  const cycle = await prisma.scheduleCycle.create({
-    data: {
-      name,
-      weeks: template.weeks,
-      startDate: parseISO(startDate),
-      isTemplate: false,
-      pattern: {
-        create: template.pattern.map((p) => ({
-          weekIndex: p.weekIndex,
-          dayOfWeek: p.dayOfWeek,
-          shiftTemplateId: p.shiftTemplateId,
-          isDayOff: p.isDayOff,
-        })),
+  const cycle = await prisma.scheduleCycle
+    .create({
+      data: {
+        name,
+        weeks: template.weeks,
+        startDate: parseISO(startDate),
+        isTemplate: false,
+        pattern: {
+          create: template.pattern.map((p) => ({
+            weekIndex: p.weekIndex,
+            dayOfWeek: p.dayOfWeek,
+            shiftTemplateId: p.shiftTemplateId,
+            isDayOff: p.isDayOff,
+          })),
+        },
       },
-    },
-  });
+    })
+    .catch((e) => duplicateNameError(e, name, false));
 
   await logAudit({ userId: user.id, action: "CREATE_FROM_TEMPLATE", entity: "ScheduleCycle", entityId: cycle.id, details: name });
   revalidatePath("/horarios/ciclos");

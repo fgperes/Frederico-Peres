@@ -289,6 +289,10 @@ model ScheduleCycle {
   createdAt    DateTime                  @default(now())
   assignments  ScheduleCycleAssignment[]
   pattern      ScheduleCyclePattern[]
+
+  // Impede nomes duplicados (ex.: cliques repetidos no botão "Criar
+  // ciclo") — ciclos e modelos têm namespaces de nome independentes.
+  @@unique([name, isTemplate])
 }
 
 // padrão do ciclo: para cada semana do ciclo/dia da semana/turno
