@@ -74,12 +74,22 @@ function shiftDurationHours(startTime: string, endTime: string, breakMins: numbe
 // à BD — sob o connection_limit=1 do pooler do Supabase, cada round-trip a
 // menos reduz o risco de esgotar o tempo de espera pela ligação.
 function weeklyHoursFromPattern(
-  pattern: { isDayOff: boolean; shiftTemplateId: string | null }[],
+  pattern: { weekIndex: number; dayOfWeek: number; isDayOff: boolean; shiftTemplateId: string | null }[],
   templateMap: Map<string, { startTime: string; endTime: string; breakMins: number }>,
   weeks: number
 ): number {
-  let totalHours = 0;
+  // Uma célula (semana/dia) só deve contar uma vez — defesa extra para além
+  // da constraint em BD, caso ainda existam linhas duplicadas antigas. Fica
+  // com a primeira (mesmo critério que a grelha usa para escolher qual
+  // mostrar: `pattern.find(...)` em weeks-grid.tsx).
+  const byCell = new Map<string, (typeof pattern)[number]>();
   for (const cell of pattern) {
+    const key = `${cell.weekIndex}-${cell.dayOfWeek}`;
+    if (!byCell.has(key)) byCell.set(key, cell);
+  }
+
+  let totalHours = 0;
+  for (const cell of byCell.values()) {
     if (cell.isDayOff || !cell.shiftTemplateId) continue;
     const t = templateMap.get(cell.shiftTemplateId);
     if (!t) continue;
@@ -146,7 +156,15 @@ export async function duplicateWeek(cycleId: string, sourceWeekIndex: number): P
       include: { pattern: true },
     });
     const newWeekIndex = cycle.weeks;
-    const sourceCells = cycle.pattern.filter((p) => p.weekIndex === sourceWeekIndex);
+    // Uma célula por dia, mesmo que existam linhas duplicadas antigas para o
+    // mesmo dia — caso contrário a duplicação de semana propagaria o
+    // duplicado (e as horas a mais) para a semana nova.
+    const seenDays = new Set<number>();
+    const sourceCells = cycle.pattern.filter((p) => {
+      if (p.weekIndex !== sourceWeekIndex || seenDays.has(p.dayOfWeek)) return false;
+      seenDays.add(p.dayOfWeek);
+      return true;
+    });
 
     await prisma.$transaction([
       prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { increment: 1 } } }),
@@ -327,20 +345,16 @@ export async function setPatternCell(formData: FormData): Promise<ActionResult> 
     const dayOfWeek = Number(formData.get("dayOfWeek"));
     const shiftTemplateId = String(formData.get("shiftTemplateId") ?? "") || null;
 
-    const existing = await prisma.scheduleCyclePattern.findFirst({
-      where: { cycleId, weekIndex, dayOfWeek },
+    // Upsert atómico (assente na constraint única cycleId+weekIndex+dayOfWeek)
+    // em vez de "procurar depois criar" — essa sequência não é atómica e,
+    // sob dois pedidos quase simultâneos para a mesma célula, podia criar
+    // uma linha duplicada que a grelha nunca mostra mas que inflacionava o
+    // cálculo da média semanal de horas do ciclo.
+    await prisma.scheduleCyclePattern.upsert({
+      where: { cycleId_weekIndex_dayOfWeek: { cycleId, weekIndex, dayOfWeek } },
+      create: { cycleId, weekIndex, dayOfWeek, shiftTemplateId, isDayOff: !shiftTemplateId },
+      update: { shiftTemplateId, isDayOff: !shiftTemplateId },
     });
-
-    if (existing) {
-      await prisma.scheduleCyclePattern.update({
-        where: { id: existing.id },
-        data: { shiftTemplateId, isDayOff: !shiftTemplateId },
-      });
-    } else {
-      await prisma.scheduleCyclePattern.create({
-        data: { cycleId, weekIndex, dayOfWeek, shiftTemplateId, isDayOff: !shiftTemplateId },
-      });
-    }
 
     await logAudit({ userId: user.id, action: "UPDATE", entity: "ScheduleCyclePattern", entityId: cycleId });
     revalidatePath(`/horarios/ciclos/${cycleId}`);

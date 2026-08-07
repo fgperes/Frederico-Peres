@@ -305,6 +305,13 @@ model ScheduleCyclePattern {
   shiftTemplateId String?
   shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
   isDayOff        Boolean        @default(false)
+
+  // Impede duas linhas para a mesma célula do padrão (semana/dia) — sem
+  // isto, uma condição de corrida ao gravar (dois pedidos quase em
+  // simultâneo) podia criar um duplicado que a grelha nunca mostra (só
+  // lê a primeira linha) mas que continuava a ser somado no cálculo da
+  // média semanal de horas, inflacionando-o silenciosamente.
+  @@unique([cycleId, weekIndex, dayOfWeek])
 }
 
 model ScheduleCycleAssignment {
