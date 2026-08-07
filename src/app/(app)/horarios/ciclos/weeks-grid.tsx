@@ -29,11 +29,23 @@ export function WeeksGrid({
   const [pending, startTransition] = useTransition();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const weekIndices = Array.from({ length: weeksCount }, (_, i) => i);
 
   function patternFor(weekIndex: number, dayOfWeek: number) {
     return pattern.find((p) => p.weekIndex === weekIndex && p.dayOfWeek === dayOfWeek);
+  }
+
+  function run(action: () => Promise<unknown>) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await action();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Ocorreu um erro. Tente novamente.");
+      }
+    });
   }
 
   function handleDrop(targetIndex: number) {
@@ -47,13 +59,17 @@ export function WeeksGrid({
     order.splice(targetIndex, 0, moved);
     setDragIndex(null);
     setDragOverIndex(null);
-    startTransition(() => {
-      reorderWeeks(cycleId, order);
-    });
+    run(() => reorderWeeks(cycleId, order));
   }
 
   return (
-    <div className={pending ? "pointer-events-none opacity-60 transition-opacity" : ""}>
+    <div>
+      {error && (
+        <p className="mb-3 rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
+          {error}
+        </p>
+      )}
+      <div className={pending ? "pointer-events-none opacity-60 transition-opacity" : ""}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[700px] text-left text-sm">
           <thead className="text-xs uppercase text-stone-500">
@@ -122,7 +138,7 @@ export function WeeksGrid({
                       <button
                         type="button"
                         title="Duplicar semana"
-                        onClick={() => startTransition(() => duplicateWeek(cycleId, weekIndex))}
+                        onClick={() => run(() => duplicateWeek(cycleId, weekIndex))}
                         className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700"
                       >
                         <Copy size={14} />
@@ -133,7 +149,7 @@ export function WeeksGrid({
                           title="Remover semana"
                           onClick={() => {
                             if (confirm(`Remover a Semana ${position + 1}? Esta ação não pode ser desfeita.`)) {
-                              startTransition(() => removeWeek(cycleId, weekIndex));
+                              run(() => removeWeek(cycleId, weekIndex));
                             }
                           }}
                           className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600"
@@ -153,17 +169,14 @@ export function WeeksGrid({
       {canEdit && (
         <button
           type="button"
-          onClick={() =>
-            startTransition(() => {
-              addWeek(cycleId);
-            })
-          }
+          onClick={() => run(() => addWeek(cycleId))}
           className="mt-3 flex items-center gap-1.5 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-sm font-medium text-stone-600 hover:border-violet-400 hover:text-violet-700"
         >
           <Plus size={15} />
           Adicionar semana
         </button>
       )}
+      </div>
     </div>
   );
 }

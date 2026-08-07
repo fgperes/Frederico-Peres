@@ -152,20 +152,26 @@ export async function removeWeek(cycleId: string, weekIndex: number) {
   const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
   if (cycle.weeks <= 1) throw new Error("O ciclo tem de ter pelo menos uma semana.");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.scheduleCyclePattern.deleteMany({ where: { cycleId, weekIndex } });
-    // Reindexa as semanas seguintes para preencher o espaço.
-    const remaining = await tx.scheduleCyclePattern.findMany({
-      where: { cycleId, weekIndex: { gt: weekIndex } },
-    });
-    for (const cell of remaining) {
-      await tx.scheduleCyclePattern.update({
+  // Lida-se com a leitura fora da transação e agrupam-se as escritas num só
+  // pedido em lote (em vez de uma transação interativa com um loop de
+  // updates sequenciais) — reduz drasticamente o tempo em que a transação
+  // precisa de segurar a ligação à BD, que sob carga (ex.: ligação com
+  // connection_limit=1 do pooler do Supabase) estava a esgotar o tempo de
+  // espera para iniciar a transação (P2028).
+  const remaining = await prisma.scheduleCyclePattern.findMany({
+    where: { cycleId, weekIndex: { gt: weekIndex } },
+  });
+
+  await prisma.$transaction([
+    prisma.scheduleCyclePattern.deleteMany({ where: { cycleId, weekIndex } }),
+    ...remaining.map((cell) =>
+      prisma.scheduleCyclePattern.update({
         where: { id: cell.id },
         data: { weekIndex: cell.weekIndex - 1 },
-      });
-    }
-    await tx.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { decrement: 1 } } });
-  });
+      })
+    ),
+    prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { decrement: 1 } } }),
+  ]);
 
   await logAudit({ userId: user.id, action: "REMOVE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
   revalidatePath(`/horarios/ciclos/${cycleId}`);
