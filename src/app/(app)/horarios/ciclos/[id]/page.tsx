@@ -7,6 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { WeeksGrid } from "../weeks-grid";
 import { GenerateButton } from "../generate-button";
 import { SaveTemplateForm } from "../save-template-form";
+import { DeleteCycleButton } from "../delete-cycle-button";
 import { CycleAssignmentPanel } from "../assignment-panel";
 import { notFound } from "next/navigation";
 
@@ -73,6 +74,7 @@ export default async function CycleDetailPage({
           <div className="flex items-center gap-2">
             {cycle.isTemplate && <Badge color="blue">Modelo</Badge>}
             {canEdit && !cycle.isTemplate && <SaveTemplateForm cycleId={cycle.id} />}
+            {canEdit && <DeleteCycleButton cycleId={cycle.id} cycleName={cycle.name} />}
           </div>
         }
       />

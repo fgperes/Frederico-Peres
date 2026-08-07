@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { updateShiftTemplate, deleteShiftTemplate } from "../actions";
+import { shiftDurationHours } from "@/lib/schedule";
 
 type Template = {
   id: string;
@@ -50,7 +51,7 @@ export function ShiftTemplateRow({
   if (editing) {
     return (
       <tr>
-        <td colSpan={5} className="px-4 py-3">
+        <td colSpan={6} className="px-4 py-3">
           <form action={handleSave} className="flex flex-wrap items-end gap-2">
             <div>
               <label className="mb-1 block text-[11px] font-medium text-stone-600">Nome</label>
@@ -133,6 +134,9 @@ export function ShiftTemplateRow({
       <td className="px-4 py-3">{template.startTime}</td>
       <td className="px-4 py-3">{template.endTime}</td>
       <td className="px-4 py-3">{template.breakMins}</td>
+      <td className="px-4 py-3">
+        {shiftDurationHours(template.startTime, template.endTime, template.breakMins).toFixed(1)}h
+      </td>
       {canEdit && (
         <td className="px-4 py-3">
           <div className="flex items-center justify-end gap-1">

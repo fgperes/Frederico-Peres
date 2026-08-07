@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { HorariosTabs } from "../tabs";
 import { ShiftTemplateRow } from "./shift-template-row";
 import { CreateTemplateForm } from "./create-template-form";
+import { ImportTemplatesForm } from "./import-form";
 import { Layers } from "lucide-react";
 
 export default async function ModelosTurnoPage() {
@@ -40,6 +41,7 @@ export default async function ModelosTurnoPage() {
                     <th className="px-4 py-3">Início</th>
                     <th className="px-4 py-3">Fim</th>
                     <th className="px-4 py-3">Pausa (min)</th>
+                    <th className="px-4 py-3">Horas diárias</th>
                     {canEdit && <th className="px-4 py-3 text-right">Ações</th>}
                   </tr>
                 </thead>
@@ -59,12 +61,27 @@ export default async function ModelosTurnoPage() {
         </Card>
 
         {canEdit && (
-          <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">
-              Novo Modelo de Turno
-            </h2>
-            <CreateTemplateForm />
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <h2 className="mb-3 text-sm font-semibold text-stone-900">
+                Novo Modelo de Turno
+              </h2>
+              <CreateTemplateForm />
+            </Card>
+
+            <Card>
+              <h2 className="mb-1 text-sm font-semibold text-stone-900">
+                Importar por Excel
+              </h2>
+              <p className="mb-3 text-xs text-stone-500">
+                <a href="/api/templates/modelos-turno" className="text-violet-600 hover:underline">
+                  Descarregar template
+                </a>{" "}
+                antes de preencher.
+              </p>
+              <ImportTemplatesForm />
+            </Card>
+          </div>
         )}
       </div>
     </div>

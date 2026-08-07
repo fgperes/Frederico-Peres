@@ -1,11 +1,13 @@
 "use server";
 
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { shiftDurationHours } from "@/lib/schedule";
+import { parseExcelFile } from "@/lib/excel";
 
 const MAX_DAILY_HOURS = 8;
 
@@ -122,4 +124,120 @@ export async function deleteShiftTemplate(templateId: string): Promise<ActionRes
     await logAudit({ userId: user.id, action: "DELETE", entity: "ShiftTemplate", entityId: templateId, details: template.name });
     revalidatePath("/horarios/modelos");
   });
+}
+
+export type ImportTemplatesState = {
+  error?: string;
+  result?: { total: number; created: number; errorReport: string[] };
+};
+
+const importTemplateRowSchema = z.object({
+  name: z.coerce.string().trim().min(1, "nome em falta"),
+  startTime: z.coerce.string().trim().regex(/^\d{2}:\d{2}$/, "início deve ter o formato HH:MM"),
+  endTime: z.coerce.string().trim().regex(/^\d{2}:\d{2}$/, "fim deve ter o formato HH:MM"),
+  breakMins: z.coerce.number().min(0, "pausa não pode ser negativa").default(0),
+  color: z
+    .coerce.string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "cor deve ser um código hex (ex.: #2563eb)")
+    .default("#2563eb"),
+});
+
+// Importação em massa de modelos de turno via Excel, com validação linha a
+// linha (incluindo o máximo legal de 8h/dia) e registo em histórico de
+// importações, tal como o importador de colaboradores.
+export async function importShiftTemplatesAction(
+  _prev: ImportTemplatesState,
+  formData: FormData
+): Promise<ImportTemplatesState> {
+  let user;
+  try {
+    user = await assertCanWrite();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Sem permissão." };
+  }
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
+
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await parseExcelFile(file);
+  } catch {
+    return { error: "Não foi possível ler o ficheiro. Confirme que é um Excel válido (.xlsx)." };
+  }
+
+  if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
+
+  const importLog = await prisma.importLog.create({
+    data: {
+      userId: user.id,
+      type: "SHIFT_TEMPLATES",
+      fileName: file.name,
+      status: "PARTIAL",
+      totalRows: rows.length,
+    },
+  });
+
+  const errorReport: string[] = [];
+  let created = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowNum = i + 2; // linha 1 é o cabeçalho
+    const parsed = importTemplateRowSchema.safeParse(rows[i]);
+    if (!parsed.success) {
+      errorReport.push(`Linha ${rowNum}: ${parsed.error.issues.map((iss) => iss.message).join("; ")}`);
+      continue;
+    }
+    const data = parsed.data;
+
+    const exists = await prisma.shiftTemplate.findUnique({ where: { name: data.name } });
+    if (exists) {
+      errorReport.push(`Linha ${rowNum}: já existe um modelo de turno com o nome "${data.name}".`);
+      continue;
+    }
+
+    try {
+      assertMaxDailyHours(data.startTime, data.endTime, data.breakMins);
+    } catch (e) {
+      errorReport.push(`Linha ${rowNum}: ${e instanceof Error ? e.message : "turno acima do máximo legal."}`);
+      continue;
+    }
+
+    try {
+      await prisma.shiftTemplate.create({
+        data: {
+          name: data.name,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          breakMins: data.breakMins,
+          color: data.color,
+        },
+      });
+      created++;
+    } catch (e) {
+      errorReport.push(`Linha ${rowNum}: erro ao criar registo (${e instanceof Error ? e.message : "desconhecido"}).`);
+    }
+  }
+
+  await prisma.importLog.update({
+    where: { id: importLog.id },
+    data: {
+      status: errorReport.length === 0 ? "SUCCESS" : created === 0 ? "ERROR" : "PARTIAL",
+      errorRows: errorReport.length,
+      errorReport: errorReport.length > 0 ? errorReport.join("\n") : null,
+    },
+  });
+
+  await logAudit({
+    userId: user.id,
+    action: "IMPORT",
+    entity: "ShiftTemplate",
+    entityId: importLog.id,
+    details: `${created}/${rows.length} modelos de turno importados de ${file.name}`,
+  });
+
+  revalidatePath("/horarios/modelos");
+
+  return { result: { total: rows.length, created, errorReport } };
 }

@@ -474,6 +474,37 @@ export async function saveAsTemplate(cycleId: string, formData: FormData): Promi
   });
 }
 
+// Apaga o ciclo (ou modelo). Bloqueia se houver colaboradores ATIVOS ainda
+// associados — evita apagar por engano um ciclo em uso; colaboradores
+// entretanto inativos não impedem a remoção (as suas associações são
+// removidas em cascata, tal como o padrão).
+export async function deleteCycle(cycleId: string): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+      where: { id: cycleId },
+      include: { assignments: true },
+    });
+
+    const employeeIds = cycle.assignments.map((a) => a.employeeId);
+    const activeEmployees =
+      employeeIds.length > 0
+        ? await prisma.employee.findMany({ where: { id: { in: employeeIds }, status: "ACTIVE" } })
+        : [];
+
+    if (activeEmployees.length > 0) {
+      const names = activeEmployees.map((e) => `${e.firstName} ${e.lastName}`).join(", ");
+      throw new Error(
+        `Não é possível apagar um ciclo com colaboradores ativos associados: ${names}. Remova as associações primeiro.`
+      );
+    }
+
+    await prisma.scheduleCycle.delete({ where: { id: cycleId } });
+    await logAudit({ userId: user.id, action: "DELETE", entity: "ScheduleCycle", entityId: cycleId, details: cycle.name });
+    revalidatePath("/horarios/ciclos");
+  });
+}
+
 // Cria um novo ciclo "ao vivo" a partir de um modelo pré-definido.
 export async function createCycleFromTemplate(formData: FormData): Promise<ActionResult> {
   return safe(async () => {
