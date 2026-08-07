@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { addDays, parseISO } from "date-fns";
 import { WEEKDAY_LABELS } from "@/lib/dates";
+import { shiftDurationHours, minutesFromMidnight, shiftEndOffsetMinutes } from "@/lib/schedule";
 
 async function assertCanWrite() {
   const user = await requireUser();
@@ -61,14 +62,6 @@ function duplicateNameError(e: unknown, name: string, isTemplate: boolean): neve
   throw e;
 }
 
-function shiftDurationHours(startTime: string, endTime: string, breakMins: number): number {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  let minutes = eh * 60 + em - (sh * 60 + sm);
-  if (minutes <= 0) minutes += 24 * 60; // turno passa a meia-noite
-  return Math.max(0, (minutes - breakMins) / 60);
-}
-
 // Média de horas semanais implícita no padrão do ciclo (soma de todas as
 // células com turno, dividida pelo número de semanas do ciclo). Recebe o
 // padrão já carregado (em vez de o voltar a ler) para poupar um round-trip
@@ -106,18 +99,24 @@ async function loadTemplateMap(cells: { shiftTemplateId: string | null }[]) {
   return new Map(templates.map((t) => [t.id, t]));
 }
 
-function minutesFromMidnight(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
+type PatternLikeCell = { weekIndex: number; dayOfWeek: number; isDayOff: boolean; shiftTemplateId: string | null };
 
-// Fim do turno em minutos desde a meia-noite do dia em que começa (pode
-// ultrapassar 1440 para turnos que passam a meia-noite).
-function shiftEndOffsetMinutes(startTime: string, endTime: string): number {
-  const start = minutesFromMidnight(startTime);
-  let end = minutesFromMidnight(endTime);
-  if (end <= start) end += 24 * 60;
-  return end;
+// Preenche as 7 células de cada semana do padrão (uma célula em falta conta
+// como folga), deduplicando por célula — protege contra eventuais linhas
+// duplicadas antigas, tal como o resto do módulo.
+function fillPattern(pattern: PatternLikeCell[], weeks: number): PatternLikeCell[] {
+  const byCell = new Map<string, PatternLikeCell>();
+  for (const cell of pattern) {
+    const key = `${cell.weekIndex}-${cell.dayOfWeek}`;
+    if (!byCell.has(key)) byCell.set(key, cell);
+  }
+  const filled: PatternLikeCell[] = [];
+  for (let w = 0; w < weeks; w++) {
+    for (let d = 0; d < 7; d++) {
+      filled.push(byCell.get(`${w}-${d}`) ?? { weekIndex: w, dayOfWeek: d, isDayOff: true, shiftTemplateId: null });
+    }
+  }
+  return filled;
 }
 
 const MIN_REST_HOURS = 11;
@@ -126,28 +125,18 @@ const MIN_REST_HOURS = 11;
 // consecutivas entre o fim de um turno e o início do seguinte. Percorre o
 // padrão como uma sequência cíclica contínua (o último dia liga ao
 // primeiro, tal como acontece de facto para um colaborador associado de
-// forma contínua ao ciclo) e rejeita qualquer par de dias consecutivos com
-// turnos que não deixem esse descanso mínimo — ex.: turno da noite seguido,
-// no dia seguinte, de turno da manhã.
-function assertRestCompliance(
-  pattern: { weekIndex: number; dayOfWeek: number; isDayOff: boolean; shiftTemplateId: string | null }[],
+// forma contínua ao ciclo) e devolve uma mensagem por cada par de dias
+// consecutivos que não deixe esse descanso mínimo — ex.: turno da noite
+// seguido, no dia seguinte, de turno da manhã.
+function findRestViolations(
+  pattern: PatternLikeCell[],
   templateMap: Map<string, { name: string; startTime: string; endTime: string }>,
   weeks: number
-) {
-  const byCell = new Map<string, (typeof pattern)[number]>();
-  for (const cell of pattern) {
-    const key = `${cell.weekIndex}-${cell.dayOfWeek}`;
-    if (!byCell.has(key)) byCell.set(key, cell);
-  }
+): string[] {
+  const ordered = fillPattern(pattern, weeks);
+  if (ordered.length === 0) return [];
 
-  const ordered: (typeof pattern)[number][] = [];
-  for (let w = 0; w < weeks; w++) {
-    for (let d = 0; d < 7; d++) {
-      ordered.push(byCell.get(`${w}-${d}`) ?? { weekIndex: w, dayOfWeek: d, isDayOff: true, shiftTemplateId: null });
-    }
-  }
-  if (ordered.length === 0) return;
-
+  const violations: string[] = [];
   for (let i = 0; i < ordered.length; i++) {
     const current = ordered[i];
     const next = ordered[(i + 1) % ordered.length];
@@ -163,7 +152,7 @@ function assertRestCompliance(
     const restHours = (nextStart - currentEnd) / 60;
 
     if (restHours < MIN_REST_HOURS) {
-      throw new Error(
+      violations.push(
         `Descanso insuficiente entre turnos (mínimo legal: ${MIN_REST_HOURS}h consecutivas): ` +
           `"${currentTemplate.name}" (Semana ${current.weekIndex + 1}, ${WEEKDAY_LABELS[current.dayOfWeek]}) ` +
           `seguido de "${nextTemplate.name}" (Semana ${next.weekIndex + 1}, ${WEEKDAY_LABELS[next.dayOfWeek]}) ` +
@@ -171,6 +160,93 @@ function assertRestCompliance(
       );
     }
   }
+  return violations;
+}
+
+function assertRestCompliance(
+  pattern: PatternLikeCell[],
+  templateMap: Map<string, { name: string; startTime: string; endTime: string }>,
+  weeks: number
+) {
+  const violations = findRestViolations(pattern, templateMap, weeks);
+  if (violations.length > 0) throw new Error(violations[0]);
+}
+
+const MAX_WEEKLY_HOURS = 40;
+
+// Código do Trabalho, art.º 203.º — período normal de trabalho semanal de,
+// em regra, 40 horas. Verifica cada semana do padrão isoladamente (não a
+// média entre semanas — uma semana de 60h e outra de 20h teriam a mesma
+// média de uma de 40h+40h, mas a primeira continua ilegal).
+function findWeeklyHoursViolations(
+  pattern: PatternLikeCell[],
+  templateMap: Map<string, { startTime: string; endTime: string; breakMins: number }>,
+  weeks: number
+): string[] {
+  const filled = fillPattern(pattern, weeks);
+  const violations: string[] = [];
+  for (let w = 0; w < weeks; w++) {
+    let total = 0;
+    for (const cell of filled) {
+      if (cell.weekIndex !== w || cell.isDayOff || !cell.shiftTemplateId) continue;
+      const t = templateMap.get(cell.shiftTemplateId);
+      if (!t) continue;
+      total += shiftDurationHours(t.startTime, t.endTime, t.breakMins);
+    }
+    if (total > MAX_WEEKLY_HOURS) {
+      violations.push(
+        `A Semana ${w + 1} do padrão tem ${total.toFixed(1)}h de trabalho — acima do máximo legal de ${MAX_WEEKLY_HOURS}h/semana (Código do Trabalho, art.º 203.º).`
+      );
+    }
+  }
+  return violations;
+}
+
+// Nº de dias sem turno (folga) em cada semana do padrão.
+function folgasPerWeek(pattern: PatternLikeCell[], weeks: number): number[] {
+  const filled = fillPattern(pattern, weeks);
+  const perWeek = new Array(weeks).fill(0);
+  for (const cell of filled) {
+    if (cell.isDayOff || !cell.shiftTemplateId) perWeek[cell.weekIndex]++;
+  }
+  return perWeek;
+}
+
+// Código do Trabalho, art.º 205.º — descanso semanal mínimo. O nº de folgas
+// exigido é o que está definido no contrato de cada colaborador
+// (`weeklyRestDays`). Como o padrão é partilhado por todos os colaboradores
+// associados ao ciclo, compara-se contra a semana do padrão com MENOS
+// folgas — se essa semana já não chega para o colaborador mais exigente,
+// nenhuma semana do ciclo garante o descanso contratual dele.
+function findRestDaysViolations(
+  pattern: PatternLikeCell[],
+  weeks: number,
+  employees: { firstName: string; lastName: string; weeklyRestDays: number }[]
+): string[] {
+  const perWeek = folgasPerWeek(pattern, weeks);
+  const minFolgas = perWeek.length > 0 ? Math.min(...perWeek) : 0;
+  const shortfall = employees.filter((e) => e.weeklyRestDays > minFolgas);
+  if (shortfall.length === 0) return [];
+
+  const names = shortfall
+    .map((e) => `${e.firstName} ${e.lastName} (contrato exige ${e.weeklyRestDays} folga(s)/semana)`)
+    .join(", ");
+  return [
+    `O padrão do ciclo tem uma semana com apenas ${minFolgas} folga(s) — não cumpre o descanso semanal contratual (art.º 205.º CT) de: ${names}.`,
+  ];
+}
+
+async function loadContractedRestDays(employeeIds: string[]) {
+  if (employeeIds.length === 0) return new Map<string, number>();
+  const contracts = await prisma.contract.findMany({
+    where: { employeeId: { in: employeeIds }, status: "ACTIVE" },
+    orderBy: { startDate: "desc" },
+  });
+  const map = new Map<string, number>();
+  for (const c of contracts) {
+    if (!map.has(c.employeeId)) map.set(c.employeeId, c.weeklyRestDays);
+  }
+  return map;
 }
 
 export async function createCycle(formData: FormData) {
@@ -438,38 +514,63 @@ export async function createCycleFromTemplate(formData: FormData): Promise<Actio
   });
 }
 
-export async function setPatternCell(formData: FormData): Promise<ActionResult> {
+export type PatternCellInput = { weekIndex: number; dayOfWeek: number; shiftTemplateId: string | null };
+
+// Grava o padrão inteiro do ciclo de uma vez (chamado pelo botão "Guardar
+// alterações" da grelha) em vez de gravar célula a célula à medida que se
+// edita — isso obrigava a validar (e possivelmente bloquear) a cada clique,
+// mesmo a meio de uma edição ainda incompleta. Valida tudo em conjunto e
+// devolve todos os problemas encontrados de uma vez, não só o primeiro.
+export async function savePattern(cycleId: string, cells: PatternCellInput[]): Promise<ActionResult> {
   return safe(async () => {
     const user = await assertCanWrite();
-    const cycleId = String(formData.get("cycleId"));
-    const weekIndex = Number(formData.get("weekIndex"));
-    const dayOfWeek = Number(formData.get("dayOfWeek"));
-    const shiftTemplateId = String(formData.get("shiftTemplateId") ?? "") || null;
 
-    const [cycle, existingPattern] = await Promise.all([
+    const [cycle, assignments] = await Promise.all([
       prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } }),
-      prisma.scheduleCyclePattern.findMany({ where: { cycleId } }),
+      prisma.scheduleCycleAssignment.findMany({ where: { cycleId } }),
     ]);
 
-    const simulated: { weekIndex: number; dayOfWeek: number; isDayOff: boolean; shiftTemplateId: string | null }[] =
-      existingPattern
-        .filter((p) => !(p.weekIndex === weekIndex && p.dayOfWeek === dayOfWeek))
-        .map((p) => ({ weekIndex: p.weekIndex, dayOfWeek: p.dayOfWeek, isDayOff: p.isDayOff, shiftTemplateId: p.shiftTemplateId }));
-    simulated.push({ weekIndex, dayOfWeek, isDayOff: !shiftTemplateId, shiftTemplateId });
+    const pattern: PatternLikeCell[] = cells.map((c) => ({
+      weekIndex: c.weekIndex,
+      dayOfWeek: c.dayOfWeek,
+      isDayOff: !c.shiftTemplateId,
+      shiftTemplateId: c.shiftTemplateId,
+    }));
 
-    const templateMap = await loadTemplateMap(simulated);
-    assertRestCompliance(simulated, templateMap, cycle.weeks);
+    const assignedEmployeeIds = assignments.map((a) => a.employeeId);
+    const [hoursTemplateMap, restDaysByEmployee, assignedEmployees] = await Promise.all([
+      loadTemplateMap(pattern),
+      loadContractedRestDays(assignedEmployeeIds),
+      assignedEmployeeIds.length > 0
+        ? prisma.employee.findMany({ where: { id: { in: assignedEmployeeIds } } })
+        : Promise.resolve([]),
+    ]);
 
-    // Upsert atómico (assente na constraint única cycleId+weekIndex+dayOfWeek)
-    // em vez de "procurar depois criar" — essa sequência não é atómica e,
-    // sob dois pedidos quase simultâneos para a mesma célula, podia criar
-    // uma linha duplicada que a grelha nunca mostra mas que inflacionava o
-    // cálculo da média semanal de horas do ciclo.
-    await prisma.scheduleCyclePattern.upsert({
-      where: { cycleId_weekIndex_dayOfWeek: { cycleId, weekIndex, dayOfWeek } },
-      create: { cycleId, weekIndex, dayOfWeek, shiftTemplateId, isDayOff: !shiftTemplateId },
-      update: { shiftTemplateId, isDayOff: !shiftTemplateId },
-    });
+    const violations = [
+      ...findRestViolations(pattern, hoursTemplateMap, cycle.weeks),
+      ...findWeeklyHoursViolations(pattern, hoursTemplateMap, cycle.weeks),
+      ...findRestDaysViolations(
+        pattern,
+        cycle.weeks,
+        assignedEmployees.map((e) => ({
+          firstName: e.firstName,
+          lastName: e.lastName,
+          weeklyRestDays: restDaysByEmployee.get(e.id) ?? 1,
+        }))
+      ),
+    ];
+    if (violations.length > 0) throw new Error(violations.join("\n"));
+
+    await prisma.$transaction([
+      prisma.scheduleCyclePattern.deleteMany({ where: { cycleId } }),
+      ...cells
+        .filter((c) => c.shiftTemplateId)
+        .map((c) =>
+          prisma.scheduleCyclePattern.create({
+            data: { cycleId, weekIndex: c.weekIndex, dayOfWeek: c.dayOfWeek, shiftTemplateId: c.shiftTemplateId },
+          })
+        ),
+    ]);
 
     await logAudit({ userId: user.id, action: "UPDATE", entity: "ScheduleCyclePattern", entityId: cycleId });
     revalidatePath(`/horarios/ciclos/${cycleId}`);
@@ -493,7 +594,7 @@ export async function assignEmployeesToCycle(
     const user = await assertCanWrite();
     if (employeeIds.length === 0) throw new Error("Selecione pelo menos um colaborador.");
 
-    const [cycle, employees, existing, otherAssignments] = await Promise.all([
+    const [cycle, employees, existing, otherAssignments, restDaysByEmployee] = await Promise.all([
       prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId }, include: { pattern: true } }),
       prisma.employee.findMany({ where: { id: { in: employeeIds } } }),
       prisma.scheduleCycleAssignment.findMany({ where: { cycleId, employeeId: { in: employeeIds } } }),
@@ -501,6 +602,7 @@ export async function assignEmployeesToCycle(
         where: { employeeId: { in: employeeIds }, cycleId: { not: cycleId } },
         include: { cycle: true },
       }),
+      loadContractedRestDays(employeeIds),
     ]);
     if (offsetWeeks < 0 || offsetWeeks >= cycle.weeks) {
       throw new Error("Semana de início do ciclo inválida.");
@@ -543,6 +645,17 @@ export async function assignEmployeesToCycle(
         `A carga semanal não corresponde à do ciclo (${avgWeeklyHours.toFixed(1)}h/semana em média): ${names}.`
       );
     }
+
+    const restDaysViolations = findRestDaysViolations(
+      cycle.pattern,
+      cycle.weeks,
+      employees.map((e) => ({
+        firstName: e.firstName,
+        lastName: e.lastName,
+        weeklyRestDays: restDaysByEmployee.get(e.id) ?? 1,
+      }))
+    );
+    if (restDaysViolations.length > 0) throw new Error(restDaysViolations.join(" "));
 
     const alreadyAssigned = new Set(existing.map((a) => a.employeeId));
     const toAssign = employees.filter((e) => !alreadyAssigned.has(e.id));

@@ -611,6 +611,10 @@ model Contract {
   endDate            DateTime?
   trialPeriodEndDate DateTime?
   weeklyHours        Float
+  // Descanso semanal mínimo exigido pelo contrato (dias/semana) — usado para
+  // validar o padrão de ciclos de horário contra o art.º 205.º do Código do
+  // Trabalho (mínimo legal: 1).
+  weeklyRestDays     Int        @default(1)
   baseSalary         Float?
   status             String     @default("ACTIVE") // ACTIVE | EXPIRED | TERMINATED
   documentName       String?

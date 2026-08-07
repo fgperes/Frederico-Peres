@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ROLE_LABELS } from "@/lib/roles";
 import { computeWorkedHoursByDay } from "@/lib/hours";
 import { formatDateTime } from "@/lib/format";
+import { shiftDurationHours } from "@/lib/schedule";
 
 export type ReportResult = { columns: string[]; rows: (string | number)[][] };
 export type ReportFilters = { from: Date; to: Date; employeeIds?: string[] };
@@ -230,14 +231,6 @@ async function reportPayroll(filters: ReportFilters): Promise<ReportResult> {
 }
 
 // --- Escalas -----------------------------------------------------------
-
-function shiftDurationHours(startTime: string, endTime: string, breakMins: number): number {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  let minutes = eh * 60 + em - (sh * 60 + sm);
-  if (minutes <= 0) minutes += 24 * 60; // turno passa a meia-noite
-  return Math.max(0, (minutes - breakMins) / 60);
-}
 
 async function reportEscalas(filters: ReportFilters): Promise<ReportResult> {
   const shifts = await prisma.shift.findMany({

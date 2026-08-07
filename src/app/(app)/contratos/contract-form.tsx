@@ -51,6 +51,10 @@ export function ContractForm({
           <input name="weeklyHours" type="number" step="0.5" defaultValue={40} required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
         </div>
         <div>
+          <label className="mb-1 block text-xs font-medium text-stone-600">Folgas semanais (mín. legal: 1)</label>
+          <input name="weeklyRestDays" type="number" step="1" min={1} max={7} defaultValue={2} required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
+        </div>
+        <div>
           <label className="mb-1 block text-xs font-medium text-stone-600">Data de início</label>
           <input name="startDate" type="date" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
         </div>

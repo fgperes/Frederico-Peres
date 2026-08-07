@@ -5,6 +5,20 @@ import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { shiftDurationHours } from "@/lib/schedule";
+
+const MAX_DAILY_HOURS = 8;
+
+// Código do Trabalho, art.º 203.º — período normal de trabalho diário de,
+// em regra, 8 horas.
+function assertMaxDailyHours(startTime: string, endTime: string, breakMins: number) {
+  const hours = shiftDurationHours(startTime, endTime, breakMins);
+  if (hours > MAX_DAILY_HOURS) {
+    throw new Error(
+      `Este turno tem ${hours.toFixed(1)}h de trabalho — acima do máximo legal de ${MAX_DAILY_HOURS}h/dia (Código do Trabalho, art.º 203.º).`
+    );
+  }
+}
 
 async function assertCanWrite() {
   const user = await requireUser();
@@ -38,6 +52,7 @@ export async function createShiftTemplate(formData: FormData) {
   const color = String(formData.get("color") ?? "#2563eb");
 
   if (!name || !startTime || !endTime) throw new Error("Campos obrigatórios em falta.");
+  assertMaxDailyHours(startTime, endTime, breakMins);
 
   const existing = await prisma.shiftTemplate.findUnique({ where: { name } });
   if (existing) throw new Error(`Já existe um modelo de turno com o nome "${name}".`);
@@ -74,6 +89,7 @@ export async function updateShiftTemplate(templateId: string, formData: FormData
     const color = String(formData.get("color") ?? "#2563eb");
 
     if (!name || !startTime || !endTime) throw new Error("Campos obrigatórios em falta.");
+    assertMaxDailyHours(startTime, endTime, breakMins);
 
     const existing = await prisma.shiftTemplate.findUnique({ where: { name } });
     if (existing && existing.id !== templateId) {

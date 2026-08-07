@@ -64,6 +64,7 @@ export default async function ContractDetailPage({
           <Info label="Fim" value={contract.endDate ? contract.endDate.toLocaleDateString("pt-PT") : "—"} />
           <Info label="Fim período experimental" value={contract.trialPeriodEndDate ? contract.trialPeriodEndDate.toLocaleDateString("pt-PT") : "—"} />
           <Info label="Horas semanais" value={`${contract.weeklyHours}h`} />
+          <Info label="Folgas semanais" value={`${contract.weeklyRestDays}`} />
           <Info label="Remuneração base" value={contract.baseSalary ? `${contract.baseSalary.toFixed(2)} €` : "—"} />
           <Info label="Documento" value={contract.documentName ?? "—"} />
         </dl>

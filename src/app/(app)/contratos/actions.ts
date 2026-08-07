@@ -26,6 +26,7 @@ export async function createContract(formData: FormData) {
   const endDateRaw = String(formData.get("endDate") ?? "");
   const trialPeriodEndDateRaw = String(formData.get("trialPeriodEndDate") ?? "");
   const weeklyHours = Number(formData.get("weeklyHours") ?? 40);
+  const weeklyRestDays = Number(formData.get("weeklyRestDays") ?? 1);
   const baseSalaryRaw = String(formData.get("baseSalary") ?? "");
   const documentName = String(formData.get("documentName") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -45,6 +46,7 @@ export async function createContract(formData: FormData) {
       endDate: endDateRaw ? new Date(endDateRaw) : null,
       trialPeriodEndDate: trialPeriodEndDateRaw ? new Date(trialPeriodEndDateRaw) : null,
       weeklyHours,
+      weeklyRestDays,
       baseSalary: baseSalaryRaw ? Number(baseSalaryRaw) : null,
       documentName,
       notes,
