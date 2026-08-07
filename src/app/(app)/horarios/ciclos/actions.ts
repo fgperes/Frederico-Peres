@@ -53,13 +53,15 @@ function shiftDurationHours(startTime: string, endTime: string, breakMins: numbe
 }
 
 // Média de horas semanais implícita no padrão do ciclo (soma de todas as
-// células com turno, dividida pelo número de semanas do ciclo).
-async function cycleWeeklyHours(cycleId: string, weeks: number): Promise<number> {
-  const pattern = await prisma.scheduleCyclePattern.findMany({ where: { cycleId } });
-  const templateIds = [...new Set(pattern.map((p) => p.shiftTemplateId).filter((id): id is string => !!id))];
-  const templates = await prisma.shiftTemplate.findMany({ where: { id: { in: templateIds } } });
-  const templateMap = new Map(templates.map((t) => [t.id, t]));
-
+// células com turno, dividida pelo número de semanas do ciclo). Recebe o
+// padrão já carregado (em vez de o voltar a ler) para poupar um round-trip
+// à BD — sob o connection_limit=1 do pooler do Supabase, cada round-trip a
+// menos reduz o risco de esgotar o tempo de espera pela ligação.
+function weeklyHoursFromPattern(
+  pattern: { isDayOff: boolean; shiftTemplateId: string | null }[],
+  templateMap: Map<string, { startTime: string; endTime: string; breakMins: number }>,
+  weeks: number
+): number {
   let totalHours = 0;
   for (const cell of pattern) {
     if (cell.isDayOff || !cell.shiftTemplateId) continue;
@@ -329,13 +331,24 @@ export async function assignEmployeesToCycle(
   const user = await assertCanWrite();
   if (employeeIds.length === 0) throw new Error("Selecione pelo menos um colaborador.");
 
-  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
+  const [cycle, employees, existing] = await Promise.all([
+    prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId }, include: { pattern: true } }),
+    prisma.employee.findMany({ where: { id: { in: employeeIds } } }),
+    prisma.scheduleCycleAssignment.findMany({ where: { cycleId, employeeId: { in: employeeIds } } }),
+  ]);
   if (offsetWeeks < 0 || offsetWeeks >= cycle.weeks) {
     throw new Error("Semana de início do ciclo inválida.");
   }
 
-  const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds } } });
-  const avgWeeklyHours = await cycleWeeklyHours(cycleId, cycle.weeks);
+  const templateIds = [
+    ...new Set(cycle.pattern.map((p) => p.shiftTemplateId).filter((id): id is string => !!id)),
+  ];
+  const templates =
+    templateIds.length > 0
+      ? await prisma.shiftTemplate.findMany({ where: { id: { in: templateIds } } })
+      : [];
+  const templateMap = new Map(templates.map((t) => [t.id, t]));
+  const avgWeeklyHours = weeklyHoursFromPattern(cycle.pattern, templateMap, cycle.weeks);
 
   const mismatched = employees.filter((e) => Math.abs(e.weeklyHours - avgWeeklyHours) > 0.01);
   if (mismatched.length > 0) {
@@ -347,9 +360,6 @@ export async function assignEmployeesToCycle(
     );
   }
 
-  const existing = await prisma.scheduleCycleAssignment.findMany({
-    where: { cycleId, employeeId: { in: employeeIds } },
-  });
   const alreadyAssigned = new Set(existing.map((a) => a.employeeId));
   const toAssign = employees.filter((e) => !alreadyAssigned.has(e.id));
 

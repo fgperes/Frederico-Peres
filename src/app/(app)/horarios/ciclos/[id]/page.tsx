@@ -26,7 +26,10 @@ export default async function CycleDetailPage({
   });
   if (!cycle) notFound();
 
-  const [templates, employees, departments] = await Promise.all([
+  // Tudo o que só depende de `cycle` (já carregado acima) vai no mesmo
+  // lote — reduz o número de idas e voltas à BD, importante sob o
+  // connection_limit=1 do pooler do Supabase em produção.
+  const [templates, employees, departments, assignedEmployees] = await Promise.all([
     prisma.shiftTemplate.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({
       where: { AND: [scope, { status: "ACTIVE" }] },
@@ -34,11 +37,8 @@ export default async function CycleDetailPage({
       orderBy: { firstName: "asc" },
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.employee.findMany({ where: { id: { in: cycle.assignments.map((a) => a.employeeId) } } }),
   ]);
-
-  const assignedEmployees = await prisma.employee.findMany({
-    where: { id: { in: cycle.assignments.map((a) => a.employeeId) } },
-  });
   const employeeMap = new Map(assignedEmployees.map((e) => [e.id, e]));
 
   const departmentsWithEmployees = departments
