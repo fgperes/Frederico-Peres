@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { setPatternCell } from "./actions";
 import type { ShiftTemplate } from "@prisma/client";
 
@@ -16,16 +17,29 @@ export function PatternCell({
   currentTemplateId?: string | null;
   templates: ShiftTemplate[];
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleChange(shiftTemplateId: string) {
+    setError(null);
+    const formData = new FormData();
+    formData.set("cycleId", cycleId);
+    formData.set("weekIndex", String(weekIndex));
+    formData.set("dayOfWeek", String(dayOfWeek));
+    formData.set("shiftTemplateId", shiftTemplateId);
+    startTransition(async () => {
+      const result = await setPatternCell(formData);
+      if (!result.ok) setError(result.error);
+    });
+  }
+
   return (
-    <form action={setPatternCell}>
-      <input type="hidden" name="cycleId" value={cycleId} />
-      <input type="hidden" name="weekIndex" value={weekIndex} />
-      <input type="hidden" name="dayOfWeek" value={dayOfWeek} />
+    <div>
       <select
-        name="shiftTemplateId"
         defaultValue={currentTemplateId ?? ""}
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className="w-full rounded border border-stone-200 px-1 py-1 text-xs"
+        disabled={pending}
+        onChange={(e) => handleChange(e.currentTarget.value)}
+        className="w-full rounded border border-stone-200 px-1 py-1 text-xs disabled:opacity-60"
       >
         <option value="">Folga</option>
         {templates.map((t) => (
@@ -34,6 +48,7 @@ export function PatternCell({
           </option>
         ))}
       </select>
-    </form>
+      {error && <p className="mt-0.5 text-[10px] text-rose-600">{error}</p>}
+    </div>
   );
 }

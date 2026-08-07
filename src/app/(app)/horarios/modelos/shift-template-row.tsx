@@ -29,11 +29,11 @@ export function ShiftTemplateRow({
   function handleSave(formData: FormData) {
     setError(null);
     startTransition(async () => {
-      try {
-        await updateShiftTemplate(template.id, formData);
+      const result = await updateShiftTemplate(template.id, formData);
+      if (result.ok) {
         setEditing(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao guardar.");
+      } else {
+        setError(result.error);
       }
     });
   }
@@ -42,11 +42,8 @@ export function ShiftTemplateRow({
     if (!confirm(`Apagar o modelo "${template.name}"? Esta ação não pode ser desfeita.`)) return;
     setError(null);
     startTransition(async () => {
-      try {
-        await deleteShiftTemplate(template.id);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao apagar.");
-      }
+      const result = await deleteShiftTemplate(template.id);
+      if (!result.ok) setError(result.error);
     });
   }
 

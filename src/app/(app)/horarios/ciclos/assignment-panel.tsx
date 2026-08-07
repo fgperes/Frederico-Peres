@@ -65,24 +65,24 @@ export function CycleAssignmentPanel({
     setError(null);
     const employeeIds = [...selected];
     startTransition(async () => {
-      try {
-        const created = await assignEmployeesToCycle(cycleId, employeeIds, offsetWeeks);
-        setAssignments((prev) => [...prev, ...created]);
-        setSelected(new Set());
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao associar colaboradores.");
+      const result = await assignEmployeesToCycle(cycleId, employeeIds, offsetWeeks);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      setAssignments((prev) => [...prev, ...result.data]);
+      setSelected(new Set());
     });
   }
 
   function handleRemove(assignmentId: string) {
     startTransition(async () => {
-      try {
-        await removeAssignment(assignmentId, cycleId);
-        setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao remover associação.");
+      const result = await removeAssignment(assignmentId, cycleId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     });
   }
 

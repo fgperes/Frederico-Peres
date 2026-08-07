@@ -37,14 +37,11 @@ export function WeeksGrid({
     return pattern.find((p) => p.weekIndex === weekIndex && p.dayOfWeek === dayOfWeek);
   }
 
-  function run(action: () => Promise<unknown>) {
+  function run(action: () => Promise<{ ok: true; data: unknown } | { ok: false; error: string }>) {
     setError(null);
     startTransition(async () => {
-      try {
-        await action();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Ocorreu um erro. Tente novamente.");
-      }
+      const result = await action();
+      if (!result.ok) setError(result.error);
     });
   }
 

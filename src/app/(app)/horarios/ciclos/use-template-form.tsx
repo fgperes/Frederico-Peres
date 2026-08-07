@@ -31,11 +31,11 @@ export function UseTemplateForm({
       action={(formData) => {
         setError(null);
         startTransition(async () => {
-          try {
-            await createCycleFromTemplate(formData);
+          const result = await createCycleFromTemplate(formData);
+          if (result.ok) {
             setOpen(false);
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Erro ao criar o ciclo.");
+          } else {
+            setError(result.error);
           }
         });
       }}

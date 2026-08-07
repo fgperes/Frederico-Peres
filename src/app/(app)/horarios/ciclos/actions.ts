@@ -16,6 +16,22 @@ async function assertCanWrite() {
   return user;
 }
 
+// Next.js redige (em produção) a mensagem de qualquer erro que atravesse a
+// fronteira de uma Server Action lançado com `throw` — mesmo apanhado com
+// try/catch no cliente, só chega lá um texto genérico + digest. Por isso as
+// ações chamadas diretamente do cliente (fora de um <form action> ligado a
+// useActionState) devolvem este resultado em vez de lançarem exceções, para
+// a mensagem real chegar ao utilizador.
+type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
+
+async function safe<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+  try {
+    return { ok: true, data: await fn() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Ocorreu um erro." };
+  }
+}
+
 // Impede nomes duplicados (ex.: cliques repetidos no botão antes do
 // primeiro pedido terminar). Ciclos e modelos têm namespaces de nome
 // independentes — a constraint em BD (@@unique([name, isTemplate])) é a
@@ -108,213 +124,227 @@ export async function createCycleAction(
 }
 
 // Adiciona uma semana em branco ao fim do ciclo.
-export async function addWeek(cycleId: string) {
-  const user = await assertCanWrite();
-  const cycle = await prisma.scheduleCycle.update({
-    where: { id: cycleId },
-    data: { weeks: { increment: 1 } },
+export async function addWeek(cycleId: string): Promise<ActionResult<number>> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const cycle = await prisma.scheduleCycle.update({
+      where: { id: cycleId },
+      data: { weeks: { increment: 1 } },
+    });
+    await logAudit({ userId: user.id, action: "ADD_WEEK", entity: "ScheduleCycle", entityId: cycleId });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
+    return cycle.weeks;
   });
-  await logAudit({ userId: user.id, action: "ADD_WEEK", entity: "ScheduleCycle", entityId: cycleId });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
-  return cycle.weeks;
 }
 
 // Duplica uma semana existente para uma nova semana no fim do ciclo.
-export async function duplicateWeek(cycleId: string, sourceWeekIndex: number) {
-  const user = await assertCanWrite();
-  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
-    where: { id: cycleId },
-    include: { pattern: true },
+export async function duplicateWeek(cycleId: string, sourceWeekIndex: number): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+      where: { id: cycleId },
+      include: { pattern: true },
+    });
+    const newWeekIndex = cycle.weeks;
+    const sourceCells = cycle.pattern.filter((p) => p.weekIndex === sourceWeekIndex);
+
+    await prisma.$transaction([
+      prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { increment: 1 } } }),
+      ...sourceCells.map((cell) =>
+        prisma.scheduleCyclePattern.create({
+          data: {
+            cycleId,
+            weekIndex: newWeekIndex,
+            dayOfWeek: cell.dayOfWeek,
+            shiftTemplateId: cell.shiftTemplateId,
+            isDayOff: cell.isDayOff,
+          },
+        })
+      ),
+    ]);
+
+    await logAudit({ userId: user.id, action: "DUPLICATE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
   });
-  const newWeekIndex = cycle.weeks;
-  const sourceCells = cycle.pattern.filter((p) => p.weekIndex === sourceWeekIndex);
-
-  await prisma.$transaction([
-    prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { increment: 1 } } }),
-    ...sourceCells.map((cell) =>
-      prisma.scheduleCyclePattern.create({
-        data: {
-          cycleId,
-          weekIndex: newWeekIndex,
-          dayOfWeek: cell.dayOfWeek,
-          shiftTemplateId: cell.shiftTemplateId,
-          isDayOff: cell.isDayOff,
-        },
-      })
-    ),
-  ]);
-
-  await logAudit({ userId: user.id, action: "DUPLICATE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
 }
 
 // Remove a última semana do ciclo (apaga o respetivo padrão).
-export async function removeWeek(cycleId: string, weekIndex: number) {
-  const user = await assertCanWrite();
-  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
-  if (cycle.weeks <= 1) throw new Error("O ciclo tem de ter pelo menos uma semana.");
+export async function removeWeek(cycleId: string, weekIndex: number): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
+    if (cycle.weeks <= 1) throw new Error("O ciclo tem de ter pelo menos uma semana.");
 
-  // Lida-se com a leitura fora da transação e agrupam-se as escritas num só
-  // pedido em lote (em vez de uma transação interativa com um loop de
-  // updates sequenciais) — reduz drasticamente o tempo em que a transação
-  // precisa de segurar a ligação à BD, que sob carga (ex.: ligação com
-  // connection_limit=1 do pooler do Supabase) estava a esgotar o tempo de
-  // espera para iniciar a transação (P2028).
-  const remaining = await prisma.scheduleCyclePattern.findMany({
-    where: { cycleId, weekIndex: { gt: weekIndex } },
+    // Lida-se com a leitura fora da transação e agrupam-se as escritas num só
+    // pedido em lote (em vez de uma transação interativa com um loop de
+    // updates sequenciais) — reduz drasticamente o tempo em que a transação
+    // precisa de segurar a ligação à BD, que sob carga (ex.: ligação com
+    // connection_limit=1 do pooler do Supabase) estava a esgotar o tempo de
+    // espera para iniciar a transação (P2028).
+    const remaining = await prisma.scheduleCyclePattern.findMany({
+      where: { cycleId, weekIndex: { gt: weekIndex } },
+    });
+
+    await prisma.$transaction([
+      prisma.scheduleCyclePattern.deleteMany({ where: { cycleId, weekIndex } }),
+      ...remaining.map((cell) =>
+        prisma.scheduleCyclePattern.update({
+          where: { id: cell.id },
+          data: { weekIndex: cell.weekIndex - 1 },
+        })
+      ),
+      prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { decrement: 1 } } }),
+    ]);
+
+    await logAudit({ userId: user.id, action: "REMOVE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
   });
-
-  await prisma.$transaction([
-    prisma.scheduleCyclePattern.deleteMany({ where: { cycleId, weekIndex } }),
-    ...remaining.map((cell) =>
-      prisma.scheduleCyclePattern.update({
-        where: { id: cell.id },
-        data: { weekIndex: cell.weekIndex - 1 },
-      })
-    ),
-    prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { decrement: 1 } } }),
-  ]);
-
-  await logAudit({ userId: user.id, action: "REMOVE_WEEK", entity: "ScheduleCycle", entityId: cycleId });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
 }
 
 // Reordena as semanas do ciclo (drag-and-drop). `order` é a lista dos
 // índices atuais na nova ordem pretendida, ex.: [2,0,1].
-export async function reorderWeeks(cycleId: string, order: number[]) {
-  const user = await assertCanWrite();
-  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
-    where: { id: cycleId },
-    include: { pattern: true },
+export async function reorderWeeks(cycleId: string, order: number[]): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+      where: { id: cycleId },
+      include: { pattern: true },
+    });
+    if (order.length !== cycle.weeks) throw new Error("Ordem de semanas inválida.");
+
+    // Usa índices temporários (offset) para evitar colisões durante a escrita.
+    const OFFSET = 1000;
+    await prisma.$transaction([
+      ...cycle.pattern.map((cell) =>
+        prisma.scheduleCyclePattern.update({
+          where: { id: cell.id },
+          data: { weekIndex: cell.weekIndex + OFFSET },
+        })
+      ),
+    ]);
+
+    const updates = [];
+    for (let newIndex = 0; newIndex < order.length; newIndex++) {
+      const oldIndex = order[newIndex];
+      updates.push(
+        prisma.scheduleCyclePattern.updateMany({
+          where: { cycleId, weekIndex: oldIndex + OFFSET },
+          data: { weekIndex: newIndex },
+        })
+      );
+    }
+    await prisma.$transaction(updates);
+
+    await logAudit({ userId: user.id, action: "REORDER_WEEKS", entity: "ScheduleCycle", entityId: cycleId });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
   });
-  if (order.length !== cycle.weeks) throw new Error("Ordem de semanas inválida.");
-
-  // Usa índices temporários (offset) para evitar colisões durante a escrita.
-  const OFFSET = 1000;
-  await prisma.$transaction([
-    ...cycle.pattern.map((cell) =>
-      prisma.scheduleCyclePattern.update({
-        where: { id: cell.id },
-        data: { weekIndex: cell.weekIndex + OFFSET },
-      })
-    ),
-  ]);
-
-  const updates = [];
-  for (let newIndex = 0; newIndex < order.length; newIndex++) {
-    const oldIndex = order[newIndex];
-    updates.push(
-      prisma.scheduleCyclePattern.updateMany({
-        where: { cycleId, weekIndex: oldIndex + OFFSET },
-        data: { weekIndex: newIndex },
-      })
-    );
-  }
-  await prisma.$transaction(updates);
-
-  await logAudit({ userId: user.id, action: "REORDER_WEEKS", entity: "ScheduleCycle", entityId: cycleId });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
 }
 
 // Guarda o ciclo atual como modelo reutilizável (só o padrão, sem
 // colaboradores associados nem data de início específica).
-export async function saveAsTemplate(cycleId: string, formData: FormData) {
-  const user = await assertCanWrite();
-  const name = String(formData.get("templateName") ?? "").trim();
-  if (!name) throw new Error("Indique um nome para o modelo.");
-  await assertUniqueCycleName(name, true);
+export async function saveAsTemplate(cycleId: string, formData: FormData): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const name = String(formData.get("templateName") ?? "").trim();
+    if (!name) throw new Error("Indique um nome para o modelo.");
+    await assertUniqueCycleName(name, true);
 
-  const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
-    where: { id: cycleId },
-    include: { pattern: true },
-  });
+    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+      where: { id: cycleId },
+      include: { pattern: true },
+    });
 
-  const template = await prisma.scheduleCycle
-    .create({
-      data: {
-        name,
-        weeks: cycle.weeks,
-        startDate: new Date(),
-        isTemplate: true,
-        pattern: {
-          create: cycle.pattern.map((p) => ({
-            weekIndex: p.weekIndex,
-            dayOfWeek: p.dayOfWeek,
-            shiftTemplateId: p.shiftTemplateId,
-            isDayOff: p.isDayOff,
-          })),
+    const template = await prisma.scheduleCycle
+      .create({
+        data: {
+          name,
+          weeks: cycle.weeks,
+          startDate: new Date(),
+          isTemplate: true,
+          pattern: {
+            create: cycle.pattern.map((p) => ({
+              weekIndex: p.weekIndex,
+              dayOfWeek: p.dayOfWeek,
+              shiftTemplateId: p.shiftTemplateId,
+              isDayOff: p.isDayOff,
+            })),
+          },
         },
-      },
-    })
-    .catch((e) => duplicateNameError(e, name, true));
+      })
+      .catch((e) => duplicateNameError(e, name, true));
 
-  await logAudit({ userId: user.id, action: "SAVE_TEMPLATE", entity: "ScheduleCycle", entityId: template.id, details: name });
-  revalidatePath("/horarios/ciclos");
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
+    await logAudit({ userId: user.id, action: "SAVE_TEMPLATE", entity: "ScheduleCycle", entityId: template.id, details: name });
+    revalidatePath("/horarios/ciclos");
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
+  });
 }
 
 // Cria um novo ciclo "ao vivo" a partir de um modelo pré-definido.
-export async function createCycleFromTemplate(formData: FormData) {
-  const user = await assertCanWrite();
-  const templateId = String(formData.get("templateId"));
-  const name = String(formData.get("name") ?? "").trim();
-  const startDate = String(formData.get("startDate") ?? "");
+export async function createCycleFromTemplate(formData: FormData): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const templateId = String(formData.get("templateId"));
+    const name = String(formData.get("name") ?? "").trim();
+    const startDate = String(formData.get("startDate") ?? "");
 
-  if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
-  await assertUniqueCycleName(name, false);
+    if (!name || !startDate) throw new Error("Nome e data de início obrigatórios.");
+    await assertUniqueCycleName(name, false);
 
-  const template = await prisma.scheduleCycle.findUniqueOrThrow({
-    where: { id: templateId },
-    include: { pattern: true },
-  });
+    const template = await prisma.scheduleCycle.findUniqueOrThrow({
+      where: { id: templateId },
+      include: { pattern: true },
+    });
 
-  const cycle = await prisma.scheduleCycle
-    .create({
-      data: {
-        name,
-        weeks: template.weeks,
-        startDate: parseISO(startDate),
-        isTemplate: false,
-        pattern: {
-          create: template.pattern.map((p) => ({
-            weekIndex: p.weekIndex,
-            dayOfWeek: p.dayOfWeek,
-            shiftTemplateId: p.shiftTemplateId,
-            isDayOff: p.isDayOff,
-          })),
+    const cycle = await prisma.scheduleCycle
+      .create({
+        data: {
+          name,
+          weeks: template.weeks,
+          startDate: parseISO(startDate),
+          isTemplate: false,
+          pattern: {
+            create: template.pattern.map((p) => ({
+              weekIndex: p.weekIndex,
+              dayOfWeek: p.dayOfWeek,
+              shiftTemplateId: p.shiftTemplateId,
+              isDayOff: p.isDayOff,
+            })),
+          },
         },
-      },
-    })
-    .catch((e) => duplicateNameError(e, name, false));
+      })
+      .catch((e) => duplicateNameError(e, name, false));
 
-  await logAudit({ userId: user.id, action: "CREATE_FROM_TEMPLATE", entity: "ScheduleCycle", entityId: cycle.id, details: name });
-  revalidatePath("/horarios/ciclos");
+    await logAudit({ userId: user.id, action: "CREATE_FROM_TEMPLATE", entity: "ScheduleCycle", entityId: cycle.id, details: name });
+    revalidatePath("/horarios/ciclos");
+  });
 }
 
-export async function setPatternCell(formData: FormData) {
-  const user = await assertCanWrite();
-  const cycleId = String(formData.get("cycleId"));
-  const weekIndex = Number(formData.get("weekIndex"));
-  const dayOfWeek = Number(formData.get("dayOfWeek"));
-  const shiftTemplateId = String(formData.get("shiftTemplateId") ?? "") || null;
+export async function setPatternCell(formData: FormData): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    const cycleId = String(formData.get("cycleId"));
+    const weekIndex = Number(formData.get("weekIndex"));
+    const dayOfWeek = Number(formData.get("dayOfWeek"));
+    const shiftTemplateId = String(formData.get("shiftTemplateId") ?? "") || null;
 
-  const existing = await prisma.scheduleCyclePattern.findFirst({
-    where: { cycleId, weekIndex, dayOfWeek },
+    const existing = await prisma.scheduleCyclePattern.findFirst({
+      where: { cycleId, weekIndex, dayOfWeek },
+    });
+
+    if (existing) {
+      await prisma.scheduleCyclePattern.update({
+        where: { id: existing.id },
+        data: { shiftTemplateId, isDayOff: !shiftTemplateId },
+      });
+    } else {
+      await prisma.scheduleCyclePattern.create({
+        data: { cycleId, weekIndex, dayOfWeek, shiftTemplateId, isDayOff: !shiftTemplateId },
+      });
+    }
+
+    await logAudit({ userId: user.id, action: "UPDATE", entity: "ScheduleCyclePattern", entityId: cycleId });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
   });
-
-  if (existing) {
-    await prisma.scheduleCyclePattern.update({
-      where: { id: existing.id },
-      data: { shiftTemplateId, isDayOff: !shiftTemplateId },
-    });
-  } else {
-    await prisma.scheduleCyclePattern.create({
-      data: { cycleId, weekIndex, dayOfWeek, shiftTemplateId, isDayOff: !shiftTemplateId },
-    });
-  }
-
-  await logAudit({ userId: user.id, action: "UPDATE", entity: "ScheduleCyclePattern", entityId: cycleId });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
 }
 
 // Associa vários colaboradores de uma vez ao ciclo, todos a começar na
@@ -323,82 +353,88 @@ export async function setPatternCell(formData: FormData) {
 // do ciclo — se não corresponder, rejeita o pedido todo com uma mensagem
 // que identifica quem está em desacordo, para o gestor poder corrigir a
 // seleção (ex.: remover esse colaborador ou escolher outro ciclo).
+type AssignedRow = { id: string; employeeId: string; offsetWeeks: number; firstName: string; lastName: string };
+
 export async function assignEmployeesToCycle(
   cycleId: string,
   employeeIds: string[],
   offsetWeeks: number
-) {
-  const user = await assertCanWrite();
-  if (employeeIds.length === 0) throw new Error("Selecione pelo menos um colaborador.");
+): Promise<ActionResult<AssignedRow[]>> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    if (employeeIds.length === 0) throw new Error("Selecione pelo menos um colaborador.");
 
-  const [cycle, employees, existing] = await Promise.all([
-    prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId }, include: { pattern: true } }),
-    prisma.employee.findMany({ where: { id: { in: employeeIds } } }),
-    prisma.scheduleCycleAssignment.findMany({ where: { cycleId, employeeId: { in: employeeIds } } }),
-  ]);
-  if (offsetWeeks < 0 || offsetWeeks >= cycle.weeks) {
-    throw new Error("Semana de início do ciclo inválida.");
-  }
+    const [cycle, employees, existing] = await Promise.all([
+      prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId }, include: { pattern: true } }),
+      prisma.employee.findMany({ where: { id: { in: employeeIds } } }),
+      prisma.scheduleCycleAssignment.findMany({ where: { cycleId, employeeId: { in: employeeIds } } }),
+    ]);
+    if (offsetWeeks < 0 || offsetWeeks >= cycle.weeks) {
+      throw new Error("Semana de início do ciclo inválida.");
+    }
 
-  const templateIds = [
-    ...new Set(cycle.pattern.map((p) => p.shiftTemplateId).filter((id): id is string => !!id)),
-  ];
-  const templates =
-    templateIds.length > 0
-      ? await prisma.shiftTemplate.findMany({ where: { id: { in: templateIds } } })
-      : [];
-  const templateMap = new Map(templates.map((t) => [t.id, t]));
-  const avgWeeklyHours = weeklyHoursFromPattern(cycle.pattern, templateMap, cycle.weeks);
+    const templateIds = [
+      ...new Set(cycle.pattern.map((p) => p.shiftTemplateId).filter((id): id is string => !!id)),
+    ];
+    const templates =
+      templateIds.length > 0
+        ? await prisma.shiftTemplate.findMany({ where: { id: { in: templateIds } } })
+        : [];
+    const templateMap = new Map(templates.map((t) => [t.id, t]));
+    const avgWeeklyHours = weeklyHoursFromPattern(cycle.pattern, templateMap, cycle.weeks);
 
-  const mismatched = employees.filter((e) => Math.abs(e.weeklyHours - avgWeeklyHours) > 0.01);
-  if (mismatched.length > 0) {
-    const names = mismatched
-      .map((e) => `${e.firstName} ${e.lastName} (${e.weeklyHours}h/semana)`)
-      .join(", ");
-    throw new Error(
-      `A carga semanal não corresponde à do ciclo (${avgWeeklyHours.toFixed(1)}h/semana em média): ${names}.`
+    const mismatched = employees.filter((e) => Math.abs(e.weeklyHours - avgWeeklyHours) > 0.01);
+    if (mismatched.length > 0) {
+      const names = mismatched
+        .map((e) => `${e.firstName} ${e.lastName} (${e.weeklyHours}h/semana)`)
+        .join(", ");
+      throw new Error(
+        `A carga semanal não corresponde à do ciclo (${avgWeeklyHours.toFixed(1)}h/semana em média): ${names}.`
+      );
+    }
+
+    const alreadyAssigned = new Set(existing.map((a) => a.employeeId));
+    const toAssign = employees.filter((e) => !alreadyAssigned.has(e.id));
+
+    if (toAssign.length === 0) {
+      throw new Error("Os colaboradores selecionados já estão associados a este ciclo.");
+    }
+
+    const created = await prisma.$transaction(
+      toAssign.map((e) =>
+        prisma.scheduleCycleAssignment.create({ data: { cycleId, employeeId: e.id, offsetWeeks } })
+      )
     );
-  }
 
-  const alreadyAssigned = new Set(existing.map((a) => a.employeeId));
-  const toAssign = employees.filter((e) => !alreadyAssigned.has(e.id));
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "ScheduleCycleAssignment",
+      entityId: cycleId,
+      details: `${created.length} colaborador(es), semana +${offsetWeeks}`,
+    });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
 
-  if (toAssign.length === 0) {
-    throw new Error("Os colaboradores selecionados já estão associados a este ciclo.");
-  }
-
-  const created = await prisma.$transaction(
-    toAssign.map((e) =>
-      prisma.scheduleCycleAssignment.create({ data: { cycleId, employeeId: e.id, offsetWeeks } })
-    )
-  );
-
-  await logAudit({
-    userId: user.id,
-    action: "CREATE",
-    entity: "ScheduleCycleAssignment",
-    entityId: cycleId,
-    details: `${created.length} colaborador(es), semana +${offsetWeeks}`,
-  });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
-
-  return created.map((a) => {
-    const e = toAssign.find((emp) => emp.id === a.employeeId)!;
-    return {
-      id: a.id,
-      employeeId: a.employeeId,
-      offsetWeeks: a.offsetWeeks,
-      firstName: e.firstName,
-      lastName: e.lastName,
-    };
+    return created.map((a) => {
+      const e = toAssign.find((emp) => emp.id === a.employeeId)!;
+      return {
+        id: a.id,
+        employeeId: a.employeeId,
+        offsetWeeks: a.offsetWeeks,
+        firstName: e.firstName,
+        lastName: e.lastName,
+      };
+    });
   });
 }
 
-export async function removeAssignment(assignmentId: string, cycleId: string) {
-  const user = await assertCanWrite();
-  await prisma.scheduleCycleAssignment.delete({ where: { id: assignmentId } });
-  await logAudit({ userId: user.id, action: "DELETE", entity: "ScheduleCycleAssignment", entityId: assignmentId });
-  revalidatePath(`/horarios/ciclos/${cycleId}`);
+export async function removeAssignment(assignmentId: string, cycleId: string): Promise<ActionResult> {
+  return safe(async () => {
+    const user = await assertCanWrite();
+    await prisma.scheduleCycleAssignment.delete({ where: { id: assignmentId } });
+    await logAudit({ userId: user.id, action: "DELETE", entity: "ScheduleCycleAssignment", entityId: assignmentId });
+    revalidatePath(`/horarios/ciclos/${cycleId}`);
+  });
 }
 
 // HC-03: gera automaticamente as escalas futuras com base no ciclo definido,
