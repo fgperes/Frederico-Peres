@@ -5,7 +5,18 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { deleteCycle } from "./actions";
 
-export function DeleteCycleButton({ cycleId, cycleName }: { cycleId: string; cycleName: string }) {
+export function DeleteCycleButton({
+  cycleId,
+  cycleName,
+  redirectAfterDelete = false,
+}: {
+  cycleId: string;
+  cycleName: string;
+  // A página de detalhe do ciclo deixa de fazer sentido depois de apagado —
+  // navega de volta para a lista. Nas listas (ciclos ou modelos) já estamos
+  // lá, a linha desaparece sozinha com a revalidação da Server Action.
+  redirectAfterDelete?: boolean;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -19,7 +30,7 @@ export function DeleteCycleButton({ cycleId, cycleName }: { cycleId: string; cyc
         setError(result.error);
         return;
       }
-      router.push("/horarios/ciclos");
+      if (redirectAfterDelete) router.push("/horarios/ciclos");
     });
   }
 

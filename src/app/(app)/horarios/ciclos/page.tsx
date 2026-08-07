@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { HorariosTabs } from "../tabs";
 import { CreateCycleForm } from "./create-cycle-form";
 import { UseTemplateForm } from "./use-template-form";
+import { DeleteCycleButton } from "./delete-cycle-button";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 
@@ -49,6 +50,7 @@ export default async function CiclosPage() {
                       <th className="px-4 py-3">Duração</th>
                       <th className="px-4 py-3">Início</th>
                       <th className="px-4 py-3">Colaboradores</th>
+                      {canEdit && <th className="px-4 py-3 text-right">Ações</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -62,6 +64,11 @@ export default async function CiclosPage() {
                         <td className="px-4 py-3">{c.weeks} semanas</td>
                         <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
                         <td className="px-4 py-3">{c._count.assignments}</td>
+                        {canEdit && (
+                          <td className="px-4 py-3 text-right">
+                            <DeleteCycleButton cycleId={c.id} cycleName={c.name} />
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -89,7 +96,10 @@ export default async function CiclosPage() {
                         <span className="ml-2 text-xs text-stone-500">{t.weeks} semanas</span>
                       </div>
                       {canEdit && (
-                        <UseTemplateForm templateId={t.id} templateName={t.name} />
+                        <div className="flex items-center gap-1">
+                          <UseTemplateForm templateId={t.id} templateName={t.name} />
+                          <DeleteCycleButton cycleId={t.id} cycleName={t.name} />
+                        </div>
                       )}
                     </div>
                   </li>
