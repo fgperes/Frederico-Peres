@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { HorariosTabs } from "../tabs";
-import { createShiftTemplate } from "../actions";
+import { ShiftTemplateRow } from "./shift-template-row";
+import { CreateTemplateForm } from "./create-template-form";
 import { Layers } from "lucide-react";
 
 export default async function ModelosTurnoPage() {
@@ -11,6 +12,7 @@ export default async function ModelosTurnoPage() {
   const canEdit = canWrite(user.roles, "horarios");
 
   const templates = await prisma.shiftTemplate.findMany({
+    include: { _count: { select: { shifts: true, scheduleCyclePatterns: true } } },
     orderBy: { name: "asc" },
   });
 
@@ -38,22 +40,17 @@ export default async function ModelosTurnoPage() {
                     <th className="px-4 py-3">Início</th>
                     <th className="px-4 py-3">Fim</th>
                     <th className="px-4 py-3">Pausa (min)</th>
+                    {canEdit && <th className="px-4 py-3 text-right">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {templates.map((t) => (
-                    <tr key={t.id}>
-                      <td className="px-4 py-3">
-                        <span
-                          className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
-                          style={{ backgroundColor: t.color }}
-                        />
-                        {t.name}
-                      </td>
-                      <td className="px-4 py-3">{t.startTime}</td>
-                      <td className="px-4 py-3">{t.endTime}</td>
-                      <td className="px-4 py-3">{t.breakMins}</td>
-                    </tr>
+                    <ShiftTemplateRow
+                      key={t.id}
+                      template={t}
+                      canEdit={canEdit}
+                      canDelete={t._count.shifts === 0 && t._count.scheduleCyclePatterns === 0}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -66,35 +63,7 @@ export default async function ModelosTurnoPage() {
             <h2 className="mb-3 text-sm font-semibold text-stone-900">
               Novo Modelo de Turno
             </h2>
-            <form action={createShiftTemplate} className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
-                <input name="name" required placeholder="Manhã 08h-16h" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Início</label>
-                  <input name="startTime" type="time" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Fim</label>
-                  <input name="endTime" type="time" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Pausa (min)</label>
-                  <input name="breakMins" type="number" defaultValue={0} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Cor</label>
-                  <input name="color" type="color" defaultValue="#2563eb" className="h-9 w-full rounded-md border border-stone-300" />
-                </div>
-              </div>
-              <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-                Criar modelo
-              </button>
-            </form>
+            <CreateTemplateForm />
           </Card>
         )}
       </div>
