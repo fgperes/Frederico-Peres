@@ -7,6 +7,7 @@ import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { addDays, parseISO } from "date-fns";
+import { WEEKDAY_LABELS } from "@/lib/dates";
 
 async function assertCanWrite() {
   const user = await requireUser();
@@ -98,6 +99,80 @@ function weeklyHoursFromPattern(
   return weeks > 0 ? totalHours / weeks : 0;
 }
 
+async function loadTemplateMap(cells: { shiftTemplateId: string | null }[]) {
+  const templateIds = [...new Set(cells.map((c) => c.shiftTemplateId).filter((id): id is string => !!id))];
+  const templates =
+    templateIds.length > 0 ? await prisma.shiftTemplate.findMany({ where: { id: { in: templateIds } } }) : [];
+  return new Map(templates.map((t) => [t.id, t]));
+}
+
+function minutesFromMidnight(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Fim do turno em minutos desde a meia-noite do dia em que começa (pode
+// ultrapassar 1440 para turnos que passam a meia-noite).
+function shiftEndOffsetMinutes(startTime: string, endTime: string): number {
+  const start = minutesFromMidnight(startTime);
+  let end = minutesFromMidnight(endTime);
+  if (end <= start) end += 24 * 60;
+  return end;
+}
+
+const MIN_REST_HOURS = 11;
+
+// Código do Trabalho, art.º 214.º — descanso diário mínimo de 11 horas
+// consecutivas entre o fim de um turno e o início do seguinte. Percorre o
+// padrão como uma sequência cíclica contínua (o último dia liga ao
+// primeiro, tal como acontece de facto para um colaborador associado de
+// forma contínua ao ciclo) e rejeita qualquer par de dias consecutivos com
+// turnos que não deixem esse descanso mínimo — ex.: turno da noite seguido,
+// no dia seguinte, de turno da manhã.
+function assertRestCompliance(
+  pattern: { weekIndex: number; dayOfWeek: number; isDayOff: boolean; shiftTemplateId: string | null }[],
+  templateMap: Map<string, { name: string; startTime: string; endTime: string }>,
+  weeks: number
+) {
+  const byCell = new Map<string, (typeof pattern)[number]>();
+  for (const cell of pattern) {
+    const key = `${cell.weekIndex}-${cell.dayOfWeek}`;
+    if (!byCell.has(key)) byCell.set(key, cell);
+  }
+
+  const ordered: (typeof pattern)[number][] = [];
+  for (let w = 0; w < weeks; w++) {
+    for (let d = 0; d < 7; d++) {
+      ordered.push(byCell.get(`${w}-${d}`) ?? { weekIndex: w, dayOfWeek: d, isDayOff: true, shiftTemplateId: null });
+    }
+  }
+  if (ordered.length === 0) return;
+
+  for (let i = 0; i < ordered.length; i++) {
+    const current = ordered[i];
+    const next = ordered[(i + 1) % ordered.length];
+    if (current.isDayOff || !current.shiftTemplateId) continue;
+    if (next.isDayOff || !next.shiftTemplateId) continue;
+
+    const currentTemplate = templateMap.get(current.shiftTemplateId);
+    const nextTemplate = templateMap.get(next.shiftTemplateId);
+    if (!currentTemplate || !nextTemplate) continue;
+
+    const currentEnd = shiftEndOffsetMinutes(currentTemplate.startTime, currentTemplate.endTime);
+    const nextStart = minutesFromMidnight(nextTemplate.startTime) + 24 * 60;
+    const restHours = (nextStart - currentEnd) / 60;
+
+    if (restHours < MIN_REST_HOURS) {
+      throw new Error(
+        `Descanso insuficiente entre turnos (mínimo legal: ${MIN_REST_HOURS}h consecutivas): ` +
+          `"${currentTemplate.name}" (Semana ${current.weekIndex + 1}, ${WEEKDAY_LABELS[current.dayOfWeek]}) ` +
+          `seguido de "${nextTemplate.name}" (Semana ${next.weekIndex + 1}, ${WEEKDAY_LABELS[next.dayOfWeek]}) ` +
+          `só deixa ${restHours.toFixed(1)}h de descanso.`
+      );
+    }
+  }
+}
+
 export async function createCycle(formData: FormData) {
   const user = await assertCanWrite();
   const name = String(formData.get("name") ?? "").trim();
@@ -166,6 +241,16 @@ export async function duplicateWeek(cycleId: string, sourceWeekIndex: number): P
       return true;
     });
 
+    const newCells = sourceCells.map((cell) => ({
+      weekIndex: newWeekIndex,
+      dayOfWeek: cell.dayOfWeek,
+      shiftTemplateId: cell.shiftTemplateId,
+      isDayOff: cell.isDayOff,
+    }));
+    const simulated = [...cycle.pattern, ...newCells];
+    const templateMap = await loadTemplateMap(simulated);
+    assertRestCompliance(simulated, templateMap, cycle.weeks + 1);
+
     await prisma.$transaction([
       prisma.scheduleCycle.update({ where: { id: cycleId }, data: { weeks: { increment: 1 } } }),
       ...sourceCells.map((cell) =>
@@ -190,7 +275,10 @@ export async function duplicateWeek(cycleId: string, sourceWeekIndex: number): P
 export async function removeWeek(cycleId: string, weekIndex: number): Promise<ActionResult> {
   return safe(async () => {
     const user = await assertCanWrite();
-    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } });
+    const cycle = await prisma.scheduleCycle.findUniqueOrThrow({
+      where: { id: cycleId },
+      include: { pattern: true },
+    });
     if (cycle.weeks <= 1) throw new Error("O ciclo tem de ter pelo menos uma semana.");
 
     // Lida-se com a leitura fora da transação e agrupam-se as escritas num só
@@ -199,9 +287,15 @@ export async function removeWeek(cycleId: string, weekIndex: number): Promise<Ac
     // precisa de segurar a ligação à BD, que sob carga (ex.: ligação com
     // connection_limit=1 do pooler do Supabase) estava a esgotar o tempo de
     // espera para iniciar a transação (P2028).
-    const remaining = await prisma.scheduleCyclePattern.findMany({
-      where: { cycleId, weekIndex: { gt: weekIndex } },
-    });
+    const kept = cycle.pattern.filter((p) => p.weekIndex < weekIndex);
+    const remaining = cycle.pattern.filter((p) => p.weekIndex > weekIndex);
+    const shifted = remaining.map((p) => ({ ...p, weekIndex: p.weekIndex - 1 }));
+
+    // Remover uma semana pode juntar duas semanas que antes não eram
+    // vizinhas — confirma que o resultado continua a cumprir o descanso
+    // mínimo entre turnos antes de gravar.
+    const templateMap = await loadTemplateMap([...kept, ...shifted]);
+    assertRestCompliance([...kept, ...shifted], templateMap, cycle.weeks - 1);
 
     await prisma.$transaction([
       prisma.scheduleCyclePattern.deleteMany({ where: { cycleId, weekIndex } }),
@@ -229,6 +323,13 @@ export async function reorderWeeks(cycleId: string, order: number[]): Promise<Ac
       include: { pattern: true },
     });
     if (order.length !== cycle.weeks) throw new Error("Ordem de semanas inválida.");
+
+    // Reordenar semanas pode juntar dois dias que antes não eram vizinhos —
+    // confirma que a nova ordem continua a cumprir o descanso mínimo entre
+    // turnos antes de gravar.
+    const simulated = cycle.pattern.map((p) => ({ ...p, weekIndex: order.indexOf(p.weekIndex) }));
+    const templateMap = await loadTemplateMap(simulated);
+    assertRestCompliance(simulated, templateMap, cycle.weeks);
 
     // Usa índices temporários (offset) para evitar colisões durante a escrita.
     const OFFSET = 1000;
@@ -345,6 +446,20 @@ export async function setPatternCell(formData: FormData): Promise<ActionResult> 
     const dayOfWeek = Number(formData.get("dayOfWeek"));
     const shiftTemplateId = String(formData.get("shiftTemplateId") ?? "") || null;
 
+    const [cycle, existingPattern] = await Promise.all([
+      prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId } }),
+      prisma.scheduleCyclePattern.findMany({ where: { cycleId } }),
+    ]);
+
+    const simulated: { weekIndex: number; dayOfWeek: number; isDayOff: boolean; shiftTemplateId: string | null }[] =
+      existingPattern
+        .filter((p) => !(p.weekIndex === weekIndex && p.dayOfWeek === dayOfWeek))
+        .map((p) => ({ weekIndex: p.weekIndex, dayOfWeek: p.dayOfWeek, isDayOff: p.isDayOff, shiftTemplateId: p.shiftTemplateId }));
+    simulated.push({ weekIndex, dayOfWeek, isDayOff: !shiftTemplateId, shiftTemplateId });
+
+    const templateMap = await loadTemplateMap(simulated);
+    assertRestCompliance(simulated, templateMap, cycle.weeks);
+
     // Upsert atómico (assente na constraint única cycleId+weekIndex+dayOfWeek)
     // em vez de "procurar depois criar" — essa sequência não é atómica e,
     // sob dois pedidos quase simultâneos para a mesma célula, podia criar
@@ -378,13 +493,35 @@ export async function assignEmployeesToCycle(
     const user = await assertCanWrite();
     if (employeeIds.length === 0) throw new Error("Selecione pelo menos um colaborador.");
 
-    const [cycle, employees, existing] = await Promise.all([
+    const [cycle, employees, existing, otherAssignments] = await Promise.all([
       prisma.scheduleCycle.findUniqueOrThrow({ where: { id: cycleId }, include: { pattern: true } }),
       prisma.employee.findMany({ where: { id: { in: employeeIds } } }),
       prisma.scheduleCycleAssignment.findMany({ where: { cycleId, employeeId: { in: employeeIds } } }),
+      prisma.scheduleCycleAssignment.findMany({
+        where: { employeeId: { in: employeeIds }, cycleId: { not: cycleId } },
+        include: { cycle: true },
+      }),
     ]);
     if (offsetWeeks < 0 || offsetWeeks >= cycle.weeks) {
       throw new Error("Semana de início do ciclo inválida.");
+    }
+
+    // Um colaborador só pode estar associado a um ciclo de cada vez — caso
+    // contrário teria dois padrões de turnos a valer ao mesmo tempo.
+    if (otherAssignments.length > 0) {
+      const byEmployee = new Map<string, Set<string>>();
+      for (const a of otherAssignments) {
+        const names = byEmployee.get(a.employeeId) ?? new Set<string>();
+        names.add(a.cycle.name);
+        byEmployee.set(a.employeeId, names);
+      }
+      const names = [...byEmployee.entries()]
+        .map(([employeeId, cycleNames]) => {
+          const e = employees.find((emp) => emp.id === employeeId)!;
+          return `${e.firstName} ${e.lastName} (já associado ao ciclo "${[...cycleNames].join('", "')}")`;
+        })
+        .join(", ");
+      throw new Error(`Colaboradores já associados a outro ciclo: ${names}.`);
     }
 
     const templateIds = [
