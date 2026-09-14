@@ -1,4 +1,14 @@
-import { startOfWeek, addDays, format, parseISO } from "date-fns";
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  addDays,
+  addMonths,
+  format,
+  parseISO,
+} from "date-fns";
 
 export function getWeekStart(dateParam?: string): Date {
   const base = dateParam ? parseISO(dateParam) : new Date();
@@ -26,4 +36,22 @@ export const WEEKDAY_LABELS = [
 export function addWeeksIso(dateStr: string, weeks: number): string {
   const d = addDays(parseISO(dateStr), weeks * 7);
   return isoDate(d);
+}
+
+export function getMonthStart(dateParam?: string): Date {
+  const base = dateParam ? parseISO(dateParam) : new Date();
+  return startOfMonth(base);
+}
+
+// Grelha completa do mês (semanas inteiras, começando à segunda-feira) —
+// inclui dias do mês anterior/seguinte que preencham a primeira/última
+// semana, tal como um calendário normal.
+export function getMonthGridDays(monthStart: Date): Date[] {
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const gridEnd = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 });
+  return eachDayOfInterval({ start: gridStart, end: gridEnd });
+}
+
+export function addMonthsIso(dateStr: string, months: number): string {
+  return isoDate(addMonths(parseISO(dateStr), months));
 }
