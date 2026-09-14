@@ -1,18 +1,45 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite } from "@/lib/roles";
+import { canWrite, isSystemAdmin } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { HorariosTabs } from "../tabs";
 import { ImportDemandForm } from "./import-demand-form";
 import { PredictiveForm } from "./predictive-form";
+import { SubscriptionToggle } from "./subscription-toggle";
 import { revertDemandImport } from "./actions";
+import { getModuleSubscription } from "@/lib/subscriptions";
 import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Lock } from "lucide-react";
 
 export default async function PreditivoPage() {
   const user = await requireUser();
   const canEdit = canWrite(user.roles, "horarios");
   if (!canEdit) redirect("/horarios");
+
+  const subscription = await getModuleSubscription();
+  const isAdmin = isSystemAdmin(user.roles);
+
+  if (!subscription.predictiveEnabled) {
+    return (
+      <div>
+        <PageHeader
+          icon={Sparkles}
+          title="Módulo de Horários"
+          description="Geração automática de horários com base em dados históricos e de procura."
+        />
+        <HorariosTabs />
+
+        {isAdmin && <SubscriptionToggle enabled={subscription.predictiveEnabled} />}
+
+        <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <Lock className="text-stone-400" size={32} />
+          <p className="text-sm font-medium text-stone-600 dark:text-stone-300">
+            Módulo não subscrito. Contacte o suporte técnico.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   const [imports, departments, demandCount] = await Promise.all([
     prisma.importLog.findMany({
@@ -32,6 +59,8 @@ export default async function PreditivoPage() {
         description="Geração automática de horários com base em dados históricos e de procura."
       />
       <HorariosTabs />
+
+      {isAdmin && <SubscriptionToggle enabled={subscription.predictiveEnabled} />}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card>

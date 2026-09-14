@@ -726,3 +726,16 @@ model ImportLog {
   errorReport String?
   createdAt   DateTime @default(now())
 }
+
+// ---------------------------------------------------------------------------
+// Subscrição de módulos (linha única, tal como PayrollSettings) — permite
+// desligar módulos avançados ainda não contratados/à medida para este
+// cliente, mostrando um estado vazio explicativo em vez do módulo.
+// ---------------------------------------------------------------------------
+
+model ModuleSubscription {
+  id                String   @id @default(cuid())
+  predictiveEnabled Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+  updatedById       String?
+}

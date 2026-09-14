@@ -2,11 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { canWrite, isSystemAdmin } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { parseExcelFile } from "@/lib/excel";
 import { getWeekStart, getWeekDays, isoDate } from "@/lib/dates";
+import { getModuleSubscription } from "@/lib/subscriptions";
 import { z } from "zod";
 
 async function assertCanWrite() {
@@ -265,4 +266,28 @@ export async function generatePredictiveProposalAction(
   revalidatePath("/horarios/preditivo");
 
   return { result: { createdShifts, windows: summary } };
+}
+
+export async function setPredictiveModuleEnabled(enabled: boolean): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  if (!isSystemAdmin(user.roles)) {
+    return { ok: false, error: "Só o Administrador do Sistema pode ativar/desativar este módulo." };
+  }
+
+  const settings = await getModuleSubscription();
+  await prisma.moduleSubscription.update({
+    where: { id: settings.id },
+    data: { predictiveEnabled: enabled, updatedById: user.id },
+  });
+
+  await logAudit({
+    userId: user.id,
+    action: "UPDATE",
+    entity: "ModuleSubscription",
+    entityId: settings.id,
+    details: `Módulo preditivo: ${enabled ? "ativado" : "desativado"}`,
+  });
+
+  revalidatePath("/horarios/preditivo");
+  return { ok: true };
 }

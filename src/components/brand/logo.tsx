@@ -1,33 +1,15 @@
 /**
- * Marca "Elo" — dois elos entrelaçados, ligação sem peça central.
- * Usa `currentColor`, controla-se a cor com uma classe de texto
- * (ex.: text-white, text-violet-600) no elemento onde é usada.
+ * Marca "Duas Pessoas" — par de silhuetas simplificadas, o ícone clássico
+ * de equipa/RH. Usa `currentColor`, controla-se a cor com uma classe de
+ * texto (ex.: text-white, text-violet-600) no elemento onde é usada.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
-      <rect
-        x="14"
-        y="38"
-        width="44"
-        height="24"
-        rx="12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="8"
-        transform="rotate(-18 36 50)"
-      />
-      <rect
-        x="42"
-        y="38"
-        width="44"
-        height="24"
-        rx="12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="8"
-        transform="rotate(18 64 50)"
-      />
+    <svg viewBox="0 0 100 100" className={className} fill="currentColor" aria-hidden="true">
+      <circle cx="32" cy="28" r="14" />
+      <path d="M8 78 C 8 56 18 46 32 46 C 46 46 56 56 56 78 Z" />
+      <circle cx="66" cy="24" r="11" opacity="0.75" />
+      <path d="M46 78 C 46 60 54 50 66 50 C 78 50 86 60 86 78 Z" opacity="0.75" />
     </svg>
   );
 }
