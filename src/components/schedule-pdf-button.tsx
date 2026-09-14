@@ -33,22 +33,25 @@ export function SchedulePdfButton({
     doc.text(subtitle, 14, 25);
     doc.setTextColor(0);
 
-    // Muitas colunas (ex.: escala mensal, 28-31 dias) precisam de letra mais
-    // pequena e de uma largura fixa para a coluna do nome — sem isto, o
-    // autoTable reparte a largura da página por igual e cada célula fica
-    // estreita a ponto de quebrar palavra a palavra, letra a letra.
-    const dayCount = weekDayLabels.length;
-    const fontSize = dayCount > 20 ? 6 : dayCount > 12 ? 7 : 9;
-    const nameColumnWidth = dayCount > 20 ? 32 : 40;
-
+    // Cada coluna de dia tem largura fixa, suficiente para mostrar
+    // "22:00-06:00" numa só linha, sem quebras. Com muitas colunas (ex.:
+    // escala mensal, 28-31 dias) isto não cabe todo numa página — em vez de
+    // encolher a letra até ficar ilegível, o autoTable divide as colunas
+    // por várias páginas (horizontalPageBreak), repetindo sempre a coluna
+    // do colaborador, para que o texto fique sempre com o mesmo tamanho.
     autoTable(doc, {
       startY: 32,
       head: [["Colaborador", ...weekDayLabels]],
       body: rows.map((r) => [r.employeeName, ...r.cells]),
       theme: "grid",
-      headStyles: { fillColor: [124, 58, 237], halign: "center", fontSize },
-      styles: { halign: "center", fontSize, cellPadding: dayCount > 20 ? 1 : 2 },
-      columnStyles: { 0: { halign: "left", fontStyle: "bold", cellWidth: nameColumnWidth } },
+      headStyles: { fillColor: [124, 58, 237], halign: "center", fontSize: 9 },
+      styles: { halign: "center", fontSize: 9, cellPadding: 2 },
+      columnStyles: { 0: { halign: "left", fontStyle: "bold", cellWidth: 44 } },
+      horizontalPageBreak: true,
+      horizontalPageBreakRepeat: 0,
+      // Evita partir uma linha (nome + dados) ao meio quando calha mesmo na
+      // fronteira de página — passa a linha inteira para a página seguinte.
+      rowPageBreak: "avoid",
     });
 
     doc.setFontSize(8);
