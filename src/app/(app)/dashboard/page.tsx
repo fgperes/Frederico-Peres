@@ -6,6 +6,7 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { describeAuditLog } from "@/lib/audit-labels";
 import { AvatarImage } from "@/lib/avatars";
 import { formatDateTime } from "@/lib/format";
+import { getVisibleNews } from "@/lib/news";
 import { addDays } from "date-fns";
 import {
   Users,
@@ -15,6 +16,7 @@ import {
   Activity,
   CalendarClock,
   AlertTriangle,
+  Megaphone,
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -44,8 +46,38 @@ export default async function DashboardPage() {
         title={`Bem-vindo, ${user.name?.split(" ")[0]}`}
         description={`Perfis: ${user.roles.map((r) => ROLE_LABELS[r]).join(", ")}`}
       />
+      <NewsSection roles={user.roles} />
       {isManagement ? <ManagementDashboard user={user} /> : <ColaboradorDashboard user={user} />}
     </div>
+  );
+}
+
+async function NewsSection({ roles }: { roles: string[] }) {
+  const news = await getVisibleNews(roles);
+  if (news.length === 0) return null;
+
+  return (
+    <Card className="mb-8">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+        <Megaphone size={16} className="text-stone-500" />
+        Notícias
+      </h2>
+      <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+        {news.map((n) => (
+          <li key={n.id} className="py-3 first:pt-0 last:pb-0">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{n.subject}</p>
+              <span className="shrink-0 text-[11px] text-stone-400">{formatDateTime(n.createdAt)}</span>
+            </div>
+            <div
+              className="prose prose-sm max-w-none text-sm text-stone-700 dark:text-stone-300"
+              dangerouslySetInnerHTML={{ __html: n.bodyHtml }}
+            />
+            <p className="mt-1 text-[11px] text-stone-400">por {n.author.name}</p>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

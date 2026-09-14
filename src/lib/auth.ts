@@ -44,6 +44,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles: user.roles.map((r) => r.role) as Role[],
           employeeId: user.employee?.id ?? null,
           mustChangePassword: user.mustChangePassword,
+          canPublishNews: user.canPublishNews,
         };
       },
     }),

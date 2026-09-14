@@ -109,6 +109,22 @@ export async function toggleUserActive(userId: string, active: boolean) {
   revalidatePath("/acessos");
 }
 
+export async function toggleCanPublishNews(userId: string, canPublishNews: boolean) {
+  const admin = await assertSystemAdmin();
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { canPublishNews },
+  });
+  await logAudit({
+    userId: admin.id,
+    action: "UPDATE",
+    entity: "User",
+    entityId: user.id,
+    details: `Permissão de publicar notícias: ${canPublishNews ? "concedida" : "removida"} (${user.email})`,
+  });
+  revalidatePath("/acessos");
+}
+
 export async function updateUserRoles(userId: string, formData: FormData) {
   const admin = await assertSystemAdmin();
   const selectedRoles = formData.getAll("roles").map(String) as Role[];

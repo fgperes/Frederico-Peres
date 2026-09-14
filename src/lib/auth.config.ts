@@ -22,6 +22,9 @@ export const authConfig: NextAuthConfig = {
         token.mustChangePassword = (
           user as { mustChangePassword: boolean }
         ).mustChangePassword;
+        token.canPublishNews = (
+          user as { canPublishNews: boolean }
+        ).canPublishNews;
       }
       return token;
     },
@@ -31,6 +34,7 @@ export const authConfig: NextAuthConfig = {
         session.user.roles = (token.roles as Role[]) ?? [];
         session.user.employeeId = (token.employeeId as string | null) ?? null;
         session.user.mustChangePassword = Boolean(token.mustChangePassword);
+        session.user.canPublishNews = Boolean(token.canPublishNews);
       }
       return session;
     },

@@ -43,6 +43,8 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  canPublishNews     Boolean    @default(false)
+
   auditLogs          AuditLog[]
   approvedAbsences   Absence[]        @relation("AbsenceApprover")
   requestedAbsences  Absence[]        @relation("AbsenceRequester")
@@ -51,10 +53,25 @@ model User {
   sentMessages       Message[]        @relation("MessageSender")
   receivedMessages   Message[]        @relation("MessageRecipient")
   tasks              Task[]           @relation("TaskAssignee")
+  news               News[]           @relation("NewsAuthor")
 
   createdEvaluationTemplates EvaluationTemplate[]
   createdEvaluations         Evaluation[]         @relation("EvaluationCreatedBy")
   completedEvaluations       Evaluation[]         @relation("EvaluationCompletedBy")
+}
+
+// Notícias do dashboard. targetRoles vazio = visível para todos ("Todos" no
+// seletor); caso contrário só é mostrada a utilizadores com pelo menos um
+// dos perfis listados. notifyUsers cria uma Task tipo NEWS por destinatário.
+model News {
+  id           String   @id @default(cuid())
+  subject      String
+  bodyHtml     String
+  notifyUsers  Boolean  @default(false)
+  targetRoles  String[]
+  authorId     String
+  author       User     @relation("NewsAuthor", fields: [authorId], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 // Tarefas atribuídas a um utilizador (ex.: gestor de RH/supervisor a

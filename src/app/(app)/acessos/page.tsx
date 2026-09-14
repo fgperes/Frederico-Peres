@@ -5,6 +5,7 @@ import { PageHeader, Card, Badge } from "@/components/ui";
 import { CreateUserForm } from "./create-user-form";
 import { UserRolesForm } from "./user-roles-form";
 import { ToggleActiveButton } from "./toggle-active-button";
+import { ToggleNewsButton } from "./toggle-news-button";
 import { AcessosTabs } from "./tabs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -53,6 +54,7 @@ export default async function AcessosPage() {
                   <th className="px-6 py-3">Utilizador</th>
                   <th className="px-6 py-3">Perfis</th>
                   <th className="px-6 py-3">Estado</th>
+                  {admin && <th className="px-6 py-3">Notícias</th>}
                   {admin && <th className="px-6 py-3">Ações</th>}
                 </tr>
               </thead>
@@ -104,6 +106,11 @@ export default async function AcessosPage() {
                         {u.active ? "Ativo" : "Desativado"}
                       </Badge>
                     </td>
+                    {admin && (
+                      <td className="px-6 py-3 align-top">
+                        <ToggleNewsButton userId={u.id} canPublishNews={u.canPublishNews} />
+                      </td>
+                    )}
                     {admin && (
                       <td className="px-6 py-3 align-top">
                         <ToggleActiveButton userId={u.id} active={u.active} />

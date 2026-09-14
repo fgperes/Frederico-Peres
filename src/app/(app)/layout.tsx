@@ -71,6 +71,8 @@ export default async function AppLayout({
               key,
               label: ROLE_LABELS[key],
             }))}
+            canPublishNews={user.canPublishNews}
+            newsRoles={ROLES.map((key) => ({ key, label: ROLE_LABELS[key] }))}
           />
           <main className="flex-1 overflow-y-auto bg-stone-100 p-4 sm:p-6 lg:p-8 dark:bg-stone-950">
             {children}

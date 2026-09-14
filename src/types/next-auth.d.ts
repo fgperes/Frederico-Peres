@@ -8,6 +8,7 @@ declare module "next-auth" {
       roles: Role[];
       employeeId: string | null;
       mustChangePassword: boolean;
+      canPublishNews: boolean;
     } & DefaultSession["user"];
   }
 
@@ -16,6 +17,7 @@ declare module "next-auth" {
     roles: Role[];
     employeeId: string | null;
     mustChangePassword: boolean;
+    canPublishNews: boolean;
   }
 }
 
@@ -25,5 +27,6 @@ declare module "next-auth/jwt" {
     roles: Role[];
     employeeId: string | null;
     mustChangePassword: boolean;
+    canPublishNews: boolean;
   }
 }

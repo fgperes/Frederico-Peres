@@ -7,6 +7,7 @@ import { NotificationsPanel } from "./notifications-panel";
 import { TasksPanel } from "./tasks-panel";
 import { MessagesPanel } from "./messages-panel";
 import { ClockPanel } from "./clock-panel";
+import { NewsComposer } from "./news-composer";
 import { ViewAsSwitcher } from "./view-as-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoMark } from "@/components/brand/logo";
@@ -39,6 +40,8 @@ export function TopBar({
   currentViewAs,
   currentViewAsLabel,
   previewableRoles,
+  canPublishNews,
+  newsRoles,
 }: {
   notifications: NotificationItem[];
   unreadMessageCount: number;
@@ -51,6 +54,8 @@ export function TopBar({
   currentViewAs: Role | null;
   currentViewAsLabel: string | null;
   previewableRoles: { key: Role; label: string }[];
+  canPublishNews: boolean;
+  newsRoles: { key: Role; label: string }[];
 }) {
   const [open, setOpen] = useState<Panel>(null);
   const { toggle: toggleMobileNav } = useMobileNav();
@@ -85,6 +90,7 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-1">
+        {canPublishNews && <NewsComposer roles={newsRoles} />}
         <ThemeToggle />
 
         {hasEmployee && mealStatus && (
