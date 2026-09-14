@@ -9,6 +9,7 @@ import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { ClockWidget } from "@/components/clock-widget";
 import { JustifyForm } from "./justify-form";
 import { LocationButton } from "./location-button";
+import { PicagensTabs } from "./tabs";
 import { reviewJustification } from "./actions";
 import type { Prisma } from "@prisma/client";
 import { Fingerprint } from "lucide-react";
@@ -19,6 +20,14 @@ const TYPE_LABELS: Record<string, string> = {
   CLOCK_OUT: "Saída",
   BREAK_START: "Início Refeição",
   BREAK_END: "Fim Refeição",
+};
+
+const TERMINAL_LABELS: Record<string, string> = {
+  BIOMETRIC: "Terminal biométrico",
+  RFID: "Cartão/RFID",
+  PIN: "PIN",
+  MOBILE: "Aplicação móvel",
+  OTHER: "Outro terminal",
 };
 
 type TimeClockEntryWithEmployee = Prisma.TimeClockEntryGetPayload<{
@@ -92,6 +101,8 @@ export default async function PicagensPage() {
         description="Registo de assiduidade, desvios e banco de horas."
       />
 
+      <PicagensTabs showTerminais={canEdit} />
+
       {user.employeeId && (
         <Card className="mb-6">
           <h2 className="mb-3 text-sm font-semibold text-stone-900">
@@ -113,6 +124,11 @@ export default async function PicagensPage() {
                       <span>
                         {TYPE_LABELS[entry.type]} —{" "}
                         {formatDateTime(entry.timestamp)}
+                        {entry.terminalType && entry.terminalType !== "WEB" && (
+                          <span className="ml-1.5 text-xs text-stone-400">
+                            ({TERMINAL_LABELS[entry.terminalType] ?? entry.terminalType})
+                          </span>
+                        )}
                       </span>
                       {entry.hasDeviation && (
                         <Badge color={entry.justificationStatus === "APPROVED" ? "green" : entry.justificationStatus === "REJECTED" ? "red" : "amber"}>

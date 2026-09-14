@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-import { classifyDeviation } from "@/lib/timeclock";
+import { recordTimeClockEntry } from "@/lib/timeclock";
 
 export type GeoCoords = {
   latitude: number;
@@ -24,37 +24,15 @@ export async function clockAction(
   if (!user.employeeId) throw new Error("Utilizador sem ficha de colaborador associada.");
 
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
 
-  const shift = await prisma.shift.findFirst({
-    where: { employeeId: user.employeeId, date: { gte: todayStart, lte: todayEnd } },
-  });
-
-  let hasDeviation = false;
-  let deviationType: string | null = null;
-
-  // PI-02: comparar automaticamente com o horário planeado.
-  if (type === "CLOCK_IN" || type === "CLOCK_OUT") {
-    const result = classifyDeviation(type, now, shift?.startTime, shift?.endTime);
-    hasDeviation = result.hasDeviation;
-    deviationType = result.deviationType;
-  }
-
-  const entry = await prisma.timeClockEntry.create({
-    data: {
-      employeeId: user.employeeId,
-      type,
-      timestamp: now,
-      hasDeviation,
-      deviationType,
-      justificationStatus: hasDeviation ? "PENDING" : null,
-      latitude: coords?.latitude,
-      longitude: coords?.longitude,
-      locationAccuracy: coords?.accuracy,
-    },
+  // PI-02: comparar automaticamente com o horário planeado (feito dentro de
+  // recordTimeClockEntry, partilhado com o webhook de terminais físicos).
+  const entry = await recordTimeClockEntry({
+    employeeId: user.employeeId,
+    type,
+    timestamp: now,
+    terminalType: "WEB",
+    coords,
   });
 
   await logAudit({

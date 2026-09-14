@@ -54,6 +54,7 @@ model User {
   receivedMessages   Message[]        @relation("MessageRecipient")
   tasks              Task[]           @relation("TaskAssignee")
   news               News[]           @relation("NewsAuthor")
+  hoursCorrections   HoursCorrection[] @relation("HoursCorrectionCreatedBy")
 
   createdEvaluationTemplates EvaluationTemplate[]
   createdEvaluations         Evaluation[]         @relation("EvaluationCreatedBy")
@@ -160,6 +161,7 @@ model Department {
   teams     Team[]
   employees Employee[]
   userRoles UserRole[]
+  equipment Equipment[]
   createdAt DateTime     @default(now())
 }
 
@@ -244,6 +246,7 @@ model Employee {
   absences          Absence[]
   absenceBalances   AbsenceBalance[]
   timeClockEntries  TimeClockEntry[]
+  hoursCorrections  HoursCorrection[]
   history           EmployeeHistory[]
   documents         EmployeeDocument[]
   payrollComponents PayrollComponent[]
@@ -396,9 +399,48 @@ model TimeClockEntry {
   reviewedById        String?
   reviewedBy          User?   @relation("DeviationReviewer", fields: [reviewedById], references: [id])
 
+  terminalType String? // WEB | BIOMETRIC | RFID | PIN | MOBILE | OTHER — WEB quando picagem feita na app
+  equipmentId  String?
+  equipment    Equipment? @relation(fields: [equipmentId], references: [id])
+
   createdAt DateTime @default(now())
 
   @@index([employeeId, timestamp])
+}
+
+// Equipamento físico de picagem (terminal biométrico, cartão RFID, PIN, etc.)
+// associado a uma localização/departamento. webhookToken identifica o
+// terminal no endpoint de integração (/api/picagens/webhook/[token]) — cada
+// fabricante configura esse URL no respetivo equipamento ou serviço cloud.
+model Equipment {
+  id           String      @id @default(cuid())
+  name         String
+  type         String // BIOMETRIC | RFID | PIN | MOBILE | OTHER
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  webhookToken String      @unique @default(cuid())
+  apiEndpoint  String? // referência/documentação — endpoint do fabricante para integração por API própria
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+
+  entries TimeClockEntry[]
+}
+
+// Correção manual ao cálculo de horas (execução vs. planeado) — não altera
+// as picagens originais, soma-se ao balanço do dia com justificação e
+// rasto de auditoria (quem corrigiu e quando).
+model HoursCorrection {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id])
+  date         DateTime
+  minutesDelta Int
+  reason       String?
+  createdById  String
+  createdBy    User     @relation("HoursCorrectionCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([employeeId, date])
 }
 
 // ---------------------------------------------------------------------------
