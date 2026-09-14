@@ -1,13 +1,6 @@
 import type { Employee } from "@prisma/client";
 import { createContract } from "./actions";
-
-const CONTRACT_TYPES = [
-  { value: "SEM_TERMO", label: "Sem termo" },
-  { value: "TERMO_CERTO", label: "Termo certo" },
-  { value: "TERMO_INCERTO", label: "Termo incerto" },
-  { value: "PRESTACAO_SERVICOS", label: "Prestação de serviços" },
-  { value: "PART_TIME", label: "Part-time" },
-];
+import { CONTRACT_TYPES } from "@/lib/contract-constants";
 
 export function ContractForm({
   employees,
@@ -23,9 +16,12 @@ export function ContractForm({
       {parentContractId && <input type="hidden" name="parentContractId" value={parentContractId} />}
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Colaborador</label>
+        {/* Um <select> disabled nunca envia o seu valor no FormData —
+            quando o colaborador já vem definido, fica só visual e o valor
+            real segue num input hidden. */}
         <select
-          name="employeeId"
-          required
+          name={defaultEmployeeId ? undefined : "employeeId"}
+          required={!defaultEmployeeId}
           defaultValue={defaultEmployeeId}
           disabled={!!defaultEmployeeId}
           className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm disabled:bg-stone-50"
@@ -35,6 +31,7 @@ export function ContractForm({
             <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
           ))}
         </select>
+        {defaultEmployeeId && <input type="hidden" name="employeeId" value={defaultEmployeeId} />}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

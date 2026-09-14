@@ -162,23 +162,39 @@ export function EmployeeForm({
           Especificações para Horários
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <SelectField
-            label="Tipo de vínculo"
-            name="employmentType"
-            defaultValue={employee?.employmentType ?? "FULL_TIME"}
-            options={[
-              { value: "FULL_TIME", label: "Full-time" },
-              { value: "PART_TIME", label: "Part-time" },
-            ]}
-          />
-          <Field
-            label="Horas semanais contratuais"
-            name="weeklyHours"
-            type="number"
-            step="0.5"
-            defaultValue={employee?.weeklyHours ?? 40}
-            required
-          />
+          {employee ? (
+            <>
+              <ReadOnlyField
+                label="Tipo de vínculo"
+                value={employee.employmentType === "FULL_TIME" ? "Full-time" : "Part-time"}
+              />
+              <ReadOnlyField label="Horas semanais contratuais" value={`${employee.weeklyHours}h`} />
+              <p className="text-xs text-stone-500 dark:text-stone-400 sm:col-span-2 -mt-2">
+                Definido pelo contrato ativo — para alterar, veja o separador{" "}
+                <span className="font-medium">Contratos</span>.
+              </p>
+            </>
+          ) : (
+            <>
+              <SelectField
+                label="Tipo de vínculo"
+                name="employmentType"
+                defaultValue="FULL_TIME"
+                options={[
+                  { value: "FULL_TIME", label: "Full-time" },
+                  { value: "PART_TIME", label: "Part-time" },
+                ]}
+              />
+              <Field
+                label="Horas semanais contratuais"
+                name="weeklyHours"
+                type="number"
+                step="0.5"
+                defaultValue={40}
+                required
+              />
+            </>
+          )}
           <Field
             label="Restrições (ex.: não trabalha ao domingo)"
             name="restrictions"
@@ -241,6 +257,19 @@ export function EmployeeForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+        {label}
+      </label>
+      <p className="w-full rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
+        {value}
+      </p>
+    </div>
   );
 }
 

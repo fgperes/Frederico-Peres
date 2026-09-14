@@ -5,14 +5,7 @@ import { PageHeader, Card, Badge, LinkButton, Button } from "@/components/ui";
 import { setContractStatus } from "../actions";
 import { notFound } from "next/navigation";
 import { FileSignature } from "lucide-react";
-
-const CONTRACT_TYPE_LABELS: Record<string, string> = {
-  SEM_TERMO: "Sem termo",
-  TERMO_CERTO: "Termo certo",
-  TERMO_INCERTO: "Termo incerto",
-  PRESTACAO_SERVICOS: "Prestação de serviços",
-  PART_TIME: "Part-time",
-};
+import { CONTRACT_TYPE_LABELS } from "@/lib/contract-constants";
 
 export default async function ContractDetailPage({
   params,

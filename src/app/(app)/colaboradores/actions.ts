@@ -42,8 +42,10 @@ const employeeSchema = z.object({
   teamId: z.string().optional(),
   locationId: z.string().optional(),
   managerId: z.string().optional(),
-  employmentType: z.enum(["FULL_TIME", "PART_TIME"]),
-  weeklyHours: z.coerce.number().min(0).max(80),
+  // Só usados na criação (sem contrato ainda) — na edição, estes dados
+  // passam a vir do contrato ativo e o formulário deixa de os enviar.
+  employmentType: z.enum(["FULL_TIME", "PART_TIME"]).optional(),
+  weeklyHours: z.coerce.number().min(0).max(80).optional(),
   restrictions: z.string().optional(),
   shiftPreferences: z.string().optional(),
   skills: z.string().optional(),
@@ -155,8 +157,8 @@ export async function createEmployee(formData: FormData) {
       teamId: toNullable(data.teamId),
       locationId: toNullable(data.locationId),
       managerId: toNullable(data.managerId),
-      employmentType: data.employmentType,
-      weeklyHours: data.weeklyHours,
+      employmentType: data.employmentType ?? "FULL_TIME",
+      weeklyHours: data.weeklyHours ?? 40,
       restrictions: toNullable(data.restrictions),
       shiftPreferences: toNullable(data.shiftPreferences),
       skills: toNullable(data.skills),
@@ -233,8 +235,8 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
       teamId: toNullable(data.teamId),
       locationId: toNullable(data.locationId),
       managerId: toNullable(data.managerId),
-      employmentType: data.employmentType,
-      weeklyHours: data.weeklyHours,
+      // employmentType/weeklyHours não vêm daqui — passam a ser definidos
+      // exclusivamente pelo contrato ativo (ver separador Contratos).
       restrictions: toNullable(data.restrictions),
       shiftPreferences: toNullable(data.shiftPreferences),
       skills: toNullable(data.skills),
