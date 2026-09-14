@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge } from "@/components/ui";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Users } from "lucide-react";
 import { WeeksGrid } from "../weeks-grid";
 import { GenerateButton } from "../generate-button";
 import { SaveTemplateForm } from "../save-template-form";
@@ -30,14 +30,15 @@ export default async function CycleDetailPage({
   // Tudo o que só depende de `cycle` (já carregado acima) vai no mesmo
   // lote — reduz o número de idas e voltas à BD, importante sob o
   // connection_limit=1 do pooler do Supabase em produção.
-  const [templates, employees, departments, assignedEmployees] = await Promise.all([
+  const [templates, employees, departments, teams, assignedEmployees] = await Promise.all([
     prisma.shiftTemplate.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({
       where: { AND: [scope, { status: "ACTIVE" }] },
-      select: { id: true, firstName: true, lastName: true, weeklyHours: true, departmentId: true },
+      select: { id: true, firstName: true, lastName: true, weeklyHours: true, departmentId: true, teamId: true },
       orderBy: { firstName: "asc" },
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({ where: { id: { in: cycle.assignments.map((a) => a.employeeId) } } }),
   ]);
   const employeeMap = new Map(assignedEmployees.map((e) => [e.id, e]));
@@ -48,9 +49,17 @@ export default async function CycleDetailPage({
       name: d.name,
       employees: employees
         .filter((e) => e.departmentId === d.id)
-        .map((e) => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, weeklyHours: e.weeklyHours })),
+        .map((e) => ({
+          id: e.id,
+          firstName: e.firstName,
+          lastName: e.lastName,
+          weeklyHours: e.weeklyHours,
+          teamId: e.teamId,
+        })),
     }))
     .filter((d) => d.employees.length > 0);
+
+  const teamOptions = teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }));
 
   const initialAssignments = cycle.assignments.map((a) => ({
     id: a.id,
@@ -100,32 +109,42 @@ export default async function CycleDetailPage({
           />
         </Card>
 
-        <div className="space-y-6">
-          {canEdit && !cycle.isTemplate && (
-            <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900">
-                Gerar Escalas
-              </h2>
-              <GenerateButton cycleId={cycle.id} />
-            </Card>
-          )}
-
-          {!cycle.isTemplate && (
-            <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
-                Colaboradores Associados
-              </h2>
-              <CycleAssignmentPanel
-                cycleId={cycle.id}
-                cycleWeeks={cycle.weeks}
-                departments={departmentsWithEmployees}
-                initialAssignments={initialAssignments}
-                canEdit={canEdit}
-              />
-            </Card>
-          )}
-        </div>
+        {canEdit && !cycle.isTemplate && (
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold text-stone-900">
+              Gerar Escalas
+            </h2>
+            <GenerateButton cycleId={cycle.id} />
+          </Card>
+        )}
       </div>
+
+      {!cycle.isTemplate && (
+        <Card className="mt-6 border-2 border-violet-200 dark:border-violet-500/30">
+          <div className="mb-4 flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600/10 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400">
+              <Users size={18} />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                Colaboradores Associados a este Ciclo
+              </h2>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                É aqui que se atribuem os colaboradores que seguem este ciclo de horário.
+              </p>
+            </div>
+            <Badge color="blue">{initialAssignments.length} associado(s)</Badge>
+          </div>
+          <CycleAssignmentPanel
+            cycleId={cycle.id}
+            cycleWeeks={cycle.weeks}
+            departments={departmentsWithEmployees}
+            teams={teamOptions}
+            initialAssignments={initialAssignments}
+            canEdit={canEdit}
+          />
+        </Card>
+      )}
     </div>
   );
 }
