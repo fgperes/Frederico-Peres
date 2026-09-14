@@ -320,7 +320,9 @@ async function MonthView({
     where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
   });
 
-  const dayLabels = days.map((d) => d.toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "2-digit" }));
+  // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
+  // numa página, "segunda, 14/09" por coluna não cabe de forma legível.
+  const dayLabels = days.map((d) => d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }));
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     cells: days.map((d) => {

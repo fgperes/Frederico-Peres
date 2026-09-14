@@ -33,14 +33,22 @@ export function SchedulePdfButton({
     doc.text(subtitle, 14, 25);
     doc.setTextColor(0);
 
+    // Muitas colunas (ex.: escala mensal, 28-31 dias) precisam de letra mais
+    // pequena e de uma largura fixa para a coluna do nome — sem isto, o
+    // autoTable reparte a largura da página por igual e cada célula fica
+    // estreita a ponto de quebrar palavra a palavra, letra a letra.
+    const dayCount = weekDayLabels.length;
+    const fontSize = dayCount > 20 ? 6 : dayCount > 12 ? 7 : 9;
+    const nameColumnWidth = dayCount > 20 ? 32 : 40;
+
     autoTable(doc, {
       startY: 32,
       head: [["Colaborador", ...weekDayLabels]],
       body: rows.map((r) => [r.employeeName, ...r.cells]),
       theme: "grid",
-      headStyles: { fillColor: [124, 58, 237], halign: "center" },
-      styles: { halign: "center", fontSize: 9 },
-      columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
+      headStyles: { fillColor: [124, 58, 237], halign: "center", fontSize },
+      styles: { halign: "center", fontSize, cellPadding: dayCount > 20 ? 1 : 2 },
+      columnStyles: { 0: { halign: "left", fontStyle: "bold", cellWidth: nameColumnWidth } },
     });
 
     doc.setFontSize(8);
