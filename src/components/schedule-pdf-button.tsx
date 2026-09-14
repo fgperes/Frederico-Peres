@@ -6,8 +6,16 @@ import { formatDateTime } from "@/lib/format";
 
 export type SchedulePdfRow = {
   employeeName: string;
+  employeeNumber?: string | null;
   cells: string[]; // uma célula por dia, ex.: "08:00-16:00" ou "—"
 };
+
+// "08:00-16:00" -> "08-16" quando os minutos são sempre :00 — poupa largura
+// suficiente para caber os 30/31 dias do mês lado a lado numa só página.
+function compactTime(cell: string): string {
+  const m = cell.match(/^(\d{2}):00-(\d{2}):00$/);
+  return m ? `${m[1]}-${m[2]}` : cell;
+}
 
 export function SchedulePdfButton({
   title,
@@ -24,7 +32,15 @@ export function SchedulePdfButton({
     const { jsPDF } = await import("jspdf");
     const { autoTable } = await import("jspdf-autotable");
 
-    const doc = new jsPDF({ orientation: "landscape" });
+    // Muitas colunas (escala mensal, 28-31 dias) precisam de mais largura
+    // de página e de um formato de hora mais compacto para caberem todas
+    // lado a lado, sem paginação horizontal — cada folha mostra sempre o
+    // mês inteiro corrido.
+    const dayCount = weekDayLabels.length;
+    const compact = dayCount > 14;
+    const doc = new jsPDF({ orientation: "landscape", format: compact ? "a3" : "a4" });
+    const fontSize = compact ? 7 : 9;
+    const nameColumnWidth = compact ? 34 : 44;
 
     doc.setFontSize(18);
     doc.text(title, 14, 18);
@@ -33,22 +49,17 @@ export function SchedulePdfButton({
     doc.text(subtitle, 14, 25);
     doc.setTextColor(0);
 
-    // Cada coluna de dia tem largura fixa, suficiente para mostrar
-    // "22:00-06:00" numa só linha, sem quebras. Com muitas colunas (ex.:
-    // escala mensal, 28-31 dias) isto não cabe todo numa página — em vez de
-    // encolher a letra até ficar ilegível, o autoTable divide as colunas
-    // por várias páginas (horizontalPageBreak), repetindo sempre a coluna
-    // do colaborador, para que o texto fique sempre com o mesmo tamanho.
     autoTable(doc, {
       startY: 32,
       head: [["Colaborador", ...weekDayLabels]],
-      body: rows.map((r) => [r.employeeName, ...r.cells]),
+      body: rows.map((r) => [
+        r.employeeNumber ? `${r.employeeName}\nNº ${r.employeeNumber}` : r.employeeName,
+        ...(compact ? r.cells.map(compactTime) : r.cells),
+      ]),
       theme: "grid",
-      headStyles: { fillColor: [124, 58, 237], halign: "center", fontSize: 9 },
-      styles: { halign: "center", fontSize: 9, cellPadding: 2 },
-      columnStyles: { 0: { halign: "left", fontStyle: "bold", cellWidth: 44 } },
-      horizontalPageBreak: true,
-      horizontalPageBreakRepeat: 0,
+      headStyles: { fillColor: [124, 58, 237], halign: "center", fontSize },
+      styles: { halign: "center", fontSize, cellPadding: compact ? 1 : 2 },
+      columnStyles: { 0: { halign: "left", fontStyle: "bold", cellWidth: nameColumnWidth } },
       // Evita partir uma linha (nome + dados) ao meio quando calha mesmo na
       // fronteira de página — passa a linha inteira para a página seguinte.
       rowPageBreak: "avoid",

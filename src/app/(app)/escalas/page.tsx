@@ -253,6 +253,7 @@ async function WeekView({
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
+    employeeNumber: e.employeeNumber,
     cells: days.map((d) => {
       const shift = shifts.find((s) => s.employeeId === e.id && isoDate(s.date) === isoDate(d));
       return shift ? `${shift.startTime}-${shift.endTime}` : "—";
@@ -325,6 +326,7 @@ async function MonthView({
   const dayLabels = days.map((d) => d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }));
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
+    employeeNumber: e.employeeNumber,
     cells: days.map((d) => {
       const shift = shifts.find((s) => s.employeeId === e.id && isoDate(s.date) === isoDate(d));
       return shift ? `${shift.startTime}-${shift.endTime}` : "—";
