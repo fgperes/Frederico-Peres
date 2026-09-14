@@ -1,6 +1,5 @@
 import {
   startOfWeek,
-  endOfWeek,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
@@ -43,13 +42,11 @@ export function getMonthStart(dateParam?: string): Date {
   return startOfMonth(base);
 }
 
-// Grelha completa do mês (semanas inteiras, começando à segunda-feira) —
-// inclui dias do mês anterior/seguinte que preencham a primeira/última
-// semana, tal como um calendário normal.
-export function getMonthGridDays(monthStart: Date): Date[] {
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 });
-  return eachDayOfInterval({ start: gridStart, end: gridEnd });
+// Todos os dias do mês (1 a 28-31), sem preenchimento de semanas —
+// usada na tabela de escalas mensal (colaboradores em linha, dias em
+// coluna, tal como a vista semanal mas com o mês inteiro).
+export function getMonthDays(monthStart: Date): Date[] {
+  return eachDayOfInterval({ start: monthStart, end: endOfMonth(monthStart) });
 }
 
 export function addMonthsIso(dateStr: string, months: number): string {
