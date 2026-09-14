@@ -14,7 +14,7 @@ import {
 } from "@/lib/dates";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { SendScheduleButton } from "./send-schedule-button";
-import { GenerateSidebar } from "./generate-sidebar";
+import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import Link from "next/link";
@@ -154,32 +154,28 @@ export default async function EscalasPage({
         </form>
       </Card>
 
-      <div className="flex flex-col gap-4 sm:flex-row">
-        {canEdit && (
-          <GenerateSidebar
-            departments={departments.map((d) => ({ id: d.id, name: d.name }))}
-            employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId }))}
-            defaultFrom={isoDate(getWeekStart(params.week))}
-            defaultTo={isoDate(getWeekDays(getWeekStart(params.week))[6])}
-          />
-        )}
+      {canEdit && (
+        <GenerateToolbar
+          departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+          employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId }))}
+          defaultFrom={isoDate(getWeekStart(params.week))}
+          defaultTo={isoDate(getWeekDays(getWeekStart(params.week))[6])}
+        />
+      )}
 
-        <div className="min-w-0 flex-1">
-          {view === "week" ? (
-            <WeekView
-              params={params}
-              filterQuery={filterQuery}
-              employees={employees}
-              employeeIds={employeeIds}
-              departments={departments}
-              teams={teams}
-              canEdit={canEdit}
-            />
-          ) : (
-            <MonthView params={params} filterQuery={filterQuery} employees={employees} employeeIds={employeeIds} />
-          )}
-        </div>
-      </div>
+      {view === "week" ? (
+        <WeekView
+          params={params}
+          filterQuery={filterQuery}
+          employees={employees}
+          employeeIds={employeeIds}
+          departments={departments}
+          teams={teams}
+          canEdit={canEdit}
+        />
+      ) : (
+        <MonthView params={params} filterQuery={filterQuery} employees={employees} employeeIds={employeeIds} />
+      )}
     </div>
   );
 }
