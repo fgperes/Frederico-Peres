@@ -174,7 +174,15 @@ export default async function EscalasPage({
           canEdit={canEdit}
         />
       ) : (
-        <MonthView params={params} filterQuery={filterQuery} employees={employees} employeeIds={employeeIds} />
+        <MonthView
+          params={params}
+          filterQuery={filterQuery}
+          employees={employees}
+          employeeIds={employeeIds}
+          departments={departments}
+          teams={teams}
+          canEdit={canEdit}
+        />
       )}
     </div>
   );
@@ -289,11 +297,17 @@ async function MonthView({
   filterQuery,
   employees,
   employeeIds,
+  departments,
+  teams,
+  canEdit,
 }: {
-  params: { month?: string };
+  params: { month?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
   employees: { id: string; firstName: string; lastName: string; employeeNumber: string | null; weeklyHours: number }[];
   employeeIds: string[];
+  departments: { id: string; name: string }[];
+  teams: { id: string; name: string }[];
+  canEdit: boolean;
 }) {
   const monthStart = getMonthStart(params.month);
   const monthStartIso = isoDate(monthStart);
@@ -306,6 +320,15 @@ async function MonthView({
     where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
   });
 
+  const dayLabels = days.map((d) => d.toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "2-digit" }));
+  const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
+    employeeName: `${e.firstName} ${e.lastName}`,
+    cells: days.map((d) => {
+      const shift = shifts.find((s) => s.employeeId === e.id && isoDate(s.date) === isoDate(d));
+      return shift ? `${shift.startTime}-${shift.endTime}` : "—";
+    }),
+  }));
+
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -314,6 +337,23 @@ async function MonthView({
           nextHref={`/escalas?view=month&month=${nextMonth}&${filterQuery}`}
           label={monthLabel}
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <SchedulePdfButton
+            title={`Escala mensal — ${monthLabel}`}
+            subtitle={
+              [
+                params.departmentId ? departments.find((d) => d.id === params.departmentId)?.name : null,
+                params.teamId ? teams.find((t) => t.id === params.teamId)?.name : null,
+              ]
+                .filter(Boolean)
+                .join(" / ") || "Todos os departamentos"
+            }
+            weekDayLabels={dayLabels}
+            rows={pdfRows}
+          />
+          {canEdit && <SendScheduleButton employeeIds={employeeIds} weekLabel={monthLabel} />}
+        </div>
       </div>
 
       <ScheduleGrid employees={employees} days={days} shifts={shifts} />
