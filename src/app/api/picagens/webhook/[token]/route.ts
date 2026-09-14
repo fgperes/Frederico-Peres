@@ -5,14 +5,26 @@ import { logAudit } from "@/lib/audit";
 
 const VALID_TYPES: PunchType[] = ["CLOCK_IN", "CLOCK_OUT", "BREAK_START", "BREAK_END"];
 
+// Lê um campo do corpo do pedido pelo nome configurado no equipamento —
+// aceita um caminho simples com pontos (ex.: "data.badge_id") para
+// fabricantes que aninham os dados, sem precisar de nenhuma configuração
+// extra além do nome do campo.
+function readField(body: Record<string, unknown>, fieldPath: string): unknown {
+  return fieldPath
+    .split(".")
+    .reduce<unknown>((acc, key) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[key] : undefined), body);
+}
+
 // Endpoint de integração para terminais físicos de picagem (biométrico,
 // RFID, PIN, etc.). Cada equipamento tem um token único (Equipment.webhookToken)
 // que identifica de onde vem a picagem — não há autenticação de utilizador
 // aqui porque quem chama é o próprio terminal/serviço cloud do fabricante,
 // não uma sessão de browser.
 //
-// Corpo esperado (JSON): { employeeExternalId: string, type: PunchType, timestamp?: string }
-// employeeExternalId corresponde a Employee.employeeNumber.
+// Só 3 campos do corpo do pedido são lidos e gravados — quais, é definido
+// por equipamento em Picagens → Terminais (Equipment.payloadEmployeeField/
+// payloadTypeField/payloadTimestampField, por omissão "employeeExternalId"/
+// "type"/"timestamp"). Todo o resto do corpo do pedido é ignorado.
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
@@ -30,19 +42,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   } catch {
     return NextResponse.json({ error: "Corpo do pedido inválido (esperado JSON)." }, { status: 400 });
   }
+  const bodyObj = (body ?? {}) as Record<string, unknown>;
 
-  const { employeeExternalId, type, timestamp } = (body ?? {}) as {
-    employeeExternalId?: string;
-    type?: string;
-    timestamp?: string;
-  };
+  const employeeExternalId = readField(bodyObj, equipment.payloadEmployeeField);
+  const type = readField(bodyObj, equipment.payloadTypeField);
+  const timestamp = readField(bodyObj, equipment.payloadTimestampField);
 
   if (!employeeExternalId || typeof employeeExternalId !== "string") {
-    return NextResponse.json({ error: "employeeExternalId em falta." }, { status: 400 });
-  }
-  if (!type || !VALID_TYPES.includes(type as PunchType)) {
     return NextResponse.json(
-      { error: `type inválido. Use um de: ${VALID_TYPES.join(", ")}.` },
+      { error: `Campo "${equipment.payloadEmployeeField}" (identificador do colaborador) em falta ou inválido.` },
+      { status: 400 }
+    );
+  }
+  if (!type || typeof type !== "string" || !VALID_TYPES.includes(type as PunchType)) {
+    return NextResponse.json(
+      { error: `Campo "${equipment.payloadTypeField}" inválido. Use um de: ${VALID_TYPES.join(", ")}.` },
       { status: 400 }
     );
   }
@@ -55,9 +69,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     );
   }
 
-  const ts = timestamp ? new Date(timestamp) : new Date();
+  const ts =
+    typeof timestamp === "string" || typeof timestamp === "number" ? new Date(timestamp) : new Date();
   if (Number.isNaN(ts.getTime())) {
-    return NextResponse.json({ error: "timestamp inválido." }, { status: 400 });
+    return NextResponse.json({ error: `Campo "${equipment.payloadTimestampField}" com data/hora inválida.` }, { status: 400 });
   }
 
   const entry = await recordTimeClockEntry({

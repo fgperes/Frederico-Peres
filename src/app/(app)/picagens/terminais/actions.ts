@@ -43,12 +43,15 @@ export async function createEquipmentAction(
   const type = String(formData.get("type") ?? "");
   const departmentId = String(formData.get("departmentId") ?? "") || null;
   const apiEndpoint = String(formData.get("apiEndpoint") ?? "").trim() || null;
+  const payloadEmployeeField = String(formData.get("payloadEmployeeField") ?? "").trim() || "employeeExternalId";
+  const payloadTypeField = String(formData.get("payloadTypeField") ?? "").trim() || "type";
+  const payloadTimestampField = String(formData.get("payloadTimestampField") ?? "").trim() || "timestamp";
 
   if (!name) return { error: "Indique um nome para o equipamento." };
   if (!EQUIPMENT_TYPES.includes(type)) return { error: "Tipo de equipamento inválido." };
 
   const equipment = await prisma.equipment.create({
-    data: { name, type, departmentId, apiEndpoint },
+    data: { name, type, departmentId, apiEndpoint, payloadEmployeeField, payloadTypeField, payloadTimestampField },
   });
 
   await logAudit({
@@ -57,6 +60,43 @@ export async function createEquipmentAction(
     entity: "Equipment",
     entityId: equipment.id,
     details: `${name} (${type})`,
+  });
+
+  revalidatePath("/picagens/terminais");
+  return { success: true };
+}
+
+export async function updatePayloadMappingAction(
+  _prev: EquipmentFormState,
+  formData: FormData
+): Promise<EquipmentFormState> {
+  let user;
+  try {
+    user = await assertCanWrite();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Sem permissão." };
+  }
+
+  const equipmentId = String(formData.get("equipmentId") ?? "");
+  const payloadEmployeeField = String(formData.get("payloadEmployeeField") ?? "").trim();
+  const payloadTypeField = String(formData.get("payloadTypeField") ?? "").trim();
+  const payloadTimestampField = String(formData.get("payloadTimestampField") ?? "").trim();
+
+  if (!payloadEmployeeField || !payloadTypeField || !payloadTimestampField) {
+    return { error: "Preencha os 3 nomes de campo." };
+  }
+
+  const equipment = await prisma.equipment.update({
+    where: { id: equipmentId },
+    data: { payloadEmployeeField, payloadTypeField, payloadTimestampField },
+  });
+
+  await logAudit({
+    userId: user.id,
+    action: "UPDATE",
+    entity: "Equipment",
+    entityId: equipment.id,
+    details: `Mapeamento de campos do webhook atualizado (${equipment.name})`,
   });
 
   revalidatePath("/picagens/terminais");

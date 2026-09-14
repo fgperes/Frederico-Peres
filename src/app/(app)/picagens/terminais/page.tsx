@@ -7,6 +7,7 @@ import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { PicagensTabs } from "../tabs";
 import { CreateEquipmentForm } from "./create-equipment-form";
 import { EquipmentRowActions } from "./equipment-row-actions";
+import { EditMappingButton } from "./edit-mapping-button";
 import { WebhookUrl } from "./webhook-url";
 import { Fingerprint } from "lucide-react";
 
@@ -47,13 +48,17 @@ export default async function TerminaisPage() {
         </h2>
         <p className="mb-4 text-xs text-stone-500 dark:text-stone-400">
           Cada equipamento tem um URL de webhook único. Configure-o no terminal ou no serviço
-          cloud do fabricante para que envie um pedido <code>POST</code> a cada picagem, com o
-          corpo JSON <code>{"{ employeeExternalId, type, timestamp }"}</code> (
-          <code>type</code>: <code>CLOCK_IN</code>/<code>CLOCK_OUT</code>/<code>BREAK_START</code>/
-          <code>BREAK_END</code>; <code>employeeExternalId</code> é o número mecanográfico do
-          colaborador). Para terminais que só expõem uma API própria (sem suporte a webhooks),
-          guarde aqui o endpoint do fabricante como referência — a sincronização por consulta
-          periódica a essa API é feita caso a caso, consoante o protocolo de cada fabricante.
+          cloud do fabricante para que envie um pedido <code>POST</code> a cada picagem, com um
+          corpo JSON. Os valores aceites para o tipo de picagem são sempre <code>CLOCK_IN</code>/
+          <code>CLOCK_OUT</code>/<code>BREAK_START</code>/<code>BREAK_END</code>, e o identificador
+          do colaborador é sempre o número mecanográfico — mas os <strong>nomes dos campos</strong>{" "}
+          onde o terminal envia esses 3 valores são configuráveis por equipamento (coluna
+          &quot;Mapeamento de campos&quot;, abaixo), para se ajustar ao formato de qualquer
+          fabricante. Só esses 3 campos são gravados na aplicação; qualquer outro dado que o
+          pedido traga é ignorado. Para terminais que só expõem uma API própria (sem suporte a
+          webhooks), guarde aqui o endpoint do fabricante como referência — a sincronização por
+          consulta periódica a essa API é feita caso a caso, consoante o protocolo de cada
+          fabricante.
         </p>
 
         {equipment.length === 0 ? (
@@ -67,6 +72,7 @@ export default async function TerminaisPage() {
                   <th className="px-3 py-2">Tipo</th>
                   <th className="px-3 py-2">Localização</th>
                   <th className="px-3 py-2">Webhook</th>
+                  <th className="px-3 py-2">Mapeamento de campos</th>
                   <th className="px-3 py-2">Estado</th>
                   <th className="px-3 py-2">Ações</th>
                 </tr>
@@ -81,6 +87,20 @@ export default async function TerminaisPage() {
                     <td className="px-3 py-2.5 align-top">{eq.department?.name ?? "—"}</td>
                     <td className="px-3 py-2.5 align-top">
                       <WebhookUrl url={`${baseUrl}/api/picagens/webhook/${eq.webhookToken}`} />
+                    </td>
+                    <td className="px-3 py-2.5 align-top">
+                      <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400">
+                        <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{eq.payloadEmployeeField}</code>
+                        <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{eq.payloadTypeField}</code>
+                        <code className="rounded bg-stone-100 px-1 dark:bg-stone-800">{eq.payloadTimestampField}</code>
+                        <EditMappingButton
+                          equipmentId={eq.id}
+                          equipmentName={eq.name}
+                          payloadEmployeeField={eq.payloadEmployeeField}
+                          payloadTypeField={eq.payloadTypeField}
+                          payloadTimestampField={eq.payloadTimestampField}
+                        />
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 align-top">
                       <Badge color={eq.active ? "green" : "slate"}>{eq.active ? "Ativo" : "Inativo"}</Badge>

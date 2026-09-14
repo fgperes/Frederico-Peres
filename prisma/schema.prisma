@@ -423,6 +423,13 @@ model Equipment {
   active       Boolean     @default(true)
   createdAt    DateTime    @default(now())
 
+  // Mapeamento dos nomes de campo que ESTE fabricante usa no JSON do
+  // webhook para os 3 dados que são de facto gravados no TimeClockEntry —
+  // tudo o resto que o pedido traga fica só como referência, não é gravado.
+  payloadEmployeeField  String @default("employeeExternalId")
+  payloadTypeField      String @default("type")
+  payloadTimestampField String @default("timestamp")
+
   entries TimeClockEntry[]
 }
 
@@ -434,13 +441,21 @@ model HoursCorrection {
   employeeId   String
   employee     Employee @relation(fields: [employeeId], references: [id])
   date         DateTime
+  // A que lado da comparação (execução vs. planeado) a correção se aplica —
+  // permite corrigir tanto o real (picagens) como o previsto (escala), cada
+  // um com o seu próprio ajuste, e recalcular a diferença a partir dos dois.
+  field        String   @default("ACTUAL") // ACTUAL | SCHEDULED
   minutesDelta Int
   reason       String?
   createdById  String
   createdBy    User     @relation("HoursCorrectionCreatedBy", fields: [createdById], references: [id])
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@index([employeeId, date])
+  // Uma correção "ativa" por colaborador/dia/lado — editar uma correção
+  // existente substitui-a (upsert), em vez de acumular ajustes que seriam
+  // difíceis de rever mais tarde.
+  @@unique([employeeId, date, field])
 }
 
 // ---------------------------------------------------------------------------
