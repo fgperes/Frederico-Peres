@@ -473,6 +473,15 @@ model AbsenceType {
   affectsBalance   Boolean          @default(true)
   // Marca o tipo "Férias", gerido pelo módulo dedicado (não pelas Ausências).
   isVacation       Boolean          @default(false)
+  // Código de motivo de ausência usado na comunicação à Segurança Social
+  // (DMR/plataforma que a substitui) — texto livre, preenchido por RH/
+  // contabilidade; a aplicação não valida nem atribui automaticamente.
+  socialSecurityCode String?
+  // % do salário normal mantido durante este tipo de ausência: 100 = sem
+  // dedução (totalmente pago pela entidade empregadora), 0 = sem
+  // remuneração da entidade (ex.: subsídio pago diretamente pela SS), ou
+  // um valor intermédio. Usado no cálculo do recibo de vencimento.
+  salaryImpactPercent Float          @default(100)
   createdAt        DateTime         @default(now())
   absences         Absence[]
   balances         AbsenceBalance[]

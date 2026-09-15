@@ -116,7 +116,7 @@ export async function computePayslipBreakdown(
   const periodStart = new Date(year, month - 1, 1);
   const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-  const [entries, shifts, unpaidAbsences, components] = await Promise.all([
+  const [entries, shifts, absencesWithImpact, components] = await Promise.all([
     prisma.timeClockEntry.findMany({
       where: { employeeId, timestamp: { gte: periodStart, lte: periodEnd } },
       orderBy: { timestamp: "asc" },
@@ -128,10 +128,11 @@ export async function computePayslipBreakdown(
       where: {
         employeeId,
         status: "APPROVED",
-        absenceType: { paid: false },
+        absenceType: { salaryImpactPercent: { lt: 100 } },
         startDate: { lte: periodEnd },
         endDate: { gte: periodStart },
       },
+      include: { absenceType: { select: { salaryImpactPercent: true } } },
     }),
     prisma.payrollComponent.findMany({
       where: {
@@ -175,12 +176,17 @@ export async function computePayslipBreakdown(
 
   const workedDays = workedByDay.size;
 
-  let absenceDeductionDays = 0;
-  for (const absence of unpaidAbsences) {
-    absenceDeductionDays += overlapDays(absence.startDate, absence.endDate, periodStart, periodEnd);
-  }
+  // Cada dia de ausência com impacto salarial < 100% desconta a fração
+  // correspondente da diária (0% = desconto total, 50% = meia diária, etc.).
   const dailyRate = settings.workingDaysPerMonth > 0 ? baseSalary / settings.workingDaysPerMonth : 0;
-  const absenceDeduction = absenceDeductionDays * dailyRate;
+  let absenceDeductionDays = 0;
+  let absenceDeduction = 0;
+  for (const absence of absencesWithImpact) {
+    const days = overlapDays(absence.startDate, absence.endDate, periodStart, periodEnd);
+    const unpaidFraction = 1 - absence.absenceType.salaryImpactPercent / 100;
+    absenceDeductionDays += days * unpaidFraction;
+    absenceDeduction += days * unpaidFraction * dailyRate;
+  }
 
   const mealAllowanceDaily = employee.mealAllowanceOverride ?? settings.mealAllowanceDaily;
   const mealAllowanceTotal = workedDays * mealAllowanceDaily;
