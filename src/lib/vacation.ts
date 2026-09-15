@@ -83,6 +83,56 @@ export async function getOrCreateVacationBalance(employeeId: string, year: numbe
   return { balance, type };
 }
 
+// Versão em lote de getOrCreateVacationBalance — para uma lista de
+// colaboradores, faz sempre um número fixo de consultas à BD (não uma por
+// colaborador). Importante em produção: o pooler do Supabase está limitado
+// a poucas ligações simultâneas, e uma página como "Férias por Equipa" com
+// dezenas de colaboradores disparava antes até ao dobro de consultas em
+// paralelo por colaborador, esgotando as ligações disponíveis.
+export async function getOrCreateVacationBalancesBatch(
+  employeeIds: string[],
+  year: number
+): Promise<Map<string, Awaited<ReturnType<typeof getOrCreateVacationBalance>>["balance"]>> {
+  const result = new Map<string, Awaited<ReturnType<typeof getOrCreateVacationBalance>>["balance"]>();
+  if (employeeIds.length === 0) return result;
+
+  const type = await getVacationType();
+
+  const [existing, employees] = await Promise.all([
+    prisma.absenceBalance.findMany({
+      where: { employeeId: { in: employeeIds }, absenceTypeId: type.id, year },
+    }),
+    prisma.employee.findMany({
+      where: { id: { in: employeeIds } },
+      select: { id: true, hireDate: true },
+    }),
+  ]);
+
+  for (const b of existing) result.set(b.employeeId, b);
+
+  const missingIds = employeeIds.filter((id) => !result.has(id));
+  if (missingIds.length > 0) {
+    const hireDateByEmployee = new Map(employees.map((e) => [e.id, e.hireDate]));
+    await prisma.absenceBalance.createMany({
+      data: missingIds.map((employeeId) => {
+        const hireDate = hireDateByEmployee.get(employeeId);
+        const entitledDays =
+          hireDate && hireDate.getFullYear() === year
+            ? computeFirstYearEntitlement(hireDate)
+            : (type.annualLimitDays ?? 22);
+        return { employeeId, absenceTypeId: type.id, year, entitledDays };
+      }),
+      skipDuplicates: true,
+    });
+    const created = await prisma.absenceBalance.findMany({
+      where: { employeeId: { in: missingIds }, absenceTypeId: type.id, year },
+    });
+    for (const b of created) result.set(b.employeeId, b);
+  }
+
+  return result;
+}
+
 export type VacationHeadcount = {
   entitled: number;
   carryOver: number;

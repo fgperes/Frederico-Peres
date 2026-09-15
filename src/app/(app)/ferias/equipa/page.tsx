@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { getOrCreateVacationBalance, computeHeadcount, getVacationType, effectiveStatus } from "@/lib/vacation";
+import { getOrCreateVacationBalancesBatch, computeHeadcount, getVacationType, effectiveStatus } from "@/lib/vacation";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "../tabs";
 import { BalanceEditor } from "./balance-editor";
@@ -114,7 +114,9 @@ export default async function FeriasEquipaPage({
     nextParams.set("month", String(month + 1));
   }
 
-  const employeeIdsForBalance = employees.slice(0, 30); // limita a query de saldos a um número razoável
+  // Sem limite artificial de colaboradores: getOrCreateVacationBalancesBatch
+  // faz sempre um número fixo de consultas, não uma por colaborador.
+  const employeeIdsForBalance = employees;
 
   return (
     <div>
@@ -305,18 +307,22 @@ export default async function FeriasEquipaPage({
 }
 
 async function TeamHeadcountTable({ employeeIds, year }: { employeeIds: string[]; year: number }) {
-  const employees = await prisma.employee.findMany({
-    where: { id: { in: employeeIds } },
-    select: { id: true, firstName: true, lastName: true },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-  });
+  const [employees, balances] = await Promise.all([
+    prisma.employee.findMany({
+      where: { id: { in: employeeIds } },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    }),
+    getOrCreateVacationBalancesBatch(employeeIds, year),
+  ]);
 
-  const rows = await Promise.all(
-    employees.map(async (e) => {
-      const { balance } = await getOrCreateVacationBalance(e.id, year);
-      return { employee: e, headcount: computeHeadcount(balance) };
-    })
-  );
+  const rows = employees.map((e) => {
+    const balance = balances.get(e.id);
+    return {
+      employee: e,
+      headcount: computeHeadcount(balance ?? { entitledDays: 0, carryOverDays: 0, usedDays: 0, plannedDays: 0 }),
+    };
+  });
 
   return (
     <Card>
