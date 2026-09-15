@@ -3,6 +3,7 @@ import { ROLE_LABELS } from "@/lib/roles";
 import { computeWorkedHoursByDay } from "@/lib/hours";
 import { formatDateTime } from "@/lib/format";
 import { shiftDurationHours } from "@/lib/schedule";
+import { getContractTypeLabels } from "@/lib/contract-types";
 
 export type ReportResult = { columns: string[]; rows: (string | number)[][] };
 export type ReportFilters = { from: Date; to: Date; employeeIds?: string[] };
@@ -19,6 +20,11 @@ export const REPORT_DEFINITIONS: { key: string; label: string; usesRange: boolea
   { key: "horas_esperadas", label: "Horas Esperadas (Escala)", usesRange: true },
   { key: "saldo_horas", label: "Saldo de Horas (realizadas vs. esperadas)", usesRange: true },
   { key: "acumulados", label: "Acumulados do Ano e Anteriores", usesRange: true },
+  { key: "contratos", label: "Contratos", usesRange: true },
+  { key: "picagens_correcoes", label: "Picagens — Correções Manuais", usesRange: true },
+  { key: "terminais", label: "Terminais de Picagem", usesRange: true },
+  { key: "escalas_publicacao", label: "Escalas — Publicação (Rascunho vs. Publicado)", usesRange: true },
+  { key: "noticias", label: "Notícias (Publicações)", usesRange: true },
 ];
 
 export async function generateReport(key: string, filters: ReportFilters): Promise<ReportResult> {
@@ -45,6 +51,16 @@ export async function generateReport(key: string, filters: ReportFilters): Promi
       return reportSaldoHoras(filters);
     case "acumulados":
       return reportAcumulados(filters);
+    case "contratos":
+      return reportContratos(filters);
+    case "picagens_correcoes":
+      return reportPicagensCorrecoes(filters);
+    case "terminais":
+      return reportTerminais(filters);
+    case "escalas_publicacao":
+      return reportEscalasPublicacao(filters);
+    case "noticias":
+      return reportNoticias(filters);
     default:
       throw new Error("Relatório desconhecido.");
   }
@@ -172,10 +188,12 @@ async function reportAusencias(filters: ReportFilters): Promise<ReportResult> {
     orderBy: { startDate: "asc" },
   });
   return {
-    columns: ["Colaborador", "Tipo", "Início", "Fim", "Dias", "Estado"],
+    columns: ["Colaborador", "Tipo", "Código SS", "Impacto salarial", "Início", "Fim", "Dias", "Estado"],
     rows: absences.map((a) => [
       `${a.employee.firstName} ${a.employee.lastName}`,
       a.absenceType.name,
+      a.absenceType.socialSecurityCode ?? "",
+      `${a.absenceType.salaryImpactPercent}%`,
       a.startDate.toISOString().slice(0, 10),
       a.endDate.toISOString().slice(0, 10),
       a.days,
@@ -402,5 +420,168 @@ async function reportAcumulados(filters: ReportFilters): Promise<ReportResult> {
       `Saldo de férias ${currentYear}`,
     ],
     rows,
+  };
+}
+
+// --- Contratos ---------------------------------------------------------
+
+const CONTRACT_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Ativo",
+  EXPIRED: "Expirado",
+  TERMINATED: "Rescindido",
+};
+
+async function reportContratos(filters: ReportFilters): Promise<ReportResult> {
+  const contractTypeLabels = await getContractTypeLabels();
+  const contracts = await prisma.contract.findMany({
+    where: {
+      employeeId: employeeFilter(filters.employeeIds),
+      startDate: { lte: filters.to },
+      OR: [{ endDate: null }, { endDate: { gte: filters.from } }],
+    },
+    include: { employee: true },
+    orderBy: { startDate: "asc" },
+  });
+  return {
+    columns: ["Colaborador", "Tipo", "Versão", "Início", "Fim", "Horas/semana", "Remuneração base", "Estado"],
+    rows: contracts.map((c) => [
+      `${c.employee.firstName} ${c.employee.lastName}`,
+      contractTypeLabels[c.contractType] ?? c.contractType,
+      c.version,
+      c.startDate.toISOString().slice(0, 10),
+      c.endDate ? c.endDate.toISOString().slice(0, 10) : "",
+      c.weeklyHours,
+      c.baseSalary ? round1(c.baseSalary) : "",
+      CONTRACT_STATUS_LABELS[c.status] ?? c.status,
+    ]),
+  };
+}
+
+// --- Picagens: correções manuais -----------------------------------------
+
+const HOURS_CORRECTION_FIELD_LABELS: Record<string, string> = {
+  ACTUAL: "Real (picagens)",
+  SCHEDULED: "Previsto (escala)",
+};
+
+async function reportPicagensCorrecoes(filters: ReportFilters): Promise<ReportResult> {
+  const corrections = await prisma.hoursCorrection.findMany({
+    where: {
+      date: { gte: filters.from, lte: filters.to },
+      employeeId: employeeFilter(filters.employeeIds),
+    },
+    include: { employee: true, createdBy: true },
+    orderBy: { date: "asc" },
+  });
+  return {
+    columns: ["Colaborador", "Data", "Campo corrigido", "Ajuste (min)", "Motivo", "Corrigido por", "Em"],
+    rows: corrections.map((c) => [
+      `${c.employee.firstName} ${c.employee.lastName}`,
+      c.date.toISOString().slice(0, 10),
+      HOURS_CORRECTION_FIELD_LABELS[c.field] ?? c.field,
+      c.minutesDelta,
+      c.reason ?? "",
+      c.createdBy.name,
+      formatDateTime(c.updatedAt),
+    ]),
+  };
+}
+
+// --- Terminais de picagem --------------------------------------------------
+
+async function reportTerminais(filters: ReportFilters): Promise<ReportResult> {
+  const equipment = await prisma.equipment.findMany({
+    include: {
+      department: true,
+      entries: {
+        where: { timestamp: { gte: filters.from, lte: filters.to } },
+        select: { id: true },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+  return {
+    columns: ["Terminal", "Tipo", "Departamento", "Estado", "Mapeamento (colaborador/tipo/data)", "Picagens no período"],
+    rows: equipment.map((e) => [
+      e.name,
+      e.type,
+      e.department?.name ?? "",
+      e.active ? "Ativo" : "Inativo",
+      `${e.payloadEmployeeField} / ${e.payloadTypeField} / ${e.payloadTimestampField}`,
+      e.entries.length,
+    ]),
+  };
+}
+
+// --- Escalas: publicação -----------------------------------------------
+
+async function reportEscalasPublicacao(filters: ReportFilters): Promise<ReportResult> {
+  const shifts = await prisma.shift.findMany({
+    where: {
+      date: { gte: filters.from, lte: filters.to },
+      employeeId: employeeFilter(filters.employeeIds),
+    },
+    include: { employee: true, shiftTemplate: true },
+  });
+
+  const byEmployee = new Map<
+    string,
+    { name: string; draftCount: number; publishedCount: number; draftHours: number; publishedHours: number }
+  >();
+  for (const s of shifts) {
+    const key = s.employeeId;
+    if (!byEmployee.has(key)) {
+      byEmployee.set(key, {
+        name: `${s.employee.firstName} ${s.employee.lastName}`,
+        draftCount: 0,
+        publishedCount: 0,
+        draftHours: 0,
+        publishedHours: 0,
+      });
+    }
+    const entry = byEmployee.get(key)!;
+    const hours = shiftDurationHours(s.startTime, s.endTime, s.shiftTemplate?.breakMins ?? 0);
+    if (s.status === "PUBLISHED") {
+      entry.publishedCount += 1;
+      entry.publishedHours += hours;
+    } else {
+      entry.draftCount += 1;
+      entry.draftHours += hours;
+    }
+  }
+
+  const rows = Array.from(byEmployee.values())
+    .map((e) => [
+      e.name,
+      e.draftCount,
+      round1(e.draftHours),
+      e.publishedCount,
+      round1(e.publishedHours),
+    ] as (string | number)[])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
+  return {
+    columns: ["Colaborador", "Turnos em rascunho", "Horas (rascunho)", "Turnos publicados", "Horas (publicadas)"],
+    rows,
+  };
+}
+
+// --- Notícias ------------------------------------------------------------
+
+async function reportNoticias(filters: ReportFilters): Promise<ReportResult> {
+  const news = await prisma.news.findMany({
+    where: { createdAt: { gte: filters.from, lte: filters.to } },
+    include: { author: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return {
+    columns: ["Assunto", "Autor", "Notifica utilizadores", "Perfis-alvo", "Publicado em"],
+    rows: news.map((n) => [
+      n.subject,
+      n.author.name,
+      n.notifyUsers ? "Sim" : "Não",
+      n.targetRoles.length > 0 ? n.targetRoles.map((r) => ROLE_LABELS[r] ?? r).join("; ") : "Todos",
+      formatDateTime(n.createdAt),
+    ]),
   };
 }
