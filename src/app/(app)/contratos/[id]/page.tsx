@@ -5,7 +5,7 @@ import { PageHeader, Card, Badge, LinkButton, Button } from "@/components/ui";
 import { setContractStatus } from "../actions";
 import { notFound } from "next/navigation";
 import { FileSignature } from "lucide-react";
-import { CONTRACT_TYPE_LABELS } from "@/lib/contract-constants";
+import { getContractTypeLabels } from "@/lib/contract-types";
 
 export default async function ContractDetailPage({
   params,
@@ -24,17 +24,20 @@ export default async function ContractDetailPage({
 
   // CT-03: histórico completo de versões/aditamentos.
   const rootId = contract.parentContractId ?? contract.id;
-  const allVersions = await prisma.contract.findMany({
-    where: { OR: [{ id: rootId }, { parentContractId: rootId }] },
-    orderBy: { version: "asc" },
-  });
+  const [allVersions, contractTypeLabels] = await Promise.all([
+    prisma.contract.findMany({
+      where: { OR: [{ id: rootId }, { parentContractId: rootId }] },
+      orderBy: { version: "asc" },
+    }),
+    getContractTypeLabels(),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
         icon={FileSignature}
         title={`Contrato — ${contract.employee.firstName} ${contract.employee.lastName}`}
-        description={`${CONTRACT_TYPE_LABELS[contract.contractType] ?? contract.contractType} · versão ${contract.version}`}
+        description={`${contractTypeLabels[contract.contractType] ?? contract.contractType} · versão ${contract.version}`}
         action={
           <div className="flex items-center gap-2">
             <Badge color={contract.status === "ACTIVE" ? "green" : contract.status === "EXPIRED" ? "amber" : "slate"}>
@@ -86,7 +89,7 @@ export default async function ContractDetailPage({
             {allVersions.map((v) => (
               <li key={v.id} className="flex items-center justify-between py-2">
                 <span>
-                  v{v.version} — {CONTRACT_TYPE_LABELS[v.contractType]} — {v.weeklyHours}h
+                  v{v.version} — {contractTypeLabels[v.contractType]} — {v.weeklyHours}h
                 </span>
                 <span className="text-xs text-stone-500">
                   {v.startDate.toLocaleDateString("pt-PT")}

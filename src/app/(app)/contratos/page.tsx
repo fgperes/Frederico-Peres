@@ -5,8 +5,8 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
 import Link from "next/link";
 import { addDays } from "date-fns";
-import { FileSignature } from "lucide-react";
-import { CONTRACT_TYPE_LABELS } from "@/lib/contract-constants";
+import { FileSignature, Settings2 } from "lucide-react";
+import { getContractTypeLabels } from "@/lib/contract-types";
 
 export default async function ContratosPage({
   searchParams,
@@ -22,7 +22,7 @@ export default async function ContratosPage({
   const scopedEmployees = await prisma.employee.findMany({ where: scope });
   const employeeIds = scopedEmployees.map((e) => e.id);
 
-  const [contracts, expiring] = await Promise.all([
+  const [contracts, expiring, contractTypeLabels] = await Promise.all([
     prisma.contract.findMany({
       where: { employeeId: { in: employeeIds } },
       include: { employee: true },
@@ -37,6 +37,7 @@ export default async function ContratosPage({
       include: { employee: true },
       orderBy: { endDate: "asc" },
     }),
+    getContractTypeLabels(),
   ]);
 
   return (
@@ -45,6 +46,16 @@ export default async function ContratosPage({
         icon={FileSignature}
         title="Contratos de Trabalho"
         description="Dados contratuais, aditamentos e alertas de prazos."
+        action={
+          canEdit && (
+            <div className="flex items-center gap-2">
+              <LinkButton href="/contratos/tipos" variant="secondary">
+                <Settings2 size={14} /> Tipos de Contrato
+              </LinkButton>
+              <LinkButton href="/contratos/novo">+ Novo Contrato</LinkButton>
+            </div>
+          )
+        }
       />
 
       {expiring.length > 0 && (
@@ -70,7 +81,7 @@ export default async function ContratosPage({
                 <Link href={`/contratos/${c.id}`} className="hover:underline">
                   {c.employee.firstName} {c.employee.lastName}
                 </Link>{" "}
-                — {CONTRACT_TYPE_LABELS[c.contractType]} — termina em{" "}
+                — {contractTypeLabels[c.contractType]} — termina em{" "}
                 {c.endDate?.toLocaleDateString("pt-PT")}
               </li>
             ))}
@@ -103,7 +114,7 @@ export default async function ContratosPage({
                       </Link>
                       {c.version > 1 && <span className="ml-2 text-xs text-stone-500">v{c.version}</span>}
                     </td>
-                    <td className="px-4 py-3">{CONTRACT_TYPE_LABELS[c.contractType] ?? c.contractType}</td>
+                    <td className="px-4 py-3">{contractTypeLabels[c.contractType] ?? c.contractType}</td>
                     <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
                     <td className="px-4 py-3">{c.endDate ? c.endDate.toLocaleDateString("pt-PT") : "—"}</td>
                     <td className="px-4 py-3">{c.weeklyHours}h</td>

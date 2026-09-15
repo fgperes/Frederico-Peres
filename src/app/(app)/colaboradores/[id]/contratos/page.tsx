@@ -4,7 +4,7 @@ import { canWrite, canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
 import { ColaboradorTabs } from "../tabs";
-import { CONTRACT_TYPE_LABELS } from "@/lib/contract-constants";
+import { getContractTypeLabels } from "@/lib/contract-types";
 import { notFound, redirect } from "next/navigation";
 import { User, Plus } from "lucide-react";
 
@@ -22,10 +22,13 @@ export default async function ColaboradorContratosPage({
   if (!employee) notFound();
 
   const canEdit = canWrite(user.roles, "contratos");
-  const contracts = await prisma.contract.findMany({
-    where: { employeeId: employee.id },
-    orderBy: { version: "asc" },
-  });
+  const [contracts, contractTypeLabels] = await Promise.all([
+    prisma.contract.findMany({
+      where: { employeeId: employee.id },
+      orderBy: { version: "asc" },
+    }),
+    getContractTypeLabels(),
+  ]);
   const active = contracts.find((c) => c.status === "ACTIVE");
 
   return (
@@ -61,7 +64,7 @@ export default async function ColaboradorContratosPage({
           <EmptyState message="Sem contrato ativo. Crie um para definir vínculo, horas semanais e vencimento base." />
         ) : (
           <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            <Info label="Tipo de contrato" value={CONTRACT_TYPE_LABELS[active.contractType] ?? active.contractType} />
+            <Info label="Tipo de contrato" value={contractTypeLabels[active.contractType] ?? active.contractType} />
             <Info label="Horas semanais" value={`${active.weeklyHours}h`} />
             <Info label="Data de início" value={active.startDate.toLocaleDateString("pt-PT")} />
             <Info label="Data de fim" value={active.endDate ? active.endDate.toLocaleDateString("pt-PT") : "—"} />
@@ -93,7 +96,7 @@ export default async function ColaboradorContratosPage({
             {[...contracts].reverse().map((c) => (
               <li key={c.id} className="flex items-center justify-between py-2.5">
                 <a href={`/contratos/${c.id}`} className="text-violet-700 hover:underline dark:text-violet-400">
-                  v{c.version} — {CONTRACT_TYPE_LABELS[c.contractType] ?? c.contractType} — {c.weeklyHours}h
+                  v{c.version} — {contractTypeLabels[c.contractType] ?? c.contractType} — {c.weeklyHours}h
                 </a>
                 <span className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
                   {c.startDate.toLocaleDateString("pt-PT")}

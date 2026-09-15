@@ -1,13 +1,14 @@
 import type { Employee } from "@prisma/client";
 import { createContract } from "./actions";
-import { CONTRACT_TYPES } from "@/lib/contract-constants";
 
 export function ContractForm({
   employees,
+  contractTypes,
   defaultEmployeeId,
   parentContractId,
 }: {
   employees: Employee[];
+  contractTypes: { key: string; label: string }[];
   defaultEmployeeId?: string;
   parentContractId?: string;
 }) {
@@ -38,8 +39,8 @@ export function ContractForm({
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600">Tipo de contrato</label>
           <select name="contractType" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
-            {CONTRACT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            {contractTypes.map((t) => (
+              <option key={t.key} value={t.key}>{t.label}</option>
             ))}
           </select>
         </div>

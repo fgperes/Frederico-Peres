@@ -685,6 +685,18 @@ model EvaluationAnswer {
 // Módulo de Contratos de Trabalho (secção 9)
 // ---------------------------------------------------------------------------
 
+// Lista de tipos de contrato configurável (tal como RoleDefinition para os
+// perfis) — os 5 tipos originais vêm marcados isSystem (não podem ser
+// apagados, o código depende do valor "PART_TIME"), mas o Administrador
+// pode adicionar outros tipos específicos da empresa.
+model ContractTypeDefinition {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 model Contract {
   id                 String     @id @default(cuid())
   employeeId         String

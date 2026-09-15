@@ -84,3 +84,40 @@ export async function setContractStatus(contractId: string, status: "ACTIVE" | "
   revalidatePath("/contratos");
   revalidatePath(`/contratos/${contractId}`);
 }
+
+// Tipos de contrato configuráveis (tal como os tipos de ausência).
+export async function createContractType(formData: FormData) {
+  const user = await assertCanWrite();
+  const label = String(formData.get("label") ?? "").trim();
+  if (!label) throw new Error("Nome obrigatório.");
+
+  const key = label
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (!key) throw new Error("Nome inválido.");
+
+  const existing = await prisma.contractTypeDefinition.findUnique({ where: { key } });
+  if (existing) throw new Error("Já existe um tipo de contrato com este nome.");
+
+  const type = await prisma.contractTypeDefinition.create({ data: { key, label, isSystem: false } });
+  await logAudit({ userId: user.id, action: "CREATE", entity: "ContractTypeDefinition", entityId: type.id, details: label });
+  revalidatePath("/contratos/tipos");
+  revalidatePath("/contratos/novo");
+}
+
+export async function deleteContractType(contractTypeId: string) {
+  const user = await assertCanWrite();
+  const type = await prisma.contractTypeDefinition.findUniqueOrThrow({ where: { id: contractTypeId } });
+  if (type.isSystem) throw new Error("Este tipo de contrato é um tipo base do sistema e não pode ser removido.");
+
+  const inUse = await prisma.contract.count({ where: { contractType: type.key } });
+  if (inUse > 0) throw new Error(`Este tipo está em uso em ${inUse} contrato(s) e não pode ser removido.`);
+
+  await prisma.contractTypeDefinition.delete({ where: { id: contractTypeId } });
+  await logAudit({ userId: user.id, action: "DELETE", entity: "ContractTypeDefinition", entityId: contractTypeId, details: type.label });
+  revalidatePath("/contratos/tipos");
+  revalidatePath("/contratos/novo");
+}
