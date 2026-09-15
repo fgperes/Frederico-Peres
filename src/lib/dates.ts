@@ -32,6 +32,21 @@ export const WEEKDAY_LABELS = [
   "Domingo",
 ];
 
+export const MONTH_LABELS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
 export function addWeeksIso(dateStr: string, weeks: number): string {
   const d = addDays(parseISO(dateStr), weeks * 7);
   return isoDate(d);

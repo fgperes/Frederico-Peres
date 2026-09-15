@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { getWeekStart, getWeekDays, isoDate, WEEKDAY_LABELS, addWeeksIso } from "@/lib/dates";
+import { getWeekStart, getWeekDays, isoDate, WEEKDAY_LABELS, MONTH_LABELS, addWeeksIso } from "@/lib/dates";
 import { computeWorkedHoursByDay } from "@/lib/hours";
 import { shiftDurationHours } from "@/lib/schedule";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
@@ -15,14 +15,21 @@ import type { Prisma } from "@prisma/client";
 export default async function ExecucaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; departmentId?: string; employeeId?: string }>;
+  searchParams: Promise<{ week?: string; month?: string; year?: string; departmentId?: string; employeeId?: string }>;
 }) {
   const user = await requireUser();
   const canEdit = canWrite(user.roles, "picagens");
   const scope = await employeeScopeWhere(user);
   const params = await searchParams;
 
-  const weekStart = getWeekStart(params.week);
+  // O filtro de Mês/Ano tem prioridade sobre a navegação semana-a-semana:
+  // ao escolher um mês, salta para a semana que contém o dia 1 desse mês —
+  // muito mais prático do que ir clicando "semana seguinte" várias vezes.
+  const monthYearBase =
+    params.month && params.year
+      ? isoDate(new Date(Number(params.year), Number(params.month) - 1, 1))
+      : params.week;
+  const weekStart = getWeekStart(monthYearBase);
   const weekStartIso = isoDate(weekStart);
   const weekDays = getWeekDays(weekStart);
   const weekEnd = new Date(weekDays[6]);
@@ -74,8 +81,35 @@ export default async function ExecucaoPage({
       <Card className="mb-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           {canEdit && (
-            <form className="flex flex-wrap items-end gap-3" method="get">
-              <input type="hidden" name="week" value={weekStartIso} />
+            <form key={weekStartIso} className="flex flex-wrap items-end gap-3" method="get">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Mês</label>
+                <select
+                  name="month"
+                  defaultValue={weekStart.getMonth() + 1}
+                  className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  {MONTH_LABELS.map((label, i) => (
+                    <option key={label} value={i + 1}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Ano</label>
+                <select
+                  name="year"
+                  defaultValue={weekStart.getFullYear()}
+                  className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
                   Departamento
