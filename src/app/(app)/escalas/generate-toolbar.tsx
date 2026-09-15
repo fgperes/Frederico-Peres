@@ -115,15 +115,27 @@ export function GenerateToolbar({
 
           <div className="relative">
             <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Colaboradores</label>
-            <button
-              type="button"
-              onClick={() => setPickerOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-            >
-              <Users size={14} className="text-stone-400" />
-              {selected.size > 0 ? `${selected.size} selecionado(s)` : "Selecionar"}
-              <ChevronDown size={13} className="text-stone-400" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPickerOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+              >
+                <Users size={14} className="text-stone-400" />
+                {selected.size > 0 ? `${selected.size} selecionado(s)` : "Selecionar"}
+                <ChevronDown size={13} className="text-stone-400" />
+              </button>
+              {employees.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set(employees.map((e) => e.id)))}
+                  title="Seleciona todos os colaboradores que correspondem aos filtros acima (Departamento/Equipa/Colaborador)"
+                  className="whitespace-nowrap text-xs text-violet-700 hover:underline dark:text-violet-400"
+                >
+                  Selecionar {employees.length} filtrado(s)
+                </button>
+              )}
+            </div>
 
             {pickerOpen && (
               <>

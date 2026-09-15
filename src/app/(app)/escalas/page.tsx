@@ -160,8 +160,16 @@ export default async function EscalasPage({
         <GenerateToolbar
           departments={departments.map((d) => ({ id: d.id, name: d.name }))}
           employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId }))}
-          defaultFrom={isoDate(getWeekStart(params.week))}
-          defaultTo={isoDate(getWeekDays(getWeekStart(params.week))[6])}
+          defaultFrom={
+            view === "month"
+              ? isoDate(getMonthStart(params.month))
+              : isoDate(getWeekStart(params.week))
+          }
+          defaultTo={
+            view === "month"
+              ? isoDate(getMonthDays(getMonthStart(params.month)).at(-1)!)
+              : isoDate(getWeekDays(getWeekStart(params.week))[6])
+          }
         />
       )}
 
