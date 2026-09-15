@@ -813,3 +813,14 @@ model ModuleSubscription {
   updatedAt         DateTime @updatedAt
   updatedById       String?
 }
+
+// Identidade visual usada no cabeçalho dos documentos para download (ex.:
+// PDF de escalas): people4people fica sempre à esquerda (fixo no código);
+// a informação da empresa cliente à direita é o que este registo guarda.
+model DocumentBrandingSettings {
+  id                String   @id @default(cuid())
+  clientCompanyName String?
+  clientCompanyLogo String? // data URI (base64), como o avatar de utilizador
+  updatedAt         DateTime @updatedAt
+  updatedById       String?
+}

@@ -17,6 +17,7 @@ import { SendScheduleButton } from "./send-schedule-button";
 import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
+import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
@@ -49,10 +50,11 @@ export default async function EscalasPage({
     ],
   };
 
-  const [employees, departments, teams] = await Promise.all([
+  const [employees, departments, teams, branding] = await Promise.all([
     prisma.employee.findMany({ where: employeeWhere, orderBy: [{ lastName: "asc" }] }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
+    getDocumentBranding(),
   ]);
   const employeeIds = employees.map((e) => e.id);
 
@@ -172,6 +174,7 @@ export default async function EscalasPage({
           departments={departments}
           teams={teams}
           canEdit={canEdit}
+          branding={branding}
         />
       ) : (
         <MonthView
@@ -182,6 +185,7 @@ export default async function EscalasPage({
           departments={departments}
           teams={teams}
           canEdit={canEdit}
+          branding={branding}
         />
       )}
     </div>
@@ -223,6 +227,8 @@ function StatusLegend() {
   );
 }
 
+type Branding = { clientCompanyName: string | null; clientCompanyLogo: string | null };
+
 async function WeekView({
   params,
   filterQuery,
@@ -231,6 +237,7 @@ async function WeekView({
   departments,
   teams,
   canEdit,
+  branding,
 }: {
   params: { week?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
@@ -239,6 +246,7 @@ async function WeekView({
   departments: { id: string; name: string }[];
   teams: { id: string; name: string }[];
   canEdit: boolean;
+  branding: Branding;
 }) {
   const weekStart = getWeekStart(params.week);
   const weekStartIso = isoDate(weekStart);
@@ -282,6 +290,8 @@ async function WeekView({
             }
             weekDayLabels={WEEKDAY_LABELS}
             rows={pdfRows}
+            clientCompanyName={branding.clientCompanyName}
+            clientCompanyLogo={branding.clientCompanyLogo}
           />
           {canEdit && <SendScheduleButton employeeIds={employeeIds} weekLabel={weekLabel} />}
         </div>
@@ -301,6 +311,7 @@ async function MonthView({
   departments,
   teams,
   canEdit,
+  branding,
 }: {
   params: { month?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
@@ -309,6 +320,7 @@ async function MonthView({
   departments: { id: string; name: string }[];
   teams: { id: string; name: string }[];
   canEdit: boolean;
+  branding: Branding;
 }) {
   const monthStart = getMonthStart(params.month);
   const monthStartIso = isoDate(monthStart);
@@ -355,6 +367,8 @@ async function MonthView({
             }
             weekDayLabels={dayLabels}
             rows={pdfRows}
+            clientCompanyName={branding.clientCompanyName}
+            clientCompanyLogo={branding.clientCompanyLogo}
           />
           {canEdit && <SendScheduleButton employeeIds={employeeIds} weekLabel={monthLabel} />}
         </div>

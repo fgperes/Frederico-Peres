@@ -37,7 +37,7 @@ export default async function AcessosPerfisPage() {
         }
       />
 
-      <AcessosTabs />
+      <AcessosTabs showDocumentos={admin} />
 
       <div className="space-y-8">
         {admin && (

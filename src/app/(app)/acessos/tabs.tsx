@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function AcessosTabs() {
+export function AcessosTabs({ showDocumentos = false }: { showDocumentos?: boolean }) {
   const pathname = usePathname();
   const tabs = [
     { href: "/acessos", label: "Colaboradores" },
     { href: "/acessos/perfis", label: "Perfis" },
+    ...(showDocumentos ? [{ href: "/acessos/documentos", label: "Documentos" }] : []),
   ];
 
   return (

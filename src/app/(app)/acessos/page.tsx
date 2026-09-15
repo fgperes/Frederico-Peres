@@ -38,7 +38,7 @@ export default async function AcessosPage() {
         }
       />
 
-      <AcessosTabs />
+      <AcessosTabs showDocumentos={admin} />
 
       <div className="space-y-6">
         <Card className="p-0">
