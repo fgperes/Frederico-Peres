@@ -8,6 +8,7 @@ import { FeriasTabs } from "../tabs";
 import { BalanceEditor } from "./balance-editor";
 import { RecalculateButton } from "./recalculate-button";
 import { VacationLegend } from "../calendar";
+import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
 import { redirect } from "next/navigation";
 import { Plane, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -26,7 +27,7 @@ function parseIdList(value: string | undefined): string[] {
 export default async function FeriasEquipaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; departments?: string; teams?: string; employees?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; employees?: string }>;
 }) {
   const user = await requireUser();
   if (!canWrite(user.roles, "ferias")) redirect("/ferias");
@@ -39,7 +40,7 @@ export default async function FeriasEquipaPage({
   const scope = await employeeScopeWhere(user);
   const [departments, teams, allEmployees] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: "asc" } }),
-    prisma.team.findMany({ orderBy: { name: "asc" }, include: { department: true } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({
       where: { AND: [scope, { status: "ACTIVE" }] },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -47,18 +48,11 @@ export default async function FeriasEquipaPage({
     }),
   ]);
 
-  const selectedDepts = new Set(parseIdList(params.departments));
-  const selectedTeams = new Set(parseIdList(params.teams));
   const selectedEmployees = new Set(parseIdList(params.employees));
-  const hasFilter = selectedDepts.size > 0 || selectedTeams.size > 0 || selectedEmployees.size > 0;
+  const hasFilter = selectedEmployees.size > 0;
 
   const employees = hasFilter
-    ? allEmployees.filter(
-        (e) =>
-          (e.departmentId && selectedDepts.has(e.departmentId)) ||
-          (e.teamId && selectedTeams.has(e.teamId)) ||
-          selectedEmployees.has(e.id)
-      )
+    ? allEmployees.filter((e) => selectedEmployees.has(e.id))
     : allEmployees;
 
   const monthStart = new Date(year, month, 1);
@@ -95,8 +89,6 @@ export default async function FeriasEquipaPage({
   const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
   const baseParams: Record<string, string> = {};
-  if (params.departments) baseParams.departments = params.departments;
-  if (params.teams) baseParams.teams = params.teams;
   if (params.employees) baseParams.employees = params.employees;
 
   const prevParams = new URLSearchParams(baseParams);
@@ -130,74 +122,45 @@ export default async function FeriasEquipaPage({
       <FeriasTabs showTeamTabs />
 
       <Card className="mb-6">
-        <form method="get" className="flex flex-wrap items-end gap-4">
+        <form method="get" className="flex flex-wrap items-start gap-4">
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="month" value={month} />
           <div>
             <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-              Departamento
+              Departamento / Equipa / Colaborador
             </label>
-            <select
-              name="departments"
-              multiple
-              defaultValue={Array.from(selectedDepts)}
-              className="h-24 w-48 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-            >
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            <EmployeeTreeFilter
+              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+              teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+              employees={allEmployees.map((e) => ({
+                id: e.id,
+                name: `${e.firstName} ${e.lastName}`,
+                departmentId: e.departmentId,
+                teamId: e.teamId,
+              }))}
+              initialSelected={Array.from(selectedEmployees)}
+            />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
-            <select
-              name="teams"
-              multiple
-              defaultValue={Array.from(selectedTeams)}
-              className="h-24 w-48 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+          <div className="flex items-center gap-3 pt-6">
+            <button
+              type="submit"
+              className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
             >
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.department.name})
-                </option>
-              ))}
-            </select>
+              Filtrar
+            </button>
+            {hasFilter && (
+              <Link
+                href="/ferias/equipa"
+                className="text-xs text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+              >
+                Limpar filtros
+              </Link>
+            )}
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-              Colaboradores
-            </label>
-            <select
-              name="employees"
-              multiple
-              defaultValue={Array.from(selectedEmployees)}
-              className="h-24 w-56 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-            >
-              {allEmployees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.firstName} {e.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
-          >
-            Filtrar
-          </button>
-          {hasFilter && (
-            <Link
-              href="/ferias/equipa"
-              className="text-xs text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-            >
-              Limpar filtros
-            </Link>
-          )}
           <p className="w-full text-[11px] text-stone-400 dark:text-stone-600">
-            Sem seleção mostra todos os colaboradores visíveis. Use Ctrl/Cmd+clique para selecionar vários.
+            Selecionar um departamento seleciona todas as suas equipas e colaboradores; selecionar uma
+            equipa seleciona todos os seus colaboradores. Pode depois retirar colaboradores específicos
+            da seleção. Sem seleção mostra todos os colaboradores visíveis.
           </p>
         </form>
       </Card>
