@@ -6,6 +6,7 @@ import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { slugifyContractTypeKey } from "@/lib/contract-types";
 
 async function assertCanWrite() {
   const user = await requireUser();
@@ -21,7 +22,34 @@ export async function createContract(formData: FormData) {
   const user = await assertCanWrite();
 
   const employeeId = String(formData.get("employeeId"));
-  const contractType = String(formData.get("contractType"));
+  let contractType = String(formData.get("contractType"));
+
+  // "+ Novo tipo de contrato…" no próprio formulário de contrato — evita
+  // depender da página separada de Tipos de Contrato para o caso comum.
+  if (contractType === "__new__") {
+    const label = String(formData.get("newContractTypeLabel") ?? "").trim();
+    if (!label) throw new Error("Indique o nome do novo tipo de contrato.");
+    const key = slugifyContractTypeKey(label);
+    if (!key) throw new Error("Nome de tipo de contrato inválido.");
+
+    const existingType = await prisma.contractTypeDefinition.findUnique({ where: { key } });
+    if (existingType) {
+      contractType = existingType.key;
+    } else {
+      const createdType = await prisma.contractTypeDefinition.create({
+        data: { key, label, isSystem: false },
+      });
+      contractType = createdType.key;
+      await logAudit({
+        userId: user.id,
+        action: "CREATE",
+        entity: "ContractTypeDefinition",
+        entityId: createdType.id,
+        details: label,
+      });
+    }
+  }
+
   const startDate = new Date(String(formData.get("startDate")));
   const endDateRaw = String(formData.get("endDate") ?? "");
   const trialPeriodEndDateRaw = String(formData.get("trialPeriodEndDate") ?? "");
@@ -91,12 +119,7 @@ export async function createContractType(formData: FormData) {
   const label = String(formData.get("label") ?? "").trim();
   if (!label) throw new Error("Nome obrigatório.");
 
-  const key = label
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+  const key = slugifyContractTypeKey(label);
   if (!key) throw new Error("Nome inválido.");
 
   const existing = await prisma.contractTypeDefinition.findUnique({ where: { key } });

@@ -5,7 +5,7 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
 import Link from "next/link";
 import { addDays } from "date-fns";
-import { FileSignature, Settings2 } from "lucide-react";
+import { FileSignature } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
 
 export default async function ContratosPage({
@@ -46,16 +46,7 @@ export default async function ContratosPage({
         icon={FileSignature}
         title="Contratos de Trabalho"
         description="Dados contratuais, aditamentos e alertas de prazos."
-        action={
-          canEdit && (
-            <div className="flex items-center gap-2">
-              <LinkButton href="/contratos/tipos" variant="secondary">
-                <Settings2 size={14} /> Tipos de Contrato
-              </LinkButton>
-              <LinkButton href="/contratos/novo">+ Novo Contrato</LinkButton>
-            </div>
-          )
-        }
+        action={canEdit && <LinkButton href="/contratos/novo">+ Novo Contrato</LinkButton>}
       />
 
       {expiring.length > 0 && (

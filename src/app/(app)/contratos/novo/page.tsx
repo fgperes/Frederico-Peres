@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
-import { PageHeader, Card, LinkButton } from "@/components/ui";
+import { PageHeader, Card } from "@/components/ui";
 import { ContractForm } from "../contract-form";
 import { getContractTypes } from "@/lib/contract-types";
 import { redirect } from "next/navigation";
-import { FileSignature, Settings2 } from "lucide-react";
+import { FileSignature } from "lucide-react";
 
 export default async function NovoContratoPage({
   searchParams,
@@ -27,11 +27,6 @@ export default async function NovoContratoPage({
         icon={FileSignature}
         title="Novo Contrato"
         description="Registar dados contratuais de um colaborador."
-        action={
-          <LinkButton href="/contratos/tipos" variant="secondary">
-            <Settings2 size={14} /> Tipos de Contrato
-          </LinkButton>
-        }
       />
       <Card>
         <ContractForm
