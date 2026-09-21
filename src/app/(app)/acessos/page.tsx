@@ -38,7 +38,7 @@ export default async function AcessosPage() {
         }
       />
 
-      <AcessosTabs showDocumentos={admin} />
+      <AcessosTabs showDocumentos={admin} showFeriados={admin} />
 
       <div className="space-y-6">
         <Card className="p-0">
