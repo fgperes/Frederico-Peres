@@ -88,8 +88,8 @@ export default async function ContratosPage({
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
                 <tr>
+                  <th className="px-4 py-3">Contrato</th>
                   <th className="px-4 py-3">Colaborador</th>
-                  <th className="px-4 py-3">Tipo</th>
                   <th className="px-4 py-3">Início</th>
                   <th className="px-4 py-3">Fim</th>
                   <th className="px-4 py-3">Horas/semana</th>
@@ -101,11 +101,15 @@ export default async function ContratosPage({
                   <tr key={c.id} className="hover:bg-stone-50">
                     <td className="px-4 py-3">
                       <Link href={`/contratos/${c.id}`} className="font-medium text-violet-700 hover:underline">
-                        {c.employee.firstName} {c.employee.lastName}
+                        {contractTypeLabels[c.contractType] ?? c.contractType}
                       </Link>
                       {c.version > 1 && <span className="ml-2 text-xs text-stone-500">v{c.version}</span>}
                     </td>
-                    <td className="px-4 py-3">{contractTypeLabels[c.contractType] ?? c.contractType}</td>
+                    <td className="px-4 py-3">
+                      <Link href={`/colaboradores/${c.employeeId}`} className="text-stone-700 hover:underline">
+                        {c.employee.firstName} {c.employee.lastName}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
                     <td className="px-4 py-3">{c.endDate ? c.endDate.toLocaleDateString("pt-PT") : "—"}</td>
                     <td className="px-4 py-3">{c.weeklyHours}h</td>

@@ -28,22 +28,53 @@ function businessDays(startDate: Date, count: number): Date[] {
   return days;
 }
 
-// Para cada colaborador, gera 22 dias úteis distribuídos em dois blocos
-// (verão e novembro, desfasados por colaborador para criar sobreposições
-// parciais mas não totais) mais 2 dias soltos — em vez de 22 dias seguidos,
-// o que testa melhor várias vistas mensais do calendário.
-function vacationDatesFor(index: number): Date[] {
-  const summerStart = new Date(YEAR, 5, 1 + (index % 6) * 7); // Junho, desfasado até 5 semanas
-  const novemberStart = new Date(YEAR, 10, 1 + (index % 4) * 7); // Novembro, desfasado até 3 semanas
-  const loneDay1 = businessDays(new Date(YEAR, 2, 2 + (index % 10)), 1)[0]; // Março
-  const loneDay2 = businessDays(new Date(YEAR, 8, 2 + (index % 10)), 1)[0]; // Setembro
+// Gerador pseudo-aleatório determinístico (mulberry32), semeado por
+// colaborador — para o script ser idempotente (correr outra vez dá sempre
+// os mesmos períodos, em vez de acumular dias novos a cada execução).
+function hashToSeed(value: string): number {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) {
+    h = (Math.imul(31, h) + value.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
 
-  return [
-    ...businessDays(summerStart, 10),
-    ...businessDays(novemberStart, 10),
-    loneDay1,
-    loneDay2,
-  ];
+function mulberry32(seed: number): () => number {
+  let t = seed;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), t | 1);
+    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Para cada colaborador, gera entre 2 e 4 períodos de férias aleatórios
+// (datas e durações variáveis), cada um num segmento diferente do ano — para
+// não se sobreporem entre si — cuja soma dá sempre exatamente 22 dias úteis.
+function vacationDatesFor(rng: () => number): Date[] {
+  const periodCount = 2 + Math.floor(rng() * 3); // 2, 3 ou 4 períodos
+  const lengths: number[] = [];
+  let remaining = TARGET_DAYS;
+  for (let i = 0; i < periodCount - 1; i++) {
+    const periodsLeftAfterThis = periodCount - i - 1;
+    const maxLen = Math.min(10, remaining - periodsLeftAfterThis);
+    const len = 1 + Math.floor(rng() * Math.max(1, maxLen));
+    lengths.push(len);
+    remaining -= len;
+  }
+  lengths.push(remaining);
+
+  const segmentMonths = 12 / periodCount;
+  const dates: Date[] = [];
+  for (let i = 0; i < periodCount; i++) {
+    const segmentStartMonth = Math.floor(i * segmentMonths);
+    const segmentEndMonth = Math.floor((i + 1) * segmentMonths) - 1;
+    const month = segmentStartMonth + Math.floor(rng() * Math.max(1, segmentEndMonth - segmentStartMonth + 1));
+    const day = 1 + Math.floor(rng() * 15); // 1..15 — margem para o período não ultrapassar o ano
+    dates.push(...businessDays(new Date(YEAR, month, day), lengths[i]));
+  }
+  return dates.filter((d) => d.getFullYear() === YEAR);
 }
 
 async function main() {
@@ -91,7 +122,8 @@ async function main() {
       update: { entitledDays: TARGET_DAYS },
     });
 
-    const dates = vacationDatesFor(i);
+    const rng = mulberry32(hashToSeed(employee.id));
+    const dates = vacationDatesFor(rng);
     for (const date of dates) {
       const existing = await prisma.absence.findFirst({
         where: {

@@ -31,6 +31,9 @@ export async function createHoliday(formData: FormData) {
   const date = new Date(`${dateRaw}T00:00:00`);
   if (Number.isNaN(date.getTime())) throw new Error("Data inválida.");
 
+  const existing = await prisma.holiday.findFirst({ where: { date, description } });
+  if (existing) throw new Error("Já existe um feriado com esta data e descrição.");
+
   const holiday = await prisma.holiday.create({
     data: {
       date,
