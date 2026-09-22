@@ -2,11 +2,12 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
+import { PageHeader, Card, LinkButton, EmptyState } from "@/components/ui";
 import Link from "next/link";
 import { addDays } from "date-fns";
 import { FileSignature } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
+import { ContractGroupsTable, type ContractGroup } from "./contract-groups-table";
 
 export default async function ContratosPage({
   searchParams,
@@ -25,6 +26,7 @@ export default async function ContratosPage({
   const [contracts, expiring, contractTypeLabels] = await Promise.all([
     prisma.contract.findMany({
       where: { employeeId: { in: employeeIds } },
+      include: { employee: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.contract.findMany({
@@ -38,6 +40,36 @@ export default async function ContratosPage({
     }),
     getContractTypeLabels(),
   ]);
+
+  // Um "contrato" nesta listagem é um perfil de condições (tipo + horas +
+  // folgas semanais) — pode aplicar-se a vários colaboradores, por isso
+  // aparece agrupado uma única vez, com todos os colaboradores que se
+  // enquadram nessa condição por baixo.
+  const groupsByKey = new Map<string, ContractGroup>();
+  for (const c of contracts) {
+    const key = `${c.contractType}|${c.weeklyHours}|${c.weeklyRestDays}`;
+    if (!groupsByKey.has(key)) {
+      groupsByKey.set(key, {
+        key,
+        contractTypeLabel: contractTypeLabels[c.contractType] ?? c.contractType,
+        weeklyHours: c.weeklyHours,
+        weeklyRestDays: c.weeklyRestDays,
+        entries: [],
+      });
+    }
+    groupsByKey.get(key)!.entries.push({
+      id: c.id,
+      employeeId: c.employeeId,
+      employeeName: `${c.employee.firstName} ${c.employee.lastName}`,
+      startDate: c.startDate.toLocaleDateString("pt-PT"),
+      endDate: c.endDate ? c.endDate.toLocaleDateString("pt-PT") : null,
+      status: c.status,
+      version: c.version,
+    });
+  }
+  const groups = Array.from(groupsByKey.values()).sort(
+    (a, b) => a.contractTypeLabel.localeCompare(b.contractTypeLabel) || a.weeklyHours - b.weeklyHours
+  );
 
   return (
     <div>
@@ -80,42 +112,10 @@ export default async function ContratosPage({
       )}
 
       <Card className="p-0">
-        {contracts.length === 0 ? (
+        {groups.length === 0 ? (
           <div className="p-6"><EmptyState message="Sem contratos registados." /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                <tr>
-                  <th className="px-4 py-3">Contrato</th>
-                  <th className="px-4 py-3">Início</th>
-                  <th className="px-4 py-3">Fim</th>
-                  <th className="px-4 py-3">Horas/semana</th>
-                  <th className="px-4 py-3">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {contracts.map((c) => (
-                  <tr key={c.id} className="hover:bg-stone-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/contratos/${c.id}`} className="font-medium text-violet-700 hover:underline">
-                        {contractTypeLabels[c.contractType] ?? c.contractType}
-                      </Link>
-                      {c.version > 1 && <span className="ml-2 text-xs text-stone-500">v{c.version}</span>}
-                    </td>
-                    <td className="px-4 py-3">{c.startDate.toLocaleDateString("pt-PT")}</td>
-                    <td className="px-4 py-3">{c.endDate ? c.endDate.toLocaleDateString("pt-PT") : "—"}</td>
-                    <td className="px-4 py-3">{c.weeklyHours}h</td>
-                    <td className="px-4 py-3">
-                      <Badge color={c.status === "ACTIVE" ? "green" : c.status === "EXPIRED" ? "amber" : "slate"}>
-                        {c.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ContractGroupsTable groups={groups} />
         )}
       </Card>
 
