@@ -16,6 +16,7 @@ import { PageHeader, Card, Badge } from "@/components/ui";
 import { SendScheduleButton } from "./send-schedule-button";
 import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
+import { MonthYearPicker } from "./month-year-picker";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
@@ -134,6 +135,7 @@ export default async function EscalasPage({
           <div className="flex overflow-hidden rounded-full border border-stone-300 dark:border-stone-700">
             <Link
               href={`/escalas?view=week&${filterQuery}`}
+              prefetch={false}
               className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                 view === "week"
                   ? "bg-violet-600 text-white"
@@ -144,6 +146,7 @@ export default async function EscalasPage({
             </Link>
             <Link
               href={`/escalas?view=month&${filterQuery}`}
+              prefetch={false}
               className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                 view === "month"
                   ? "bg-violet-600 text-white"
@@ -205,6 +208,7 @@ function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: 
     <div className="flex items-center gap-1">
       <Link
         href={prevHref}
+        prefetch={false}
         className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 text-stone-600 hover:bg-white dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
       >
         <ChevronLeft size={15} />
@@ -214,6 +218,7 @@ function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: 
       </span>
       <Link
         href={nextHref}
+        prefetch={false}
         className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 text-stone-600 hover:bg-white dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
       >
         <ChevronRight size={15} />
@@ -236,6 +241,40 @@ function StatusLegend() {
 }
 
 type Branding = { clientCompanyName: string | null; clientCompanyLogo: string | null };
+
+// Férias/ausências aprovadas dos colaboradores visíveis, para os dias
+// mostrados na grelha — o gerador de escalas já não cria turno nesses dias
+// (ver generateSchedulesForEmployees), isto só torna essa exclusão visível.
+async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
+  if (employeeIds.length === 0 || days.length === 0) return [];
+
+  const rangeStart = days[0];
+  const rangeEnd = days[days.length - 1];
+  const absences = await prisma.absence.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      status: "APPROVED",
+      startDate: { lte: rangeEnd },
+      endDate: { gte: rangeStart },
+    },
+    include: { absenceType: { select: { name: true, isVacation: true } } },
+  });
+
+  const entries: { employeeId: string; date: Date; label: string; isVacation: boolean }[] = [];
+  for (const a of absences) {
+    for (const day of days) {
+      if (a.startDate <= day && a.endDate >= day) {
+        entries.push({
+          employeeId: a.employeeId,
+          date: day,
+          label: a.absenceType.name,
+          isVacation: a.absenceType.isVacation,
+        });
+      }
+    }
+  }
+  return entries;
+}
 
 async function WeekView({
   params,
@@ -263,9 +302,12 @@ async function WeekView({
   const nextWeek = addWeeksIso(weekStartIso, 1);
   const weekLabel = `${weekStart.toLocaleDateString("pt-PT")} a ${days[6].toLocaleDateString("pt-PT")}`;
 
-  const shifts = await prisma.shift.findMany({
-    where: { employeeId: { in: employeeIds }, date: { in: days } },
-  });
+  const [shifts, absences] = await Promise.all([
+    prisma.shift.findMany({
+      where: { employeeId: { in: employeeIds }, date: { in: days } },
+    }),
+    loadAbsencesForDays(employeeIds, days),
+  ]);
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
@@ -305,7 +347,7 @@ async function WeekView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} />
+      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
       <StatusLegend />
     </>
   );
@@ -337,9 +379,12 @@ async function MonthView({
   const nextMonth = addMonthsIso(monthStartIso, 1);
   const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
-  const shifts = await prisma.shift.findMany({
-    where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
-  });
+  const [shifts, absences] = await Promise.all([
+    prisma.shift.findMany({
+      where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
+    }),
+    loadAbsencesForDays(employeeIds, days),
+  ]);
 
   // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
   // numa página, "segunda, 14/09" por coluna não cabe de forma legível.
@@ -356,11 +401,14 @@ async function MonthView({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <PeriodNav
-          prevHref={`/escalas?view=month&month=${prevMonth}&${filterQuery}`}
-          nextHref={`/escalas?view=month&month=${nextMonth}&${filterQuery}`}
-          label={monthLabel}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodNav
+            prevHref={`/escalas?view=month&month=${prevMonth}&${filterQuery}`}
+            nextHref={`/escalas?view=month&month=${nextMonth}&${filterQuery}`}
+            label={monthLabel}
+          />
+          <MonthYearPicker year={monthStart.getFullYear()} month={monthStart.getMonth()} filterQuery={filterQuery} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <SchedulePdfButton
@@ -382,7 +430,7 @@ async function MonthView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} />
+      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
       <StatusLegend />
     </>
   );

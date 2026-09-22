@@ -17,13 +17,35 @@ export type GridShift = {
   status: string;
 };
 
+export type GridAbsence = {
+  employeeId: string;
+  date: Date;
+  label: string;
+  isVacation: boolean;
+};
+
 // Tabela partilhada pelas vistas de semana e de mês: colaboradores em
 // linha (nome, número e carga horária semanal sempre visíveis, fixos à
 // esquerda), datas em coluna — a mesma lógica em ambas, só muda quantos
-// dias aparecem.
-export function ScheduleGrid({ employees, days, shifts }: { employees: GridEmployee[]; days: Date[]; shifts: GridShift[] }) {
+// dias aparecem. Dias com férias/ausência aprovada mostram essa informação
+// em vez de um traço vazio — nesses dias o gerador de escalas já não cria
+// turno (ver generateSchedulesForEmployees).
+export function ScheduleGrid({
+  employees,
+  days,
+  shifts,
+  absences = [],
+}: {
+  employees: GridEmployee[];
+  days: Date[];
+  shifts: GridShift[];
+  absences?: GridAbsence[];
+}) {
   const shiftMap = new Map<string, GridShift>();
   for (const s of shifts) shiftMap.set(`${s.employeeId}_${isoDate(s.date)}`, s);
+
+  const absenceMap = new Map<string, GridAbsence>();
+  for (const a of absences) absenceMap.set(`${a.employeeId}_${isoDate(a.date)}`, a);
 
   if (employees.length === 0) {
     return (
@@ -67,13 +89,17 @@ export function ScheduleGrid({ employees, days, shifts }: { employees: GridEmplo
                   </p>
                 </td>
                 {days.map((d, i) => {
-                  const shift = shiftMap.get(`${e.id}_${isoDate(d)}`);
+                  const key = `${e.id}_${isoDate(d)}`;
+                  const shift = shiftMap.get(key);
+                  const absence = absenceMap.get(key);
                   return (
                     <td key={i} className="border-b border-stone-100 px-1.5 py-2 text-center dark:border-stone-800">
                       {shift ? (
                         <Badge color={shift.status === "PUBLISHED" ? "green" : "amber"}>
                           {shift.startTime}-{shift.endTime}
                         </Badge>
+                      ) : absence ? (
+                        <Badge color={absence.isVacation ? "blue" : "slate"}>{absence.label}</Badge>
                       ) : (
                         <span className="text-xs text-stone-300 dark:text-stone-700">—</span>
                       )}
