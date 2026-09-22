@@ -310,6 +310,27 @@ async function loadRestDaysForDays(employeeIds: string[], days: Date[]) {
   return entries;
 }
 
+// Sigla curta para o PDF do horário (a afixar) — "F" para folga, 3 letras
+// maiúsculas do tipo de ausência (ex.: "Férias" -> "FÉR", "Baixa Médica" ->
+// "BAI"). Sem isto, um dia de folga/férias ficava indistinguível de um dia
+// simplesmente sem horário gerado no documento impresso.
+function pdfCellLabel(
+  employeeId: string,
+  day: Date,
+  shifts: { employeeId: string; date: Date; startTime: string; endTime: string }[],
+  absences: { employeeId: string; date: Date; label: string }[],
+  restDays: { employeeId: string; date: Date }[]
+): string {
+  const dayIso = isoDate(day);
+  const shift = shifts.find((s) => s.employeeId === employeeId && isoDate(s.date) === dayIso);
+  if (shift) return `${shift.startTime}-${shift.endTime}`;
+  const absence = absences.find((a) => a.employeeId === employeeId && isoDate(a.date) === dayIso);
+  if (absence) return absence.label.slice(0, 3).toUpperCase();
+  const isRestDay = restDays.some((r) => r.employeeId === employeeId && isoDate(r.date) === dayIso);
+  if (isRestDay) return "F";
+  return "—";
+}
+
 async function WeekView({
   params,
   filterQuery,
@@ -347,10 +368,7 @@ async function WeekView({
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNumber: e.employeeNumber,
-    cells: days.map((d) => {
-      const shift = shifts.find((s) => s.employeeId === e.id && isoDate(s.date) === isoDate(d));
-      return shift ? `${shift.startTime}-${shift.endTime}` : "—";
-    }),
+    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences, restDays)),
   }));
 
   return (
@@ -428,10 +446,7 @@ async function MonthView({
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNumber: e.employeeNumber,
-    cells: days.map((d) => {
-      const shift = shifts.find((s) => s.employeeId === e.id && isoDate(s.date) === isoDate(d));
-      return shift ? `${shift.startTime}-${shift.endTime}` : "—";
-    }),
+    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences, restDays)),
   }));
 
   return (
