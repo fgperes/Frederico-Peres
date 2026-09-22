@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { createHoliday } from "./actions";
+import { useActionState, useState } from "react";
+import { createHoliday, type HolidayFormState } from "./actions";
+
+const initialState: HolidayFormState = {};
 
 export function HolidayForm({ locations }: { locations: { id: string; name: string }[] }) {
   const [scope, setScope] = useState<"NATIONAL" | "REGIONAL">("NATIONAL");
+  const [state, formAction, pending] = useActionState(createHoliday, initialState);
 
   return (
-    <form action={createHoliday} className="space-y-3">
+    <form action={formAction} className="space-y-3">
+      {state.success && (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+          {state.success}
+        </p>
+      )}
+      {state.error && (
+        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
+          {state.error}
+        </p>
+      )}
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Data</label>
         <input
@@ -63,9 +76,10 @@ export function HolidayForm({ locations }: { locations: { id: string; name: stri
       )}
       <button
         type="submit"
-        className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700"
+        disabled={pending}
+        className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
       >
-        Criar feriado
+        {pending ? "A criar..." : "Criar feriado"}
       </button>
     </form>
   );

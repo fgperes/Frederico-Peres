@@ -14,7 +14,30 @@ async function assertAdmin() {
   return user;
 }
 
-export async function createHoliday(formData: FormData) {
+// Um feriado nacional novo entra em conflito com qualquer feriado já
+// existente nesse dia (nacional ou regional); um regional novo só entra em
+// conflito com um nacional existente nesse dia, ou com outro regional que
+// partilhe pelo menos um local de trabalho.
+async function findOverlappingHoliday(date: Date, scope: HolidayScope, locationIds: string[]) {
+  const sameDay = await prisma.holiday.findMany({ where: { date }, include: { locations: true } });
+  if (sameDay.length === 0) return null;
+
+  if (scope === "NATIONAL") return sameDay[0];
+
+  const nationalConflict = sameDay.find((h) => h.scope === "NATIONAL");
+  if (nationalConflict) return nationalConflict;
+
+  return (
+    sameDay.find((h) => h.scope === "REGIONAL" && h.locations.some((l) => locationIds.includes(l.id))) ?? null
+  );
+}
+
+export type HolidayFormState = { error?: string; success?: string };
+
+export async function createHoliday(
+  _prev: HolidayFormState,
+  formData: FormData
+): Promise<HolidayFormState> {
   const user = await assertAdmin();
 
   const dateRaw = String(formData.get("date") ?? "");
@@ -22,17 +45,23 @@ export async function createHoliday(formData: FormData) {
   const scope = String(formData.get("scope") ?? "NATIONAL") as HolidayScope;
   const locationIds = formData.getAll("locationIds").map(String).filter(Boolean);
 
-  if (!dateRaw || !description) throw new Error("Data e descrição são obrigatórias.");
-  if (!HOLIDAY_SCOPES.includes(scope)) throw new Error("Âmbito inválido.");
+  if (!dateRaw || !description) return { error: "Data e descrição são obrigatórias." };
+  if (!HOLIDAY_SCOPES.includes(scope)) return { error: "Âmbito inválido." };
   if (scope === "REGIONAL" && locationIds.length === 0) {
-    throw new Error("Selecione pelo menos um local de trabalho para um feriado regional.");
+    return { error: "Selecione pelo menos um local de trabalho para um feriado regional." };
   }
 
   const date = new Date(`${dateRaw}T00:00:00`);
-  if (Number.isNaN(date.getTime())) throw new Error("Data inválida.");
+  if (Number.isNaN(date.getTime())) return { error: "Data inválida." };
 
-  const existing = await prisma.holiday.findFirst({ where: { date, description } });
-  if (existing) throw new Error("Já existe um feriado com esta data e descrição.");
+  const conflict = await findOverlappingHoliday(date, scope, locationIds);
+  if (conflict) {
+    return {
+      error: `Já existe um feriado nesta data que se sobrepõe: "${conflict.description}" (${
+        conflict.scope === "NATIONAL" ? "Nacional" : "Regional"
+      }).`,
+    };
+  }
 
   const holiday = await prisma.holiday.create({
     data: {
@@ -52,6 +81,7 @@ export async function createHoliday(formData: FormData) {
   });
 
   revalidatePath("/acessos/feriados");
+  return { success: `Feriado "${description}" criado com sucesso.` };
 }
 
 export async function deleteHoliday(holidayId: string) {
@@ -133,6 +163,12 @@ export async function importHolidaysAction(
         continue;
       }
       locationIds = resolved as string[];
+    }
+
+    const conflict = await findOverlappingHoliday(date, scope as HolidayScope, locationIds);
+    if (conflict) {
+      errorReport.push(`Linha ${rowNum}: sobrepõe-se ao feriado já existente "${conflict.description}".`);
+      continue;
     }
 
     try {
