@@ -20,6 +20,7 @@ import { MonthYearPicker } from "./month-year-picker";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
+import { differenceInCalendarDays } from "date-fns";
 import type { Prisma } from "@prisma/client";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -236,6 +237,10 @@ function StatusLegend() {
       <span className="flex items-center gap-1">
         <Badge color="green">publicado</Badge> imutável
       </span>
+      <span className="flex items-center gap-1">
+        <Badge color="blue">férias</Badge> / <Badge color="slate">outra ausência</Badge>
+      </span>
+      <span className="flex items-center gap-1 italic text-stone-400 dark:text-stone-600">Folga — dia de descanso do ciclo</span>
     </p>
   );
 }
@@ -276,6 +281,35 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
   return entries;
 }
 
+// Dias de folga planeada pelo ciclo de horário atribuído (célula
+// isDayOff) — mesmo cálculo de semana/dia do ciclo usado em
+// generateSchedulesForEmployees, só para leitura. Colaboradores sem ciclo
+// (módulo preditivo) não têm folgas fixas para mostrar aqui: emergem da
+// própria geração, não de um padrão à parte.
+async function loadRestDaysForDays(employeeIds: string[], days: Date[]) {
+  if (employeeIds.length === 0 || days.length === 0) return [];
+
+  const assignments = await prisma.scheduleCycleAssignment.findMany({
+    where: { employeeId: { in: employeeIds }, cycle: { isTemplate: false } },
+    include: { cycle: { include: { pattern: true } } },
+  });
+
+  const entries: { employeeId: string; date: Date }[] = [];
+  for (const assignment of assignments) {
+    const cycle = assignment.cycle;
+    for (const day of days) {
+      const daysSinceStart = differenceInCalendarDays(day, cycle.startDate);
+      if (daysSinceStart < 0) continue;
+      const weekOffset = Math.floor(daysSinceStart / 7) + assignment.offsetWeeks;
+      const cycleWeekIndex = ((weekOffset % cycle.weeks) + cycle.weeks) % cycle.weeks;
+      const dow = day.getDay();
+      const cell = cycle.pattern.find((p) => p.weekIndex === cycleWeekIndex && p.dayOfWeek === dow);
+      if (cell?.isDayOff) entries.push({ employeeId: assignment.employeeId, date: day });
+    }
+  }
+  return entries;
+}
+
 async function WeekView({
   params,
   filterQuery,
@@ -302,11 +336,12 @@ async function WeekView({
   const nextWeek = addWeeksIso(weekStartIso, 1);
   const weekLabel = `${weekStart.toLocaleDateString("pt-PT")} a ${days[6].toLocaleDateString("pt-PT")}`;
 
-  const [shifts, absences] = await Promise.all([
+  const [shifts, absences, restDays] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { in: days } },
     }),
     loadAbsencesForDays(employeeIds, days),
+    loadRestDaysForDays(employeeIds, days),
   ]);
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
@@ -347,7 +382,7 @@ async function WeekView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
+      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} restDays={restDays} />
       <StatusLegend />
     </>
   );
@@ -379,11 +414,12 @@ async function MonthView({
   const nextMonth = addMonthsIso(monthStartIso, 1);
   const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
-  const [shifts, absences] = await Promise.all([
+  const [shifts, absences, restDays] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
     }),
     loadAbsencesForDays(employeeIds, days),
+    loadRestDaysForDays(employeeIds, days),
   ]);
 
   // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
@@ -430,7 +466,7 @@ async function MonthView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
+      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} restDays={restDays} />
       <StatusLegend />
     </>
   );
