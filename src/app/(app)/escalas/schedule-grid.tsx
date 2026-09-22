@@ -24,6 +24,11 @@ export type GridAbsence = {
   isVacation: boolean;
 };
 
+export type GridRestDay = {
+  employeeId: string;
+  date: Date;
+};
+
 // Tabela partilhada pelas vistas de semana e de mês: colaboradores em
 // linha (nome, número e carga horária semanal sempre visíveis, fixos à
 // esquerda), datas em coluna — a mesma lógica em ambas, só muda quantos
@@ -35,17 +40,22 @@ export function ScheduleGrid({
   days,
   shifts,
   absences = [],
+  restDays = [],
 }: {
   employees: GridEmployee[];
   days: Date[];
   shifts: GridShift[];
   absences?: GridAbsence[];
+  restDays?: GridRestDay[];
 }) {
   const shiftMap = new Map<string, GridShift>();
   for (const s of shifts) shiftMap.set(`${s.employeeId}_${isoDate(s.date)}`, s);
 
   const absenceMap = new Map<string, GridAbsence>();
   for (const a of absences) absenceMap.set(`${a.employeeId}_${isoDate(a.date)}`, a);
+
+  const restDaySet = new Set<string>();
+  for (const r of restDays) restDaySet.add(`${r.employeeId}_${isoDate(r.date)}`);
 
   if (employees.length === 0) {
     return (
@@ -92,6 +102,7 @@ export function ScheduleGrid({
                   const key = `${e.id}_${isoDate(d)}`;
                   const shift = shiftMap.get(key);
                   const absence = absenceMap.get(key);
+                  const isRestDay = restDaySet.has(key);
                   return (
                     <td key={i} className="border-b border-stone-100 px-1.5 py-2 text-center dark:border-stone-800">
                       {shift ? (
@@ -100,6 +111,8 @@ export function ScheduleGrid({
                         </Badge>
                       ) : absence ? (
                         <Badge color={absence.isVacation ? "blue" : "slate"}>{absence.label}</Badge>
+                      ) : isRestDay ? (
+                        <span className="text-xs font-medium italic text-stone-400 dark:text-stone-600">Folga</span>
                       ) : (
                         <span className="text-xs text-stone-300 dark:text-stone-700">—</span>
                       )}
