@@ -118,6 +118,11 @@ export function SchedulePdfButton({
     doc.setFontSize(8);
     doc.setTextColor(140);
     doc.text(
+      "F = Folga · outras siglas de 3 letras = tipo de ausência (ex.: FÉR = Férias)",
+      14,
+      doc.internal.pageSize.getHeight() - 14
+    );
+    doc.text(
       `Gerado em ${formatDateTime(new Date())} — people4people`,
       14,
       doc.internal.pageSize.getHeight() - 10
