@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { ChevronDown } from "lucide-react";
 
 export type TreeDepartment = { id: string; name: string };
 export type TreeTeam = { id: string; name: string; departmentId: string };
@@ -118,10 +119,39 @@ export function EmployeeTreeFilter({
     });
   }, []);
 
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  const summaryLabel =
+    selected.size === 0
+      ? "Todos os colaboradores"
+      : `${selected.size} colaborador${selected.size > 1 ? "es" : ""} selecionado${selected.size > 1 ? "s" : ""}`;
+
   return (
-    <div className="w-full max-w-md">
+    <div ref={containerRef} className="relative w-full max-w-md">
       <input type="hidden" name={fieldName} value={Array.from(selected).join(",")} />
-      <div className="max-h-72 overflow-y-auto rounded-md border border-stone-300 p-2 text-sm dark:border-stone-700 dark:bg-stone-800">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700"
+      >
+        <span>{summaryLabel}</span>
+        <ChevronDown size={14} className={`text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-10 mt-1 w-full max-h-72 overflow-y-auto rounded-md border border-stone-300 bg-white p-2 text-sm shadow-lg dark:border-stone-700 dark:bg-stone-800">
         {departments.map((dept) => {
           const deptEmployeeIds = employeeIdsByDept.get(dept.id) ?? [];
           const deptState = groupState(deptEmployeeIds, selected);
@@ -209,15 +239,17 @@ export function EmployeeTreeFilter({
             </div>
           </div>
         )}
-      </div>
-      {selected.size > 0 && (
-        <button
-          type="button"
-          onClick={() => setSelected(new Set())}
-          className="mt-1.5 text-xs text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
-        >
-          Limpar seleção ({selected.size})
-        </button>
+
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="mt-1.5 w-full border-t border-stone-100 pt-1.5 text-left text-xs text-stone-500 underline hover:text-stone-700 dark:border-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+            >
+              Limpar seleção ({selected.size})
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
