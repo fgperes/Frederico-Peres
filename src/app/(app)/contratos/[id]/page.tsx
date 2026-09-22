@@ -4,8 +4,9 @@ import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, LinkButton, Button } from "@/components/ui";
 import { setContractStatus } from "../actions";
 import { notFound } from "next/navigation";
-import { FileSignature } from "lucide-react";
+import { FileSignature, User } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
+import Link from "next/link";
 
 export default async function ContractDetailPage({
   params,
@@ -36,8 +37,8 @@ export default async function ContractDetailPage({
     <div className="mx-auto max-w-3xl">
       <PageHeader
         icon={FileSignature}
-        title={`Contrato — ${contract.employee.firstName} ${contract.employee.lastName}`}
-        description={`${contractTypeLabels[contract.contractType] ?? contract.contractType} · versão ${contract.version}`}
+        title={`${contractTypeLabels[contract.contractType] ?? contract.contractType} — v${contract.version}`}
+        description="Contrato de trabalho"
         action={
           <div className="flex items-center gap-2">
             <Badge color={contract.status === "ACTIVE" ? "green" : contract.status === "EXPIRED" ? "amber" : "slate"}>
@@ -53,6 +54,19 @@ export default async function ContractDetailPage({
           </div>
         }
       />
+
+      <Card className="mb-6">
+        <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">
+          Colaborador(es) com este contrato atribuído
+        </h2>
+        <Link
+          href={`/colaboradores/${contract.employeeId}`}
+          className="flex items-center gap-2 text-sm font-medium text-violet-700 hover:underline"
+        >
+          <User size={14} />
+          {contract.employee.firstName} {contract.employee.lastName}
+        </Link>
+      </Card>
 
       <Card>
         <dl className="grid grid-cols-2 gap-4 text-sm">
