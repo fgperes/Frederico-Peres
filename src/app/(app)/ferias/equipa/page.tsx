@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { getOrCreateVacationBalancesBatch, computeHeadcount, getVacationType, effectiveStatus } from "@/lib/vacation";
+import { getOrCreateVacationBalancesBatch, computeHeadcount, getVacationType, effectiveStatus, toDateKey } from "@/lib/vacation";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "../tabs";
 import { BalanceEditor } from "./balance-editor";
@@ -24,18 +24,40 @@ function parseIdList(value: string | undefined): string[] {
   return value.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+const DIMENSIONS = { month: 1, quarter: 3, semester: 6, year: 12 } as const;
+type Dimension = keyof typeof DIMENSIONS;
+const DIMENSION_LABELS: Record<Dimension, string> = {
+  month: "Mês",
+  quarter: "Trimestre",
+  semester: "Semestre",
+  year: "Ano",
+};
+
+// Alinha o mês inicial ao começo do período (ex.: trimestre começa sempre
+// em Jan/Abr/Jul/Out) para a navegação Anterior/Seguinte fazer sentido.
+function alignMonth(month: number, monthsCount: number): number {
+  return Math.floor(month / monthsCount) * monthsCount;
+}
+
 export default async function FeriasEquipaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; employees?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; employees?: string; dimension?: string }>;
 }) {
   const user = await requireUser();
   if (!canWrite(user.roles, "ferias")) redirect("/ferias");
 
   const params = await searchParams;
   const now = new Date();
+  const dimension: Dimension = params.dimension && params.dimension in DIMENSIONS
+    ? (params.dimension as Dimension)
+    : "month";
+  const monthsCount = DIMENSIONS[dimension];
   const year = params.year ? parseInt(params.year, 10) : now.getFullYear();
-  const month = params.month !== undefined ? parseInt(params.month, 10) : now.getMonth();
+  const month = alignMonth(
+    params.month !== undefined ? parseInt(params.month, 10) : now.getMonth(),
+    monthsCount
+  );
 
   const scope = await employeeScopeWhere(user);
   const [departments, teams, allEmployees] = await Promise.all([
@@ -55,9 +77,21 @@ export default async function FeriasEquipaPage({
     ? allEmployees.filter((e) => selectedEmployees.has(e.id))
     : allEmployees;
 
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0);
-  const daysInMonth = monthEnd.getDate();
+  // Um ou mais meses consecutivos, consoante a dimensão escolhida — cada um
+  // mantém o seu próprio bloco de colunas por dia (1..daysInMonth), só que
+  // concatenados horizontalmente em vez de um único mês.
+  const monthsInRange = Array.from({ length: monthsCount }, (_, i) => {
+    const start = new Date(year, month + i, 1);
+    const end = new Date(year, month + i + 1, 0);
+    return {
+      year: start.getFullYear(),
+      month: start.getMonth(),
+      daysInMonth: end.getDate(),
+      label: start.toLocaleDateString("pt-PT", { month: "long", year: "numeric" }),
+    };
+  });
+  const rangeStart = new Date(year, month, 1);
+  const rangeEnd = new Date(year, month + monthsCount, 0, 23, 59, 59);
 
   const type = await getVacationType().catch(() => null);
   const absences = type
@@ -66,44 +100,53 @@ export default async function FeriasEquipaPage({
           employeeId: { in: employees.map((e) => e.id) },
           absenceTypeId: type.id,
           status: { in: ["PENDING", "APPROVED"] },
-          startDate: { gte: monthStart, lte: monthEnd },
+          startDate: { gte: rangeStart, lte: rangeEnd },
         },
       })
     : [];
 
-  // employeeId -> day (1-31) -> status
-  const grid = new Map<string, Map<number, string>>();
-  // day -> employeeIds com férias nesse dia (para deteção de sobreposição)
-  const byDay = new Map<number, string[]>();
+  // employeeId -> "AAAA-MM-DD" -> status
+  const grid = new Map<string, Map<string, string>>();
+  // "AAAA-MM-DD" -> employeeIds com férias nesse dia (para deteção de sobreposição)
+  const byDateKey = new Map<string, string[]>();
   for (const a of absences) {
-    const day = a.startDate.getDate();
+    const dateKey = toDateKey(a.startDate);
     if (!grid.has(a.employeeId)) grid.set(a.employeeId, new Map());
-    grid.get(a.employeeId)!.set(day, effectiveStatus(a));
-    if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day)!.push(a.employeeId);
+    grid.get(a.employeeId)!.set(dateKey, effectiveStatus(a));
+    if (!byDateKey.has(dateKey)) byDateKey.set(dateKey, []);
+    byDateKey.get(dateKey)!.push(a.employeeId);
   }
-  const overlapDays = new Set(
-    Array.from(byDay.entries()).filter(([, ids]) => new Set(ids).size >= 2).map(([day]) => day)
+  const overlapDateKeys = new Set(
+    Array.from(byDateKey.entries()).filter(([, ids]) => new Set(ids).size >= 2).map(([key]) => key)
   );
 
-  const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
+  const rangeLabel =
+    monthsCount === 1
+      ? monthsInRange[0].label
+      : `${monthsInRange[0].label} — ${monthsInRange[monthsInRange.length - 1].label}`;
 
-  const baseParams: Record<string, string> = {};
+  const baseParams: Record<string, string> = { dimension };
   if (params.employees) baseParams.employees = params.employees;
 
   const prevParams = new URLSearchParams(baseParams);
   const nextParams = new URLSearchParams(baseParams);
-  if (month === 0) {
-    prevParams.set("year", String(year - 1));
-    prevParams.set("month", "11");
-  } else {
-    prevParams.set("month", String(month - 1));
-  }
-  if (month === 11) {
-    nextParams.set("year", String(year + 1));
-    nextParams.set("month", "0");
-  } else {
-    nextParams.set("month", String(month + 1));
+  const prevAnchor = new Date(year, month - monthsCount, 1);
+  const nextAnchor = new Date(year, month + monthsCount, 1);
+  prevParams.set("year", String(prevAnchor.getFullYear()));
+  prevParams.set("month", String(prevAnchor.getMonth()));
+  nextParams.set("year", String(nextAnchor.getFullYear()));
+  nextParams.set("month", String(nextAnchor.getMonth()));
+
+  const dimensionParams: Record<Dimension, URLSearchParams> = {} as Record<Dimension, URLSearchParams>;
+  for (const dim of Object.keys(DIMENSIONS) as Dimension[]) {
+    const dimMonths = DIMENSIONS[dim];
+    const alignedMonth = alignMonth(month, dimMonths);
+    const p = new URLSearchParams();
+    if (params.employees) p.set("employees", params.employees);
+    p.set("dimension", dim);
+    p.set("year", String(year));
+    p.set("month", String(alignedMonth));
+    dimensionParams[dim] = p;
   }
 
   // Sem limite artificial de colaboradores: getOrCreateVacationBalancesBatch
@@ -125,6 +168,7 @@ export default async function FeriasEquipaPage({
         <form method="get" className="flex flex-wrap items-start gap-4">
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="month" value={month} />
+          <input type="hidden" name="dimension" value={dimension} />
           <div>
             <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
               Departamento / Equipa / Colaborador
@@ -166,23 +210,40 @@ export default async function FeriasEquipaPage({
       </Card>
 
       <Card className="mb-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold capitalize text-stone-900 dark:text-stone-100">
-            {monthLabel}
+            {rangeLabel}
           </h3>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/ferias/equipa?${prevParams.toString()}`}
-              className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
-            >
-              <ChevronLeft size={16} />
-            </Link>
-            <Link
-              href={`/ferias/equipa?${nextParams.toString()}`}
-              className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
-            >
-              <ChevronRight size={16} />
-            </Link>
+          <div className="flex items-center gap-3">
+            <div className="flex rounded-md border border-stone-300 p-0.5 dark:border-stone-700">
+              {(Object.keys(DIMENSIONS) as Dimension[]).map((dim) => (
+                <Link
+                  key={dim}
+                  href={`/ferias/equipa?${dimensionParams[dim].toString()}`}
+                  className={`rounded px-2.5 py-1 text-xs font-medium ${
+                    dim === dimension
+                      ? "bg-violet-600 text-white"
+                      : "text-stone-600 hover:bg-stone-50 dark:text-stone-300 dark:hover:bg-stone-800"
+                  }`}
+                >
+                  {DIMENSION_LABELS[dim]}
+                </Link>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/ferias/equipa?${prevParams.toString()}`}
+                className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
+              >
+                <ChevronLeft size={16} />
+              </Link>
+              <Link
+                href={`/ferias/equipa?${nextParams.toString()}`}
+                className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
+              >
+                <ChevronRight size={16} />
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -192,10 +253,10 @@ export default async function FeriasEquipaPage({
           <EmptyState icon={Plane} message="Sem colaboradores para os filtros selecionados." />
         ) : (
           <>
-            {overlapDays.size > 0 && (
+            {overlapDateKeys.size > 0 && (
               <p className="mb-3 flex items-start gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                Sobreposição de férias detetada em {overlapDays.size} dia(s) deste mês (assinalados a
+                Sobreposição de férias detetada em {overlapDateKeys.size} dia(s) do período (assinalados a
                 vermelho abaixo).
               </p>
             )}
@@ -203,19 +264,36 @@ export default async function FeriasEquipaPage({
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr>
+                    <th className="sticky left-0 bg-white px-2 py-1.5 text-stone-500 dark:bg-stone-900 dark:text-stone-400" />
+                    {monthsInRange.map((m) => (
+                      <th
+                        key={`${m.year}-${m.month}`}
+                        colSpan={m.daysInMonth}
+                        className="border-l border-stone-200 px-1 py-1 text-center font-medium capitalize text-stone-500 dark:border-stone-800 dark:text-stone-400"
+                      >
+                        {m.label}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
                     <th className="sticky left-0 bg-white px-2 py-1.5 text-stone-500 dark:bg-stone-900 dark:text-stone-400">
                       Colaborador
                     </th>
-                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
-                      <th
-                        key={day}
-                        className={`w-6 px-0.5 py-1.5 text-center font-normal text-stone-400 dark:text-stone-600 ${
-                          overlapDays.has(day) ? "text-rose-600 dark:text-rose-400" : ""
-                        }`}
-                      >
-                        {day}
-                      </th>
-                    ))}
+                    {monthsInRange.map((m) =>
+                      Array.from({ length: m.daysInMonth }, (_, i) => i + 1).map((day) => {
+                        const dateKey = toDateKey(new Date(m.year, m.month, day));
+                        return (
+                          <th
+                            key={dateKey}
+                            className={`w-6 px-0.5 py-1.5 text-center font-normal text-stone-400 dark:text-stone-600 ${
+                              overlapDateKeys.has(dateKey) ? "text-rose-600 dark:text-rose-400" : ""
+                            }`}
+                          >
+                            {day}
+                          </th>
+                        );
+                      })
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -226,32 +304,35 @@ export default async function FeriasEquipaPage({
                         <td className="sticky left-0 whitespace-nowrap bg-white px-2 py-1 font-medium text-stone-800 dark:bg-stone-900 dark:text-stone-200">
                           {e.firstName} {e.lastName}
                         </td>
-                        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
-                          const status = row?.get(day);
-                          const overlap = overlapDays.has(day) && !!status;
-                          return (
-                            <td key={day} className="p-0.5 text-center">
-                              <div
-                                title={
-                                  status
-                                    ? `${e.firstName} ${e.lastName} — ${
-                                        status === "APPROVED"
-                                          ? "aprovado"
-                                          : status === "CANCEL_PENDING"
-                                            ? "pedido de cancelamento"
-                                            : "pendente"
-                                      }`
-                                    : undefined
-                                }
-                                className={`mx-auto h-5 w-5 rounded ${
-                                  status ? `${STATUS_BG[status]} text-white` : ""
-                                } ${overlap ? "ring-2 ring-inset ring-rose-600" : ""} flex items-center justify-center text-[9px] font-medium`}
-                              >
-                                {status ? "F" : ""}
-                              </div>
-                            </td>
-                          );
-                        })}
+                        {monthsInRange.map((m) =>
+                          Array.from({ length: m.daysInMonth }, (_, i) => i + 1).map((day) => {
+                            const dateKey = toDateKey(new Date(m.year, m.month, day));
+                            const status = row?.get(dateKey);
+                            const overlap = overlapDateKeys.has(dateKey) && !!status;
+                            return (
+                              <td key={dateKey} className="p-0.5 text-center">
+                                <div
+                                  title={
+                                    status
+                                      ? `${e.firstName} ${e.lastName} — ${
+                                          status === "APPROVED"
+                                            ? "aprovado"
+                                            : status === "CANCEL_PENDING"
+                                              ? "pedido de cancelamento"
+                                              : "pendente"
+                                        }`
+                                      : undefined
+                                  }
+                                  className={`mx-auto h-5 w-5 rounded ${
+                                    status ? `${STATUS_BG[status]} text-white` : ""
+                                  } ${overlap ? "ring-2 ring-inset ring-rose-600" : ""} flex items-center justify-center text-[9px] font-medium`}
+                                >
+                                  {status ? "F" : ""}
+                                </div>
+                              </td>
+                            );
+                          })
+                        )}
                       </tr>
                     );
                   })}

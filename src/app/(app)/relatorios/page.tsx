@@ -4,6 +4,7 @@ import { canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { generateReport, REPORT_DEFINITIONS } from "@/lib/reports";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
 import { redirect } from "next/navigation";
 import { BarChart3, Download } from "lucide-react";
 import Link from "next/link";
@@ -20,8 +21,6 @@ export default async function RelatoriosPage({
     report?: string;
     from?: string;
     to?: string;
-    departments?: string;
-    teams?: string;
     employees?: string;
   }>;
 }) {
@@ -37,7 +36,7 @@ export default async function RelatoriosPage({
 
   const [departments, teams, allEmployees] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: "asc" } }),
-    prisma.team.findMany({ orderBy: { name: "asc" }, include: { department: true } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({
       where: scope,
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -46,21 +45,12 @@ export default async function RelatoriosPage({
   ]);
   const scopedIds = new Set(allEmployees.map((e) => e.id));
 
-  const selectedDepts = new Set(parseIdList(params.departments));
-  const selectedTeams = new Set(parseIdList(params.teams));
   const selectedEmployees = new Set(parseIdList(params.employees));
-  const hasFilter = selectedDepts.size > 0 || selectedTeams.size > 0 || selectedEmployees.size > 0;
+  const hasFilter = selectedEmployees.size > 0;
 
   let employeeIds: string[] | undefined;
   if (hasFilter) {
-    employeeIds = allEmployees
-      .filter(
-        (e) =>
-          (e.departmentId && selectedDepts.has(e.departmentId)) ||
-          (e.teamId && selectedTeams.has(e.teamId)) ||
-          selectedEmployees.has(e.id)
-      )
-      .map((e) => e.id);
+    employeeIds = Array.from(selectedEmployees);
   } else if (!isBroadScope) {
     employeeIds = Array.from(scopedIds);
   }
@@ -146,56 +136,21 @@ export default async function RelatoriosPage({
             </div>
           )}
 
-          <div className="flex flex-wrap gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Departamento
-              </label>
-              <select
-                name="departments"
-                multiple
-                defaultValue={Array.from(selectedDepts)}
-                className="h-24 w-48 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-              >
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
-              <select
-                name="teams"
-                multiple
-                defaultValue={Array.from(selectedTeams)}
-                className="h-24 w-48 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-              >
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.department.name})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Colaboradores
-              </label>
-              <select
-                name="employees"
-                multiple
-                defaultValue={Array.from(selectedEmployees)}
-                className="h-24 w-56 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-              >
-                {allEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.firstName} {e.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Departamento / Equipa / Colaborador
+            </label>
+            <EmployeeTreeFilter
+              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+              teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+              employees={allEmployees.map((e) => ({
+                id: e.id,
+                name: `${e.firstName} ${e.lastName}`,
+                departmentId: e.departmentId,
+                teamId: e.teamId,
+              }))}
+              initialSelected={Array.from(selectedEmployees)}
+            />
           </div>
 
           <div className="flex items-center gap-3">
@@ -214,8 +169,7 @@ export default async function RelatoriosPage({
             </Link>
           </div>
           <p className="text-[11px] text-stone-400 dark:text-stone-600">
-            Sem seleção mostra todos os colaboradores visíveis para o seu perfil. Use Ctrl/Cmd+clique para
-            selecionar vários.
+            Sem seleção mostra todos os colaboradores visíveis para o seu perfil.
           </p>
         </form>
       </Card>
