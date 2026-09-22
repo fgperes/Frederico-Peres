@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session";
-import { buildTemplateWorkbook } from "@/lib/excel";
+import { buildRowsWorkbook } from "@/lib/excel";
 
 export async function GET() {
   await requireUser();
 
   const headers = ["date", "description", "scope", "locations"];
-  const buffer = buildTemplateWorkbook(headers, {
-    date: "2026-06-13",
-    description: "Dia Municipal",
-    scope: "REGIONAL",
-    locations: "Sede — Lisboa",
-  });
+  const buffer = buildRowsWorkbook(headers, [], "Template");
 
   return new NextResponse(new Blob([buffer]), {
     headers: {
