@@ -3,12 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function AcessosTabs({ showDocumentos = false }: { showDocumentos?: boolean }) {
+export function AcessosTabs({
+  showDocumentos = false,
+  showFeriados = false,
+}: {
+  showDocumentos?: boolean;
+  showFeriados?: boolean;
+}) {
   const pathname = usePathname();
   const tabs = [
     { href: "/acessos", label: "Colaboradores" },
     { href: "/acessos/perfis", label: "Perfis" },
     ...(showDocumentos ? [{ href: "/acessos/documentos", label: "Documentos" }] : []),
+    ...(showFeriados ? [{ href: "/acessos/feriados", label: "Feriados" }] : []),
   ];
 
   return (

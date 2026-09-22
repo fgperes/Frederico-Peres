@@ -183,7 +183,22 @@ model Location {
   name      String     @unique
   address   String?
   employees Employee[]
+  holidays  Holiday[]  @relation("HolidayLocations")
   createdAt DateTime   @default(now())
+}
+
+// Feriados configuráveis em Perfis e Acessos → Feriados. Nacionais aplicam-se
+// a todos; regionais só aos locais de trabalho associados em `locations`.
+model Holiday {
+  id          String     @id @default(cuid())
+  date        DateTime
+  description String
+  scope       String     @default("NATIONAL") // NATIONAL | REGIONAL
+  locations   Location[] @relation("HolidayLocations")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([date, description])
 }
 
 model Employee {

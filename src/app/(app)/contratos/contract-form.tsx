@@ -1,5 +1,6 @@
 import type { Employee } from "@prisma/client";
 import { createContract } from "./actions";
+import { ContractTypeSelect } from "./contract-type-select";
 
 export function ContractForm({
   employees,
@@ -38,11 +39,7 @@ export function ContractForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600">Tipo de contrato</label>
-          <select name="contractType" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
-            {contractTypes.map((t) => (
-              <option key={t.key} value={t.key}>{t.label}</option>
-            ))}
-          </select>
+          <ContractTypeSelect contractTypes={contractTypes} />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600">Horas semanais</label>

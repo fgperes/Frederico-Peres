@@ -27,3 +27,15 @@ export async function getContractTypeLabels(): Promise<Record<string, string>> {
   const types = await getContractTypes();
   return Object.fromEntries(types.map((t) => [t.key, t.label]));
 }
+
+// Deriva a key interna estável (ex.: "ESTÁGIO PROFISSIONAL" -> "ESTAGIO_PROFISSIONAL")
+// a partir do nome dado pelo utilizador — usado tanto em Tipos de Contrato
+// como na criação inline de um novo tipo a partir de "+ Novo Contrato".
+export function slugifyContractTypeKey(label: string): string {
+  return label
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}

@@ -71,12 +71,21 @@ export default async function RelatoriosPage({
   const fromStr = from.toISOString().slice(0, 10);
   const toStr = to.toISOString().slice(0, 10);
 
+  // Só gera (e mostra) um relatório depois de um pedido explícito — a
+  // presença de "report" nos parâmetros do URL indica que o formulário já
+  // foi submetido pelo menos uma vez. Ao abrir a secção pela primeira vez,
+  // o visualizador começa vazio em vez de mostrar logo o relatório por
+  // omissão com o mês corrente.
+  const hasGenerated = params.report !== undefined;
+
   let result: { columns: string[]; rows: (string | number)[][] } | null = null;
   let error: string | null = null;
-  try {
-    result = await generateReport(reportKey, { from, to, employeeIds });
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Erro ao gerar o relatório.";
+  if (hasGenerated) {
+    try {
+      result = await generateReport(reportKey, { from, to, employeeIds });
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao gerar o relatório.";
+    }
   }
 
   const exportParams = new URLSearchParams();
@@ -221,7 +230,9 @@ export default async function RelatoriosPage({
           )}
         </div>
 
-        {error ? (
+        {!hasGenerated ? (
+          <EmptyState icon={BarChart3} message="Selecione os filtros e clique em “Gerar relatório”." />
+        ) : error ? (
           <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
             {error}
           </p>
