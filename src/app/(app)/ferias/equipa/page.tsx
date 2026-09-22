@@ -8,7 +8,7 @@ import { FeriasTabs } from "../tabs";
 import { BalanceEditor } from "./balance-editor";
 import { RecalculateButton } from "./recalculate-button";
 import { VacationLegend } from "../calendar";
-import { EmployeeSearchFilter } from "@/components/employee-search-filter";
+import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
 import { redirect } from "next/navigation";
 import { Plane, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -38,11 +38,15 @@ export default async function FeriasEquipaPage({
   const month = params.month !== undefined ? parseInt(params.month, 10) : now.getMonth();
 
   const scope = await employeeScopeWhere(user);
-  const allEmployees = await prisma.employee.findMany({
-    where: { AND: [scope, { status: "ACTIVE" }] },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-    select: { id: true, firstName: true, lastName: true },
-  });
+  const [departments, teams, allEmployees] = await Promise.all([
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
+    prisma.employee.findMany({
+      where: { AND: [scope, { status: "ACTIVE" }] },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: { id: true, firstName: true, lastName: true, departmentId: true, teamId: true },
+    }),
+  ]);
 
   const selectedEmployees = new Set(parseIdList(params.employees));
   const hasFilter = selectedEmployees.size > 0;
@@ -111,7 +115,7 @@ export default async function FeriasEquipaPage({
       <PageHeader
         icon={Plane}
         title="Férias"
-        description="Planeamento de férias da equipa — filtre por colaborador."
+        description="Planeamento de férias da equipa — filtre por departamento, equipa ou colaborador."
         action={<RecalculateButton />}
       />
 
@@ -123,10 +127,17 @@ export default async function FeriasEquipaPage({
           <input type="hidden" name="month" value={month} />
           <div>
             <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-              Colaboradores
+              Departamento / Equipa / Colaborador
             </label>
-            <EmployeeSearchFilter
-              employees={allEmployees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }))}
+            <EmployeeTreeFilter
+              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+              teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+              employees={allEmployees.map((e) => ({
+                id: e.id,
+                name: `${e.firstName} ${e.lastName}`,
+                departmentId: e.departmentId,
+                teamId: e.teamId,
+              }))}
               initialSelected={Array.from(selectedEmployees)}
             />
           </div>
@@ -147,7 +158,9 @@ export default async function FeriasEquipaPage({
             )}
           </div>
           <p className="w-full text-[11px] text-stone-400 dark:text-stone-600">
-            Sem seleção mostra todos os colaboradores visíveis.
+            Selecionar um departamento seleciona todas as suas equipas e colaboradores; selecionar uma
+            equipa seleciona todos os seus colaboradores. Pesquise por nome para filtrar a árvore. Sem
+            seleção mostra todos os colaboradores visíveis.
           </p>
         </form>
       </Card>

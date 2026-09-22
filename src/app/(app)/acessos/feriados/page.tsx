@@ -33,14 +33,6 @@ export default async function FeriadosPage() {
         icon={CalendarDays}
         title="Perfis e Acessos"
         description="Configuração dos feriados nacionais e regionais usados na aplicação."
-        action={
-          <a
-            href="/api/templates/feriados"
-            className="flex items-center gap-1.5 rounded-md border border-stone-300 px-3 py-2 text-sm hover:bg-white"
-          >
-            <Download size={14} /> Descarregar template
-          </a>
-        }
       />
 
       <AcessosTabs showDocumentos showFeriados />
@@ -105,7 +97,15 @@ export default async function FeriadosPage() {
             <HolidayForm locations={locations} />
           </Card>
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">Importar por Excel</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-stone-900">Importar por Excel</h2>
+              <a
+                href="/api/templates/feriados"
+                className="flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline"
+              >
+                <Download size={12} /> Descarregar template
+              </a>
+            </div>
             <HolidayImportForm />
           </Card>
         </div>
