@@ -1,20 +1,21 @@
--- Marca 22 dias de férias aprovados em 2026 para cada colaborador ativo,
--- e fixa o contingente (entitledDays) de 2026 em 22 dias para todos.
--- Equivalente em SQL puro a `npm run db:seed-vacation-2026`, para correr
--- diretamente no SQL Editor do Supabase.
+-- Apaga todas as férias de 2026 já marcadas (para nenhum colaborador poder
+-- ficar com mais de 22 dias) e atribui um único período contínuo de 22
+-- dias úteis por colaborador ativo, já aprovado. O início do período é
+-- desfasado por colaborador para espalhar pelos vários meses do ano.
 --
--- Idempotente: pode ser corrido mais que uma vez sem duplicar dias nem
--- ultrapassar os 22 dias por colaborador (conta o que já está aprovado em
--- 2026 e só acrescenta o que falta).
+-- Idempotente: pode ser corrido mais que uma vez — cada execução limpa
+-- primeiro o que lá estava e volta a atribuir o mesmo período (mesmo
+-- desfasamento, calculado a partir da ordem alfabética dos colaboradores).
 
 DO $$
 DECLARE
   vacation_type_id TEXT;
   admin_user_id TEXT;
   emp RECORD;
-  vacation_date DATE;
-  used_count INT;
-  missing_count INT;
+  emp_index INT := 0;
+  start_date DATE;
+  cur_date DATE;
+  collected INT;
   total_inserted INT := 0;
 BEGIN
   SELECT id INTO vacation_type_id FROM "AbsenceType" WHERE "isVacation" = true LIMIT 1;
@@ -35,66 +36,59 @@ BEGIN
     RAISE EXCEPTION 'Nenhum utilizador encontrado para atribuir como requerente/aprovador.';
   END IF;
 
-  FOR emp IN SELECT id, "firstName", "lastName" FROM "Employee" WHERE status = 'ACTIVE' LOOP
+  -- Limpa TODAS as férias de 2026 já marcadas (qualquer estado), para
+  -- garantir que ninguém fica com mais de 22 dias depois de atribuir o
+  -- período único abaixo.
+  DELETE FROM "Absence"
+  WHERE "absenceTypeId" = vacation_type_id
+    AND "startDate" BETWEEN '2026-01-01' AND '2026-12-31';
 
-    -- Contingente de 2026 fixado em 22 dias (cria ou atualiza).
+  UPDATE "AbsenceBalance"
+  SET "usedDays" = 0, "plannedDays" = 0, "entitledDays" = 22
+  WHERE "absenceTypeId" = vacation_type_id AND "year" = 2026;
+
+  FOR emp IN SELECT id, "firstName", "lastName" FROM "Employee" WHERE status = 'ACTIVE' ORDER BY "firstName", "lastName" LOOP
+
+    -- Contingente de 2026 fixado em 22 dias (cria o registo se ainda não existir).
     INSERT INTO "AbsenceBalance" (id, "employeeId", "absenceTypeId", "year", "entitledDays", "carryOverDays", "usedDays", "plannedDays")
     VALUES (
       'absb_' || md5(emp.id || ':' || vacation_type_id || ':2026'),
       emp.id, vacation_type_id, 2026, 22, 0, 0, 0
     )
     ON CONFLICT ("employeeId", "absenceTypeId", "year")
-    DO UPDATE SET "entitledDays" = 22;
+    DO UPDATE SET "entitledDays" = 22, "usedDays" = 0, "plannedDays" = 0;
 
-    SELECT count(*) INTO used_count
-    FROM "Absence" a
-    WHERE a."employeeId" = emp.id
-      AND a."absenceTypeId" = vacation_type_id
-      AND a.status = 'APPROVED'
-      AND a."startDate" BETWEEN '2026-01-01' AND '2026-12-31';
+    -- Início do período, desfasado por colaborador (espalha por Jan-Out,
+    -- com margem suficiente para os 22 dias úteis nunca ultrapassarem 2026).
+    start_date := make_date(2026, 1 + (emp_index % 10), 1 + (emp_index % 4) * 7);
 
-    missing_count := GREATEST(0, 22 - used_count);
-
-    IF missing_count > 0 THEN
-      FOR vacation_date IN
-        SELECT d::date
-        FROM generate_series('2026-01-01'::date, '2026-12-31'::date, interval '1 day') AS d
-        WHERE EXTRACT(ISODOW FROM d) < 6  -- 1=Segunda .. 5=Sexta
-          AND NOT EXISTS (
-            SELECT 1 FROM "Absence" a
-            WHERE a."employeeId" = emp.id
-              AND a."absenceTypeId" = vacation_type_id
-              AND a."startDate" = d::date
-          )
-        ORDER BY random()
-        LIMIT missing_count
-      LOOP
+    cur_date := start_date;
+    collected := 0;
+    WHILE collected < 22 LOOP
+      IF EXTRACT(ISODOW FROM cur_date) < 6 THEN  -- 1=Segunda .. 5=Sexta
         INSERT INTO "Absence" (
           id, "employeeId", "absenceTypeId", "startDate", "endDate", days, status,
           "requestedById", "approvedById", "decidedAt", "createdAt"
         ) VALUES (
-          'absc_' || md5(emp.id || ':' || vacation_date::text),
-          emp.id, vacation_type_id, vacation_date, vacation_date, 1, 'APPROVED',
+          'absc_' || md5(emp.id || ':' || cur_date::text),
+          emp.id, vacation_type_id, cur_date, cur_date, 1, 'APPROVED',
           admin_user_id, admin_user_id, now(), now()
         )
         ON CONFLICT (id) DO NOTHING;
+        collected := collected + 1;
         total_inserted := total_inserted + 1;
-      END LOOP;
-    END IF;
-
-    SELECT count(*) INTO used_count
-    FROM "Absence" a
-    WHERE a."employeeId" = emp.id
-      AND a."absenceTypeId" = vacation_type_id
-      AND a.status = 'APPROVED'
-      AND a."startDate" BETWEEN '2026-01-01' AND '2026-12-31';
+      END IF;
+      cur_date := cur_date + 1;
+    END LOOP;
 
     UPDATE "AbsenceBalance"
-    SET "usedDays" = used_count
+    SET "usedDays" = 22
     WHERE "employeeId" = emp.id AND "absenceTypeId" = vacation_type_id AND "year" = 2026;
 
-    RAISE NOTICE '  %: % dia(s) de férias em 2026', emp."firstName" || ' ' || emp."lastName", used_count;
+    RAISE NOTICE '  %: % a % (22 dias úteis)', emp."firstName" || ' ' || emp."lastName", start_date, cur_date - 1;
+
+    emp_index := emp_index + 1;
   END LOOP;
 
-  RAISE NOTICE 'Concluído: % novo(s) dia(s) de férias criado(s).', total_inserted;
+  RAISE NOTICE 'Concluído: % dia(s) de férias criado(s) para % colaborador(es).', total_inserted, emp_index;
 END $$;
