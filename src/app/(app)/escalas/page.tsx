@@ -20,7 +20,6 @@ import { MonthYearPicker } from "./month-year-picker";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
-import { differenceInCalendarDays } from "date-fns";
 import type { Prisma } from "@prisma/client";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -240,7 +239,7 @@ function StatusLegend() {
       <span className="flex items-center gap-1">
         <Badge color="blue">férias</Badge> / <Badge color="slate">outra ausência</Badge>
       </span>
-      <span className="flex items-center gap-1 italic text-stone-400 dark:text-stone-600">Folga — dia de descanso do ciclo</span>
+      <span className="flex items-center gap-1 italic text-stone-400 dark:text-stone-600">Folga — sem turno nem ausência</span>
     </p>
   );
 }
@@ -281,54 +280,21 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
   return entries;
 }
 
-// Dias de folga planeada pelo ciclo de horário atribuído (célula
-// isDayOff) — mesmo cálculo de semana/dia do ciclo usado em
-// generateSchedulesForEmployees, só para leitura. Colaboradores sem ciclo
-// (módulo preditivo) não têm folgas fixas para mostrar aqui: emergem da
-// própria geração, não de um padrão à parte.
-async function loadRestDaysForDays(employeeIds: string[], days: Date[]) {
-  if (employeeIds.length === 0 || days.length === 0) return [];
-
-  const assignments = await prisma.scheduleCycleAssignment.findMany({
-    where: { employeeId: { in: employeeIds }, cycle: { isTemplate: false } },
-    include: { cycle: { include: { pattern: true } } },
-  });
-
-  const entries: { employeeId: string; date: Date }[] = [];
-  for (const assignment of assignments) {
-    const cycle = assignment.cycle;
-    for (const day of days) {
-      const daysSinceStart = differenceInCalendarDays(day, cycle.startDate);
-      if (daysSinceStart < 0) continue;
-      const weekOffset = Math.floor(daysSinceStart / 7) + assignment.offsetWeeks;
-      const cycleWeekIndex = ((weekOffset % cycle.weeks) + cycle.weeks) % cycle.weeks;
-      const dow = day.getDay();
-      const cell = cycle.pattern.find((p) => p.weekIndex === cycleWeekIndex && p.dayOfWeek === dow);
-      if (cell?.isDayOff) entries.push({ employeeId: assignment.employeeId, date: day });
-    }
-  }
-  return entries;
-}
-
 // Sigla curta para o PDF do horário (a afixar) — "F" para folga, 3 letras
 // maiúsculas do tipo de ausência (ex.: "Férias" -> "FÉR", "Baixa Médica" ->
-// "BAI"). Sem isto, um dia de folga/férias ficava indistinguível de um dia
-// simplesmente sem horário gerado no documento impresso.
+// "BAI"). Qualquer dia sem turno nem ausência é folga — não fica em branco.
 function pdfCellLabel(
   employeeId: string,
   day: Date,
   shifts: { employeeId: string; date: Date; startTime: string; endTime: string }[],
-  absences: { employeeId: string; date: Date; label: string }[],
-  restDays: { employeeId: string; date: Date }[]
+  absences: { employeeId: string; date: Date; label: string }[]
 ): string {
   const dayIso = isoDate(day);
   const shift = shifts.find((s) => s.employeeId === employeeId && isoDate(s.date) === dayIso);
   if (shift) return `${shift.startTime}-${shift.endTime}`;
   const absence = absences.find((a) => a.employeeId === employeeId && isoDate(a.date) === dayIso);
   if (absence) return absence.label.slice(0, 3).toUpperCase();
-  const isRestDay = restDays.some((r) => r.employeeId === employeeId && isoDate(r.date) === dayIso);
-  if (isRestDay) return "F";
-  return "—";
+  return "F";
 }
 
 async function WeekView({
@@ -357,18 +323,17 @@ async function WeekView({
   const nextWeek = addWeeksIso(weekStartIso, 1);
   const weekLabel = `${weekStart.toLocaleDateString("pt-PT")} a ${days[6].toLocaleDateString("pt-PT")}`;
 
-  const [shifts, absences, restDays] = await Promise.all([
+  const [shifts, absences] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { in: days } },
     }),
     loadAbsencesForDays(employeeIds, days),
-    loadRestDaysForDays(employeeIds, days),
   ]);
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNumber: e.employeeNumber,
-    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences, restDays)),
+    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences)),
   }));
 
   return (
@@ -400,7 +365,7 @@ async function WeekView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} restDays={restDays} />
+      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
       <StatusLegend />
     </>
   );
@@ -432,12 +397,11 @@ async function MonthView({
   const nextMonth = addMonthsIso(monthStartIso, 1);
   const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
-  const [shifts, absences, restDays] = await Promise.all([
+  const [shifts, absences] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
     }),
     loadAbsencesForDays(employeeIds, days),
-    loadRestDaysForDays(employeeIds, days),
   ]);
 
   // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
@@ -446,7 +410,7 @@ async function MonthView({
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNumber: e.employeeNumber,
-    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences, restDays)),
+    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences)),
   }));
 
   return (
@@ -481,7 +445,7 @@ async function MonthView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} restDays={restDays} />
+      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
       <StatusLegend />
     </>
   );
