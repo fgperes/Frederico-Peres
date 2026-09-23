@@ -242,98 +242,102 @@ export async function decideVacationPeriod(
   absenceIds: string[],
   decision: "APPROVED" | "REJECTED",
   formData: FormData
-) {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para aprovar férias.");
+): Promise<{ error?: string }> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para aprovar férias.");
 
-  const decisionNote = String(formData.get("decisionNote") ?? "").trim() || null;
+    const decisionNote = String(formData.get("decisionNote") ?? "").trim() || null;
 
-  const absences = await prisma.absence.findMany({ where: { id: { in: absenceIds } } });
-  if (absences.length === 0) throw new Error("Período não encontrado.");
+    const absences = await prisma.absence.findMany({ where: { id: { in: absenceIds } } });
+    if (absences.length === 0) throw new Error("Período não encontrado.");
 
-  const requestRows = absences.filter((a) => a.status === "PENDING");
-  const cancelRows = absences.filter((a) => a.status === "APPROVED" && a.reason === CANCEL_REQUEST_MARKER);
+    const requestRows = absences.filter((a) => a.status === "PENDING");
+    const cancelRows = absences.filter((a) => a.status === "APPROVED" && a.reason === CANCEL_REQUEST_MARKER);
 
-  if (requestRows.length > 0) {
-    const employeeId = requestRows[0].employeeId;
-    const byYear = new Map<number, number>();
-    for (const a of requestRows) {
-      const year = a.startDate.getFullYear();
-      byYear.set(year, (byYear.get(year) ?? 0) + 1);
-    }
-    for (const [year, count] of byYear) {
-      const { balance } = await getOrCreateVacationBalance(employeeId, year);
-      if (decision === "APPROVED") {
-        await prisma.absenceBalance.update({
-          where: { id: balance.id },
-          data: { plannedDays: { decrement: count }, usedDays: { increment: count } },
-        });
-      } else {
-        await prisma.absenceBalance.update({
-          where: { id: balance.id },
-          data: { plannedDays: { decrement: count } },
-        });
-      }
-    }
-    await prisma.absence.updateMany({
-      where: { id: { in: requestRows.map((a) => a.id) } },
-      data: { status: decision, approvedById: user.id, decidedAt: new Date(), decisionNote },
-    });
-    await logAudit({
-      userId: user.id,
-      action: decision === "APPROVED" ? "APPROVE" : "REJECT",
-      entity: "Absence",
-      details: `Férias (${requestRows.length} dia(s))`,
-    });
-    await resolveVacationTasksIfClear(employeeId);
-    revalidateFerias();
-    return;
-  }
-
-  if (cancelRows.length > 0) {
-    const employeeId = cancelRows[0].employeeId;
-    if (decision === "APPROVED") {
+    if (requestRows.length > 0) {
+      const employeeId = requestRows[0].employeeId;
       const byYear = new Map<number, number>();
-      for (const a of cancelRows) {
+      for (const a of requestRows) {
         const year = a.startDate.getFullYear();
         byYear.set(year, (byYear.get(year) ?? 0) + 1);
       }
       for (const [year, count] of byYear) {
         const { balance } = await getOrCreateVacationBalance(employeeId, year);
-        await prisma.absenceBalance.update({
-          where: { id: balance.id },
-          data: { usedDays: { decrement: count } },
-        });
+        if (decision === "APPROVED") {
+          await prisma.absenceBalance.update({
+            where: { id: balance.id },
+            data: { plannedDays: { decrement: count }, usedDays: { increment: count } },
+          });
+        } else {
+          await prisma.absenceBalance.update({
+            where: { id: balance.id },
+            data: { plannedDays: { decrement: count } },
+          });
+        }
       }
       await prisma.absence.updateMany({
-        where: { id: { in: cancelRows.map((a) => a.id) } },
-        data: { status: "CANCELLED", reason: null, approvedById: user.id, decidedAt: new Date(), decisionNote },
+        where: { id: { in: requestRows.map((a) => a.id) } },
+        data: { status: decision, approvedById: user.id, decidedAt: new Date(), decisionNote },
       });
       await logAudit({
         userId: user.id,
-        action: "CANCEL",
+        action: decision === "APPROVED" ? "APPROVE" : "REJECT",
         entity: "Absence",
-        details: `Confirmou cancelamento de férias (${cancelRows.length} dia(s))`,
+        details: `Férias (${requestRows.length} dia(s))`,
       });
-    } else {
-      // Rejeita o pedido de cancelamento — as férias mantêm-se aprovadas.
-      await prisma.absence.updateMany({
-        where: { id: { in: cancelRows.map((a) => a.id) } },
-        data: { reason: null },
-      });
-      await logAudit({
-        userId: user.id,
-        action: "REJECT",
-        entity: "Absence",
-        details: `Rejeitou pedido de cancelamento de férias (${cancelRows.length} dia(s))`,
-      });
+      await resolveVacationTasksIfClear(employeeId);
+      revalidateFerias();
+      return {};
     }
-    await resolveVacationTasksIfClear(employeeId);
-    revalidateFerias();
-    return;
-  }
 
-  throw new Error("Este período já foi decidido.");
+    if (cancelRows.length > 0) {
+      const employeeId = cancelRows[0].employeeId;
+      if (decision === "APPROVED") {
+        const byYear = new Map<number, number>();
+        for (const a of cancelRows) {
+          const year = a.startDate.getFullYear();
+          byYear.set(year, (byYear.get(year) ?? 0) + 1);
+        }
+        for (const [year, count] of byYear) {
+          const { balance } = await getOrCreateVacationBalance(employeeId, year);
+          await prisma.absenceBalance.update({
+            where: { id: balance.id },
+            data: { usedDays: { decrement: count } },
+          });
+        }
+        await prisma.absence.updateMany({
+          where: { id: { in: cancelRows.map((a) => a.id) } },
+          data: { status: "CANCELLED", reason: null, approvedById: user.id, decidedAt: new Date(), decisionNote },
+        });
+        await logAudit({
+          userId: user.id,
+          action: "CANCEL",
+          entity: "Absence",
+          details: `Confirmou cancelamento de férias (${cancelRows.length} dia(s))`,
+        });
+      } else {
+        // Rejeita o pedido de cancelamento — as férias mantêm-se aprovadas.
+        await prisma.absence.updateMany({
+          where: { id: { in: cancelRows.map((a) => a.id) } },
+          data: { reason: null },
+        });
+        await logAudit({
+          userId: user.id,
+          action: "REJECT",
+          entity: "Absence",
+          details: `Rejeitou pedido de cancelamento de férias (${cancelRows.length} dia(s))`,
+        });
+      }
+      await resolveVacationTasksIfClear(employeeId);
+      revalidateFerias();
+      return {};
+    }
+
+    throw new Error("Este período já foi decidido.");
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível decidir o período." };
+  }
 }
 
 // RH edita o total de dias de férias do ano de um colaborador. Só o total é
@@ -341,82 +345,97 @@ export async function decideVacationPeriod(
 // a partir do planeamento real (pedidos de férias) no módulo de Férias, e
 // nunca ajustáveis diretamente aqui. A transição do ano anterior mantém-se
 // como está; só o direito do próprio ano absorve a diferença.
-export async function updateVacationBalance(employeeId: string, year: number, formData: FormData) {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para editar saldos de férias.");
+export async function updateVacationBalance(
+  employeeId: string,
+  year: number,
+  formData: FormData
+): Promise<{ error?: string }> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para editar saldos de férias.");
 
-  const totalDays = Number(formData.get("totalDays") ?? 22);
-  if (!Number.isFinite(totalDays) || totalDays < 0) throw new Error("Total de dias inválido.");
+    const totalDays = Number(formData.get("totalDays") ?? 22);
+    if (!Number.isFinite(totalDays) || totalDays < 0) throw new Error("Total de dias inválido.");
 
-  const { balance } = await getOrCreateVacationBalance(employeeId, year);
-  const entitledDays = totalDays - balance.carryOverDays;
-  if (entitledDays < 0) {
-    throw new Error(
-      `O total não pode ser inferior aos ${balance.carryOverDays} dia(s) transitado(s) do ano anterior.`
-    );
+    const { balance } = await getOrCreateVacationBalance(employeeId, year);
+    const entitledDays = totalDays - balance.carryOverDays;
+    if (entitledDays < 0) {
+      throw new Error(
+        `O total não pode ser inferior aos ${balance.carryOverDays} dia(s) transitado(s) do ano anterior.`
+      );
+    }
+
+    await prisma.absenceBalance.update({
+      where: { id: balance.id },
+      data: { entitledDays },
+    });
+
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "AbsenceBalance",
+      entityId: balance.id,
+      details: `Férias ${year}: total ajustado para ${totalDays} dia(s)`,
+    });
+
+    revalidateFerias();
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível atualizar o saldo." };
   }
-
-  await prisma.absenceBalance.update({
-    where: { id: balance.id },
-    data: { entitledDays },
-  });
-
-  await logAudit({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "AbsenceBalance",
-    entityId: balance.id,
-    details: `Férias ${year}: total ajustado para ${totalDays} dia(s)`,
-  });
-
-  revalidateFerias();
 }
 
 // Recalcula, para todos os colaboradores com data de admissão preenchida, o
 // direito a férias do ano de admissão (2 dias por mês completo, com o teto
 // legal de 20 dias) — corrige saldos criados antes desta regra existir, sem
 // tocar em dias já marcados/aprovados nem na transição de anos anteriores.
-export async function recalculateHireYearEntitlements(): Promise<{ updated: number; skipped: number }> {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para recalcular saldos de férias.");
+export type RecalculateHireYearState = { error?: string; updated?: number; skipped?: number };
 
-  const type = await getVacationType();
-  const employees = await prisma.employee.findMany({
-    where: { hireDate: { not: null } },
-    select: { id: true, hireDate: true },
-  });
+export async function recalculateHireYearEntitlements(): Promise<RecalculateHireYearState> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para recalcular saldos de férias.");
 
-  let updated = 0;
-  let skipped = 0;
-
-  for (const employee of employees) {
-    const hireDate = employee.hireDate!;
-    const hireYear = hireDate.getFullYear();
-    const balance = await prisma.absenceBalance.findUnique({
-      where: { employeeId_absenceTypeId_year: { employeeId: employee.id, absenceTypeId: type.id, year: hireYear } },
+    const type = await getVacationType();
+    const employees = await prisma.employee.findMany({
+      where: { hireDate: { not: null } },
+      select: { id: true, hireDate: true },
     });
-    if (!balance) {
-      skipped++;
-      continue;
+
+    let updated = 0;
+    let skipped = 0;
+
+    for (const employee of employees) {
+      const hireDate = employee.hireDate!;
+      const hireYear = hireDate.getFullYear();
+      const balance = await prisma.absenceBalance.findUnique({
+        where: { employeeId_absenceTypeId_year: { employeeId: employee.id, absenceTypeId: type.id, year: hireYear } },
+      });
+      if (!balance) {
+        skipped++;
+        continue;
+      }
+      const entitledDays = computeFirstYearEntitlement(hireDate);
+      if (balance.entitledDays === entitledDays) {
+        skipped++;
+        continue;
+      }
+      await prisma.absenceBalance.update({ where: { id: balance.id }, data: { entitledDays } });
+      updated++;
     }
-    const entitledDays = computeFirstYearEntitlement(hireDate);
-    if (balance.entitledDays === entitledDays) {
-      skipped++;
-      continue;
-    }
-    await prisma.absenceBalance.update({ where: { id: balance.id }, data: { entitledDays } });
-    updated++;
+
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "AbsenceBalance",
+      details: `Recalculou saldos do ano de admissão: ${updated} atualizado(s), ${skipped} sem alteração`,
+    });
+
+    revalidateFerias();
+    return { updated, skipped };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Ocorreu um erro ao recalcular." };
   }
-
-  await logAudit({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "AbsenceBalance",
-    details: `Recalculou saldos do ano de admissão: ${updated} atualizado(s), ${skipped} sem alteração`,
-  });
-
-  revalidateFerias();
-  return { updated, skipped };
 }
 
 // Cria explicitamente o contingente de férias de um colaborador para um
@@ -424,26 +443,32 @@ export async function recalculateHireYearEntitlements(): Promise<{ updated: numb
 // ano em Férias/Equipa) — usado no botão "Criar contingente do ano
 // seguinte" na ficha do colaborador. O direito é calculado com a mesma
 // regra de sempre (pro-rata no ano de admissão, senão o valor por defeito).
+export type CreateVacationBalanceState = { error?: string; row?: VacationHistoryRow };
+
 export async function createVacationBalanceForYear(
   employeeId: string,
   year: number
-): Promise<VacationHistoryRow> {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para criar contingentes de férias.");
+): Promise<CreateVacationBalanceState> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para criar contingentes de férias.");
 
-  const scope = await employeeScopeWhere(user);
-  const employee = await prisma.employee.findFirst({ where: { AND: [{ id: employeeId }, scope] } });
-  if (!employee) throw new Error("Colaborador fora do seu âmbito de gestão.");
+    const scope = await employeeScopeWhere(user);
+    const employee = await prisma.employee.findFirst({ where: { AND: [{ id: employeeId }, scope] } });
+    if (!employee) throw new Error("Colaborador fora do seu âmbito de gestão.");
 
-  const { balance } = await getOrCreateVacationBalance(employeeId, year);
-  await logAudit({
-    userId: user.id,
-    action: "CREATE",
-    entity: "AbsenceBalance",
-    entityId: balance.id,
-    details: `Criou contingente de férias de ${employee.firstName} ${employee.lastName} para ${year}`,
-  });
+    const { balance } = await getOrCreateVacationBalance(employeeId, year);
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "AbsenceBalance",
+      entityId: balance.id,
+      details: `Criou contingente de férias de ${employee.firstName} ${employee.lastName} para ${year}`,
+    });
 
-  revalidateFerias(employeeId);
-  return { year, ...computeHeadcount(balance) };
+    revalidateFerias(employeeId);
+    return { row: { year, ...computeHeadcount(balance) } };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Ocorreu um erro ao criar o contingente." };
+  }
 }

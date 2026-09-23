@@ -24,41 +24,49 @@ async function assertAccess(employeeId: string) {
   return { user, employee };
 }
 
-export async function uploadEmployeeDocument(employeeId: string, formData: FormData) {
-  const { user, employee } = await assertAccess(employeeId);
+export async function uploadEmployeeDocument(
+  employeeId: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  try {
+    const { user, employee } = await assertAccess(employeeId);
 
-  const label = String(formData.get("label") ?? "").trim();
-  const fileName = String(formData.get("fileName") ?? "");
-  const dataUrl = String(formData.get("fileData") ?? "");
+    const label = String(formData.get("label") ?? "").trim();
+    const fileName = String(formData.get("fileName") ?? "");
+    const dataUrl = String(formData.get("fileData") ?? "");
 
-  if (!label) throw new Error("Indique uma etiqueta para o anexo.");
-  if (!dataUrl.startsWith("data:")) throw new Error("Ficheiro inválido.");
-  if (dataUrl.length > MAX_FILE_DATA_URL_LENGTH) {
-    throw new Error("Ficheiro demasiado grande (máximo aprox. 2MB).");
+    if (!label) throw new Error("Indique uma etiqueta para o anexo.");
+    if (!dataUrl.startsWith("data:")) throw new Error("Ficheiro inválido.");
+    if (dataUrl.length > MAX_FILE_DATA_URL_LENGTH) {
+      throw new Error("Ficheiro demasiado grande (máximo aprox. 2MB).");
+    }
+
+    const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
+    const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
+
+    await prisma.employeeDocument.create({
+      data: {
+        employeeId,
+        name: label,
+        type: mimeType,
+        fileName,
+        fileData: dataUrl,
+        uploadedById: user.id,
+      },
+    });
+
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "EmployeeDocument",
+      details: `${label} — ${employee.firstName} ${employee.lastName}`,
+    });
+
+    revalidatePath(`/colaboradores/${employeeId}/anexos`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível carregar o anexo." };
   }
-
-  const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
-  const mimeType = mimeMatch?.[1] ?? "application/octet-stream";
-
-  await prisma.employeeDocument.create({
-    data: {
-      employeeId,
-      name: label,
-      type: mimeType,
-      fileName,
-      fileData: dataUrl,
-      uploadedById: user.id,
-    },
-  });
-
-  await logAudit({
-    userId: user.id,
-    action: "CREATE",
-    entity: "EmployeeDocument",
-    details: `${label} — ${employee.firstName} ${employee.lastName}`,
-  });
-
-  revalidatePath(`/colaboradores/${employeeId}/anexos`);
 }
 
 export async function deleteEmployeeDocument(employeeId: string, documentId: string) {

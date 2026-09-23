@@ -26,7 +26,8 @@ export function BalanceEditor({
       run(async () => {
         const formData = new FormData();
         formData.set("totalDays", total);
-        await updateVacationBalance(employeeId, year, formData);
+        const result = await updateVacationBalance(employeeId, year, formData);
+        if (result.error) throw new Error(result.error);
         router.refresh();
         setEditing(false);
       }, "Total atualizado com sucesso.");

@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, EmptyState, LinkButton } from "@/components/ui";
-import { requestAbsence, decideAbsence, cancelAbsence } from "./actions";
 import type { Prisma } from "@prisma/client";
 import { PalmtreeIcon } from "lucide-react";
+import { RequestAbsenceForm } from "./request-absence-form";
+import { CancelAbsenceButton } from "./cancel-absence-button";
+import { DecideAbsenceActions } from "./decide-absence-actions";
 
 const STATUS_COLOR: Record<string, "green" | "red" | "amber" | "slate"> = {
   APPROVED: "green",
@@ -127,37 +129,7 @@ export default async function AusenciasPage() {
 
             <Card>
               <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Pedido</h2>
-              <form action={requestAbsence} className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Tipo</label>
-                  <select name="absenceTypeId" required className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                    {absenceTypes.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-stone-600">Início</label>
-                    <input name="startDate" type="date" required className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-stone-600">Fim</label>
-                    <input name="endDate" type="date" required className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Motivo</label>
-                  <input name="reason" className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Documento comprovativo (nome do ficheiro)</label>
-                  <input name="documentName" placeholder="atestado.pdf" className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                </div>
-                <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-                  Submeter pedido
-                </button>
-              </form>
+              <RequestAbsenceForm absenceTypes={absenceTypes} />
             </Card>
 
             <Card>
@@ -177,13 +149,7 @@ export default async function AusenciasPage() {
                       <div className="text-xs text-stone-500">
                         {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate.toLocaleDateString("pt-PT")}
                       </div>
-                      {a.status === "PENDING" && (
-                        <form action={cancelAbsence.bind(null, a.id)}>
-                          <button type="submit" className="mt-1 text-xs text-rose-600 hover:underline">
-                            cancelar
-                          </button>
-                        </form>
-                      )}
+                      {a.status === "PENDING" && <CancelAbsenceButton absenceId={a.id} />}
                     </li>
                   ))}
                 </ul>
@@ -229,18 +195,8 @@ export default async function AusenciasPage() {
                             )}
                           </div>
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <form action={decideAbsence.bind(null, a.id, "APPROVED")} className="flex gap-2">
-                            <input name="decisionNote" placeholder="Nota (opcional)" className="rounded-md border border-stone-300 px-2 py-1 text-xs" />
-                            <button type="submit" className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">
-                              Aprovar
-                            </button>
-                          </form>
-                          <form action={decideAbsence.bind(null, a.id, "REJECTED")}>
-                            <button type="submit" className="rounded-md bg-rose-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-rose-700">
-                              Rejeitar
-                            </button>
-                          </form>
+                        <div className="mt-2">
+                          <DecideAbsenceActions absenceId={a.id} />
                         </div>
                       </li>
                     );

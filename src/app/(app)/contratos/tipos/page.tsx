@@ -1,10 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
-import { PageHeader, Card, Badge, Button, EmptyState } from "@/components/ui";
+import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { getContractTypes } from "@/lib/contract-types";
-import { createContractType, deleteContractType } from "../actions";
 import { redirect } from "next/navigation";
 import { FileSignature } from "lucide-react";
+import { ContractTypeForm } from "./contract-type-form";
+import { DeleteContractTypeButton } from "./delete-contract-type-button";
 
 export default async function TiposContratoPage() {
   const user = await requireUser();
@@ -44,18 +45,7 @@ export default async function TiposContratoPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {!t.isSystem && (
-                          <form
-                            action={async () => {
-                              "use server";
-                              await deleteContractType(t.id);
-                            }}
-                          >
-                            <Button variant="danger" type="submit" className="px-2.5 py-1 text-xs">
-                              Remover
-                            </Button>
-                          </form>
-                        )}
+                        {!t.isSystem && <DeleteContractTypeButton contractTypeId={t.id} />}
                       </td>
                     </tr>
                   ))}
@@ -67,15 +57,7 @@ export default async function TiposContratoPage() {
 
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Tipo</h2>
-          <form action={createContractType} className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
-              <input name="label" required placeholder="ex.: Estágio Profissional" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-            </div>
-            <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-              Criar tipo
-            </button>
-          </form>
+          <ContractTypeForm />
         </Card>
       </div>
     </div>

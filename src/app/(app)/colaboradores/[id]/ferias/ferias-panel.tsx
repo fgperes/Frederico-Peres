@@ -42,8 +42,9 @@ export function FeriasPanel({
     startTransition(async () => {
       setStatus("idle");
       try {
-        const row = await createVacationBalanceForYear(employeeId, yearToCreate);
-        setOptimisticRows((prev) => [...prev, row]);
+        const result = await createVacationBalanceForYear(employeeId, yearToCreate);
+        if (result.error) throw new Error(result.error);
+        setOptimisticRows((prev) => [...prev, result.row!]);
         setStatus("success");
         setMessage(`Contingente de férias de ${yearToCreate} criado.`);
         router.refresh();

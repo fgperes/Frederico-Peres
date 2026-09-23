@@ -47,9 +47,13 @@ export function AvatarPicker({
       setImage(dataUrl);
       setSelectedKey(null);
       startTransition(() => {
-        uploadAvatarImage(dataUrl).catch((err) => {
-          setUploadError(err instanceof Error ? err.message : "Não foi possível carregar a foto.");
-        });
+        uploadAvatarImage(dataUrl)
+          .then((result) => {
+            if (result.error) setUploadError(result.error);
+          })
+          .catch((err) => {
+            setUploadError(err instanceof Error ? err.message : "Não foi possível carregar a foto.");
+          });
       });
     } catch {
       setUploadError("Não foi possível processar esta imagem.");

@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { decideVacationPeriod } from "../actions";
+import { decideAbsence } from "./actions";
 import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
 
-export function ApprovalActions({ absenceIds }: { absenceIds: string[] }) {
+export function DecideAbsenceActions({ absenceId }: { absenceId: string }) {
   const [pending, startTransition] = useTransition();
   const { status, message, run } = useSaveFeedback();
   const [note, setNote] = useState("");
@@ -16,16 +16,16 @@ export function ApprovalActions({ absenceIds }: { absenceIds: string[] }) {
       run(async () => {
         const formData = new FormData();
         formData.set("decisionNote", note);
-        const result = await decideVacationPeriod(absenceIds, decision, formData);
+        const result = await decideAbsence(absenceId, decision, formData);
         if (result.error) throw new Error(result.error);
         router.refresh();
-      }, decision === "APPROVED" ? "Período aprovado com sucesso." : "Período rejeitado.");
+      }, decision === "APPROVED" ? "Pedido aprovado." : "Pedido rejeitado.");
     });
   }
 
   return (
     <div>
-      <SaveBanner status={status} message={message} />
+      {status === "error" && <SaveBanner status={status} message={message} />}
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={note}

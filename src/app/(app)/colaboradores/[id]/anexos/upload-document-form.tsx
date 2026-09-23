@@ -39,7 +39,11 @@ export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
 
     startTransition(() => {
       uploadEmployeeDocument(employeeId, formData)
-        .then(() => {
+        .then((result) => {
+          if (result.error) {
+            setError(result.error);
+            return;
+          }
           setLabel("");
           setFile(null);
           if (fileInputRef.current) fileInputRef.current.value = "";

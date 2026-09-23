@@ -2,11 +2,13 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, Button } from "@/components/ui";
-import { renameContractProfile, setContractProfileActive, endEmployeeContract } from "../actions";
+import { endEmployeeContract } from "../actions";
 import { notFound } from "next/navigation";
 import { FileSignature, User } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
 import Link from "next/link";
+import { RenameProfileForm } from "../rename-profile-form";
+import { ToggleProfileActiveButton } from "../toggle-profile-active-button";
 
 export default async function ContractProfileDetailPage({
   params,
@@ -41,13 +43,7 @@ export default async function ContractProfileDetailPage({
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Badge color={profile.active ? "green" : "slate"}>{profile.active ? "Ativo" : "Inativo"}</Badge>
-            {canEdit && (
-              <form action={setContractProfileActive.bind(null, profile.id, !profile.active)}>
-                <Button variant={profile.active ? "danger" : "secondary"} type="submit">
-                  {profile.active ? "Inativar" : "Reativar"}
-                </Button>
-              </form>
-            )}
+            {canEdit && <ToggleProfileActiveButton profileId={profile.id} active={profile.active} />}
           </div>
         }
       />
@@ -55,17 +51,7 @@ export default async function ContractProfileDetailPage({
       {canEdit && (
         <Card className="mb-6">
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Renomear</h2>
-          <form action={renameContractProfile.bind(null, profile.id)} className="flex items-center gap-2">
-            <input
-              name="name"
-              defaultValue={profile.name}
-              required
-              className="flex-1 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800"
-            />
-            <button type="submit" className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700">
-              Guardar
-            </button>
-          </form>
+          <RenameProfileForm profileId={profile.id} name={profile.name} />
           <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
             O tipo de contrato, as horas semanais e as folgas semanais não podem ser alterados depois de criado.
           </p>

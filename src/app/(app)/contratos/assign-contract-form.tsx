@@ -1,4 +1,8 @@
-import { assignEmployeeContract } from "./actions";
+"use client";
+
+import { useActionState } from "react";
+import { assignEmployeeContract, type AssignContractFormState } from "./actions";
+import { SaveBanner } from "@/components/save-banner";
 
 export function AssignContractForm({
   employeeId,
@@ -7,8 +11,14 @@ export function AssignContractForm({
   employeeId: string;
   profiles: { id: string; name: string; contractTypeLabel: string; weeklyHours: number }[];
 }) {
+  const [state, formAction, pending] = useActionState<AssignContractFormState, FormData>(
+    assignEmployeeContract,
+    {}
+  );
+
   return (
-    <form action={assignEmployeeContract} className="space-y-4">
+    <form action={formAction} className="space-y-4">
+      {state.error && <SaveBanner status="error" message={state.error} />}
       <input type="hidden" name="employeeId" value={employeeId} />
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Contrato</label>
@@ -50,8 +60,12 @@ export function AssignContractForm({
         <textarea name="notes" rows={2} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
       </div>
 
-      <button type="submit" className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700">
-        Atribuir contrato
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
+      >
+        {pending ? "A atribuir..." : "Atribuir contrato"}
       </button>
     </form>
   );

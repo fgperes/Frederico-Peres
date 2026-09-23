@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useActionState } from "react";
 import type { Department, Location, Team, Employee } from "@prisma/client";
 import { ID_DOCUMENT_TYPES, ID_DOCUMENT_TYPE_LABELS } from "@/lib/employee-constants";
 import { SearchableSelect } from "@/components/searchable-select";
+import { SaveBanner } from "@/components/save-banner";
+import type { EmployeeFormState } from "./actions";
 
 export function EmployeeForm({
   action,
@@ -15,7 +17,7 @@ export function EmployeeForm({
   employee,
   canCreateUser = false,
 }: {
-  action: (formData: FormData) => void;
+  action: (prevState: EmployeeFormState, formData: FormData) => Promise<EmployeeFormState>;
   departments: Department[];
   teams: Team[];
   locations: Location[];
@@ -27,9 +29,11 @@ export function EmployeeForm({
   const [noExpiry, setNoExpiry] = useState(employee?.idDocumentNoExpiry ?? false);
   const [createUser, setCreateUser] = useState(false);
   const showCreateUserOption = canCreateUser && !employee?.userId;
+  const [state, formAction, pending] = useActionState(action, {});
 
   return (
-    <form action={action} className="space-y-8">
+    <form action={formAction} className="space-y-8">
+      {state.error && <SaveBanner status="error" message={state.error} />}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
           Dados Pessoais
@@ -251,9 +255,10 @@ export function EmployeeForm({
       <div className="flex justify-end gap-3">
         <button
           type="submit"
-          className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          disabled={pending}
+          className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
         >
-          Guardar
+          {pending ? "A guardar..." : "Guardar"}
         </button>
       </div>
     </form>

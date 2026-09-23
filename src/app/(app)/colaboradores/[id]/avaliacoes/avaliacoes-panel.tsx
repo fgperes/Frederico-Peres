@@ -58,14 +58,15 @@ export function AvaliacoesPanel({
     startTransition(async () => {
       try {
         const result = await scheduleEvaluation(employeeId, templateId, scheduledDate);
+        if (result.error) throw new Error(result.error);
         setOptimisticRows((prev) => [
           ...prev,
           {
-            id: result.id,
-            templateId: result.templateId,
-            templateName: result.templateName,
-            hasSelfEvaluation: result.hasSelfEvaluation,
-            scheduledDate: result.scheduledDate,
+            id: result.id!,
+            templateId: result.templateId!,
+            templateName: result.templateName!,
+            hasSelfEvaluation: result.hasSelfEvaluation!,
+            scheduledDate: result.scheduledDate!,
             status: "SCHEDULED",
             managerPercent: null,
             managerConsequence: null,
@@ -75,7 +76,7 @@ export function AvaliacoesPanel({
           },
         ]);
         setStatus("success");
-        setMessage(`Avaliação agendada para ${new Date(result.scheduledDate).toLocaleDateString("pt-PT")}.`);
+        setMessage(`Avaliação agendada para ${new Date(result.scheduledDate!).toLocaleDateString("pt-PT")}.`);
         setScheduledDate("");
         router.refresh();
       } catch (err) {

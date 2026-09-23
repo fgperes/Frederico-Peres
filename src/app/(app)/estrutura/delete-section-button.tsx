@@ -9,7 +9,7 @@ export function DeleteSectionButton({
   onDelete,
   confirmMessage,
 }: {
-  onDelete: () => Promise<void>;
+  onDelete: () => Promise<{ error?: string }>;
   confirmMessage: string;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -20,9 +20,13 @@ export function DeleteSectionButton({
     if (!window.confirm(confirmMessage)) return;
     setError(null);
     startTransition(() => {
-      onDelete()
-        .then(() => router.push("/estrutura"))
-        .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível apagar."));
+      onDelete().then((result) => {
+        if (result.error) {
+          setError(result.error);
+        } else {
+          router.push("/estrutura");
+        }
+      });
     });
   }
 

@@ -122,35 +122,41 @@ async function createSectionsAndQuestions(
   }
 }
 
-export async function createTemplate(payload: TemplatePayload) {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
-  validatePayload(payload);
+export type TemplateActionState = { error?: string; id?: string };
 
-  const templateId = await prisma.$transaction(async (tx) => {
-    const template = await tx.evaluationTemplate.create({
-      data: {
-        name: payload.name.trim(),
-        hasSelfEvaluation: payload.hasSelfEvaluation,
-        createdById: user.id,
-        consequenceRules: { create: payload.consequenceRules },
-        assignments: { create: assignmentsCreateData(payload) },
-      },
+export async function createTemplate(payload: TemplatePayload): Promise<TemplateActionState> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
+    validatePayload(payload);
+
+    const templateId = await prisma.$transaction(async (tx) => {
+      const template = await tx.evaluationTemplate.create({
+        data: {
+          name: payload.name.trim(),
+          hasSelfEvaluation: payload.hasSelfEvaluation,
+          createdById: user.id,
+          consequenceRules: { create: payload.consequenceRules },
+          assignments: { create: assignmentsCreateData(payload) },
+        },
+      });
+      await createSectionsAndQuestions(tx, template.id, payload);
+      return template.id;
     });
-    await createSectionsAndQuestions(tx, template.id, payload);
-    return template.id;
-  });
 
-  await logAudit({
-    userId: user.id,
-    action: "CREATE",
-    entity: "EvaluationTemplate",
-    entityId: templateId,
-    details: `Criou o modelo de avaliação "${payload.name.trim()}"`,
-  });
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "EvaluationTemplate",
+      entityId: templateId,
+      details: `Criou o modelo de avaliação "${payload.name.trim()}"`,
+    });
 
-  revalidatePath("/avaliacoes");
-  return { id: templateId };
+    revalidatePath("/avaliacoes");
+    return { id: templateId };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Ocorreu um erro ao gravar o modelo." };
+  }
 }
 
 // Editar um modelo já usado (com avaliações associadas) nunca mexe nas
@@ -158,81 +164,91 @@ export async function createTemplate(payload: TemplatePayload) {
 // já dadas nessas avaliações. Só nome, autoavaliação, consequências e
 // atribuições são editáveis nesse caso; um modelo ainda sem avaliações pode
 // ser reconstruído por inteiro.
-export async function updateTemplate(templateId: string, payload: TemplatePayload) {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
+export async function updateTemplate(templateId: string, payload: TemplatePayload): Promise<TemplateActionState> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
 
-  const existing = await prisma.evaluationTemplate.findUnique({
-    where: { id: templateId },
-    include: { evaluations: { select: { id: true }, take: 1 } },
-  });
-  if (!existing) throw new Error("Modelo não encontrado.");
-
-  const isUsed = existing.evaluations.length > 0;
-  if (!isUsed) validatePayload(payload);
-  else {
-    if (!payload.name.trim()) throw new Error("Indique um nome para o modelo.");
-    for (const rule of payload.consequenceRules) {
-      if (rule.minPercent < 0 || rule.minPercent > 100) throw new Error("A percentagem mínima tem de estar entre 0 e 100.");
-      if (!rule.consequence.trim()) throw new Error("Todas as regras de consequência têm de ter um texto.");
-    }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.evaluationTemplate.update({
+    const existing = await prisma.evaluationTemplate.findUnique({
       where: { id: templateId },
-      data: { name: payload.name.trim(), hasSelfEvaluation: payload.hasSelfEvaluation },
+      include: { evaluations: { select: { id: true }, take: 1 } },
     });
+    if (!existing) throw new Error("Modelo não encontrado.");
 
-    await tx.evaluationConsequenceRule.deleteMany({ where: { templateId } });
-    await tx.evaluationConsequenceRule.createMany({
-      data: payload.consequenceRules.map((r) => ({ ...r, templateId })),
-    });
-
-    await tx.evaluationTemplateAssignment.deleteMany({ where: { templateId } });
-    await tx.evaluationTemplateAssignment.createMany({
-      data: assignmentsCreateData(payload).map((a) => ({ ...a, templateId })),
-    });
-
-    if (!isUsed) {
-      // Cascata: apaga secções → perguntas → opções.
-      await tx.evaluationSection.deleteMany({ where: { templateId } });
-      await createSectionsAndQuestions(tx, templateId, payload);
+    const isUsed = existing.evaluations.length > 0;
+    if (!isUsed) validatePayload(payload);
+    else {
+      if (!payload.name.trim()) throw new Error("Indique um nome para o modelo.");
+      for (const rule of payload.consequenceRules) {
+        if (rule.minPercent < 0 || rule.minPercent > 100) throw new Error("A percentagem mínima tem de estar entre 0 e 100.");
+        if (!rule.consequence.trim()) throw new Error("Todas as regras de consequência têm de ter um texto.");
+      }
     }
-  });
 
-  await logAudit({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "EvaluationTemplate",
-    entityId: templateId,
-    details: `Editou o modelo de avaliação "${payload.name.trim()}"`,
-  });
+    await prisma.$transaction(async (tx) => {
+      await tx.evaluationTemplate.update({
+        where: { id: templateId },
+        data: { name: payload.name.trim(), hasSelfEvaluation: payload.hasSelfEvaluation },
+      });
 
-  revalidatePath("/avaliacoes");
-  revalidatePath(`/avaliacoes/${templateId}`);
+      await tx.evaluationConsequenceRule.deleteMany({ where: { templateId } });
+      await tx.evaluationConsequenceRule.createMany({
+        data: payload.consequenceRules.map((r) => ({ ...r, templateId })),
+      });
+
+      await tx.evaluationTemplateAssignment.deleteMany({ where: { templateId } });
+      await tx.evaluationTemplateAssignment.createMany({
+        data: assignmentsCreateData(payload).map((a) => ({ ...a, templateId })),
+      });
+
+      if (!isUsed) {
+        // Cascata: apaga secções → perguntas → opções.
+        await tx.evaluationSection.deleteMany({ where: { templateId } });
+        await createSectionsAndQuestions(tx, templateId, payload);
+      }
+    });
+
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "EvaluationTemplate",
+      entityId: templateId,
+      details: `Editou o modelo de avaliação "${payload.name.trim()}"`,
+    });
+
+    revalidatePath("/avaliacoes");
+    revalidatePath(`/avaliacoes/${templateId}`);
+    return { id: templateId };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Ocorreu um erro ao gravar o modelo." };
+  }
 }
 
-export async function deleteTemplate(templateId: string) {
-  const user = await requireUser();
-  if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
+export async function deleteTemplate(templateId: string): Promise<{ error?: string }> {
+  try {
+    const user = await requireUser();
+    if (!canWrite(user.roles, "avaliacoes")) throw new Error("Sem permissão para gerir modelos de avaliação.");
 
-  const existing = await prisma.evaluationTemplate.findUnique({
-    where: { id: templateId },
-    include: { evaluations: { select: { id: true }, take: 1 } },
-  });
-  if (!existing) return;
-  if (existing.evaluations.length > 0) {
-    throw new Error("Não é possível eliminar um modelo com avaliações já criadas.");
+    const existing = await prisma.evaluationTemplate.findUnique({
+      where: { id: templateId },
+      include: { evaluations: { select: { id: true }, take: 1 } },
+    });
+    if (!existing) return {};
+    if (existing.evaluations.length > 0) {
+      throw new Error("Não é possível eliminar um modelo com avaliações já criadas.");
+    }
+
+    await prisma.evaluationTemplate.delete({ where: { id: templateId } });
+    await logAudit({
+      userId: user.id,
+      action: "DELETE",
+      entity: "EvaluationTemplate",
+      entityId: templateId,
+      details: `Eliminou o modelo de avaliação "${existing.name}"`,
+    });
+    revalidatePath("/avaliacoes");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Ocorreu um erro ao eliminar." };
   }
-
-  await prisma.evaluationTemplate.delete({ where: { id: templateId } });
-  await logAudit({
-    userId: user.id,
-    action: "DELETE",
-    entity: "EvaluationTemplate",
-    entityId: templateId,
-    details: `Eliminou o modelo de avaliação "${existing.name}"`,
-  });
-  revalidatePath("/avaliacoes");
 }
