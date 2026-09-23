@@ -52,7 +52,8 @@ export function CalendarPanel({
         const formData = new FormData();
         formData.set("date", dateKey);
         formData.set("employeeId", employeeId);
-        await toggleVacationDay(formData);
+        const result = await toggleVacationDay(formData);
+        if (result.error) throw new Error(result.error);
         router.refresh();
       }, "Calendário atualizado.");
     });
