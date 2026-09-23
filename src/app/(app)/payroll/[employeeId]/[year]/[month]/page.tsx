@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { computePayslipBreakdown, toPayslipRecord } from "@/lib/payroll";
+import { computePayslipBreakdown, toPayslipRecord, getPayslipLayoutSettings, buildPayslipLines } from "@/lib/payroll";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { ReceiptText } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -32,12 +32,16 @@ export default async function PayslipDetailPage({
   });
   if (!employee || month < 1 || month > 12) notFound();
 
-  const savedPayslip = await prisma.payslip.findUnique({
-    where: { employeeId_year_month: { employeeId, year, month } },
-  });
+  const [savedPayslip, layout] = await Promise.all([
+    prisma.payslip.findUnique({ where: { employeeId_year_month: { employeeId, year, month } } }),
+    getPayslipLayoutSettings(),
+  ]);
 
   const breakdown = savedPayslip ?? toPayslipRecord(await computePayslipBreakdown(employeeId, year, month));
   const isSaved = !!savedPayslip;
+  const lines = buildPayslipLines(breakdown, layout.lineItems);
+  const earningsLines = lines.filter((l) => l.section === "EARNINGS");
+  const deductionLines = lines.filter((l) => l.section === "DEDUCTIONS");
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -66,28 +70,10 @@ export default async function PayslipDetailPage({
 
       <Card className="mb-6">
         <h2 className="mb-3 text-sm font-semibold text-stone-900">Vencimentos</h2>
-        <Rows
-          rows={[
-            ["Salário base", breakdown.baseSalary],
-            breakdown.overtimePay > 0 ? [`Horas extra (${breakdown.overtimeHours.toFixed(1)}h)`, breakdown.overtimePay] : null,
-            breakdown.mealAllowanceTotal > 0 ? ["Subsídio de alimentação", breakdown.mealAllowanceTotal] : null,
-            breakdown.vacationSubsidy > 0 ? ["Subsídio de férias", breakdown.vacationSubsidy] : null,
-            breakdown.christmasSubsidy > 0 ? ["Subsídio de Natal", breakdown.christmasSubsidy] : null,
-            breakdown.otherEarnings > 0 ? ["Outros vencimentos", breakdown.otherEarnings] : null,
-            breakdown.absenceDeduction > 0
-              ? [`Desconto por faltas não remuneradas (${breakdown.absenceDeductionDays.toFixed(1)}d)`, -breakdown.absenceDeduction]
-              : null,
-          ]}
-        />
+        <Rows rows={earningsLines.map((l) => [l.label, l.value] as [string, number])} />
 
         <h2 className="mb-3 mt-6 text-sm font-semibold text-stone-900">Descontos</h2>
-        <Rows
-          rows={[
-            ["Segurança Social (trabalhador)", -breakdown.socialSecurityEmployee],
-            ["IRS — retenção na fonte (estimativa)", -breakdown.irsWithholding],
-            breakdown.otherDeductions > 0 ? ["Outros descontos", -breakdown.otherDeductions] : null,
-          ]}
-        />
+        <Rows rows={deductionLines.map((l) => [l.label, l.value] as [string, number])} />
 
         <div className="mt-6 space-y-1 border-t border-stone-200 pt-4 text-right">
           <p className="text-sm text-stone-600">Total bruto: <span className="font-medium text-stone-900">{fmt(breakdown.grossTotal)}</span></p>
@@ -121,17 +107,10 @@ export default async function PayslipDetailPage({
               jobTitle: employee.jobTitle,
               year,
               month,
-              baseSalary: breakdown.baseSalary,
-              overtimeHours: breakdown.overtimeHours,
-              overtimePay: breakdown.overtimePay,
-              mealAllowanceTotal: breakdown.mealAllowanceTotal,
-              vacationSubsidy: breakdown.vacationSubsidy,
-              christmasSubsidy: breakdown.christmasSubsidy,
-              otherEarnings: breakdown.otherEarnings,
-              absenceDeduction: breakdown.absenceDeduction,
-              socialSecurityEmployee: breakdown.socialSecurityEmployee,
-              irsWithholding: breakdown.irsWithholding,
-              otherDeductions: breakdown.otherDeductions,
+              documentTitle: layout.documentTitle,
+              footerNote: layout.footerNote,
+              earnings: earningsLines.map((l) => ({ label: l.label, value: l.value })),
+              deductions: deductionLines.map((l) => ({ label: l.label, value: l.value })),
               grossTotal: breakdown.grossTotal,
               netTotal: breakdown.netTotal,
               employerCost: breakdown.employerCost,

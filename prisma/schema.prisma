@@ -43,17 +43,17 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  canPublishNews     Boolean    @default(false)
+  canPublishNews Boolean @default(false)
 
   auditLogs          AuditLog[]
-  approvedAbsences   Absence[]        @relation("AbsenceApprover")
-  requestedAbsences  Absence[]        @relation("AbsenceRequester")
-  reviewedDeviations TimeClockEntry[] @relation("DeviationReviewer")
+  approvedAbsences   Absence[]         @relation("AbsenceApprover")
+  requestedAbsences  Absence[]         @relation("AbsenceRequester")
+  reviewedDeviations TimeClockEntry[]  @relation("DeviationReviewer")
   importLogs         ImportLog[]
-  sentMessages       Message[]        @relation("MessageSender")
-  receivedMessages   Message[]        @relation("MessageRecipient")
-  tasks              Task[]           @relation("TaskAssignee")
-  news               News[]           @relation("NewsAuthor")
+  sentMessages       Message[]         @relation("MessageSender")
+  receivedMessages   Message[]         @relation("MessageRecipient")
+  tasks              Task[]            @relation("TaskAssignee")
+  news               News[]            @relation("NewsAuthor")
   hoursCorrections   HoursCorrection[] @relation("HoursCorrectionCreatedBy")
 
   createdEvaluationTemplates EvaluationTemplate[]
@@ -65,14 +65,14 @@ model User {
 // seletor); caso contrário só é mostrada a utilizadores com pelo menos um
 // dos perfis listados. notifyUsers cria uma Task tipo NEWS por destinatário.
 model News {
-  id           String   @id @default(cuid())
-  subject      String
-  bodyHtml     String
-  notifyUsers  Boolean  @default(false)
-  targetRoles  String[]
-  authorId     String
-  author       User     @relation("NewsAuthor", fields: [authorId], references: [id])
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  subject     String
+  bodyHtml    String
+  notifyUsers Boolean  @default(false)
+  targetRoles String[]
+  authorId    String
+  author      User     @relation("NewsAuthor", fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 // Tarefas atribuídas a um utilizador (ex.: gestor de RH/supervisor a
@@ -478,28 +478,28 @@ model HoursCorrection {
 // ---------------------------------------------------------------------------
 
 model AbsenceType {
-  id               String           @id @default(cuid())
-  name             String           @unique
-  paid             Boolean          @default(true)
-  requiresDocument Boolean          @default(false)
-  unitType         String           @default("WORKING_DAYS") // WORKING_DAYS | CALENDAR_DAYS
-  annualLimitDays  Float?
-  approvalLevels   Int              @default(1)
-  affectsBalance   Boolean          @default(true)
+  id                  String           @id @default(cuid())
+  name                String           @unique
+  paid                Boolean          @default(true)
+  requiresDocument    Boolean          @default(false)
+  unitType            String           @default("WORKING_DAYS") // WORKING_DAYS | CALENDAR_DAYS
+  annualLimitDays     Float?
+  approvalLevels      Int              @default(1)
+  affectsBalance      Boolean          @default(true)
   // Marca o tipo "Férias", gerido pelo módulo dedicado (não pelas Ausências).
-  isVacation       Boolean          @default(false)
+  isVacation          Boolean          @default(false)
   // Código de motivo de ausência usado na comunicação à Segurança Social
   // (DMR/plataforma que a substitui) — texto livre, preenchido por RH/
   // contabilidade; a aplicação não valida nem atribui automaticamente.
-  socialSecurityCode String?
+  socialSecurityCode  String?
   // % do salário normal mantido durante este tipo de ausência: 100 = sem
   // dedução (totalmente pago pela entidade empregadora), 0 = sem
   // remuneração da entidade (ex.: subsídio pago diretamente pela SS), ou
   // um valor intermédio. Usado no cálculo do recibo de vencimento.
-  salaryImpactPercent Float          @default(100)
-  createdAt        DateTime         @default(now())
-  absences         Absence[]
-  balances         AbsenceBalance[]
+  salaryImpactPercent Float            @default(100)
+  createdAt           DateTime         @default(now())
+  absences            Absence[]
+  balances            AbsenceBalance[]
 }
 
 model Absence {
@@ -777,12 +777,48 @@ model PayrollSettings {
   updatedById                String?
 }
 
-// Escalões progressivos usados para estimar a retenção na fonte de IRS.
+// Uma tabela de retenção na fonte de IRS — os escalões oficiais variam por
+// período (ano, e por vezes semestre) e por região (Continente/Açores/
+// Madeira têm taxas diferentes). RH anexa/atualiza uma tabela por
+// combinação período+região; o cálculo do recibo escolhe a tabela certa
+// pelo ano do recibo e pela região fiscal do colaborador.
+model IrsTable {
+  id        String       @id @default(cuid())
+  year      Int
+  region    String       @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
+  label     String? // ex.: "Trabalho dependente — não casado, sem dependentes"
+  brackets  IrsBracket[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([year, region])
+}
+
+// Escalões progressivos de uma tabela de IRS — a taxa marginal aplicada ao
+// valor bruto tributável do mês.
 model IrsBracket {
-  id        String @id @default(cuid())
-  order     Int    @unique
-  upToGross Float? // null = sem limite superior (último escalão)
-  rate      Float // taxa marginal (ex.: 0.145 = 14.5%)
+  id         String   @id @default(cuid())
+  irsTableId String
+  irsTable   IrsTable @relation(fields: [irsTableId], references: [id], onDelete: Cascade)
+  order      Int
+  upToGross  Float? // null = sem limite superior (último escalão)
+  rate       Float // taxa marginal (ex.: 0.145 = 14.5%)
+
+  @@unique([irsTableId, order])
+}
+
+// Layout do recibo de vencimento (PDF e pré-visualização no ecrã) —
+// permite a RH escolher que linhas aparecem, com que texto e por que
+// ordem, sem tocar em código. `lineItemsJson` guarda um array ordenado de
+// { key, label, visible } por secção (ver PAYSLIP_LINE_ITEMS em
+// src/lib/payroll.ts para as chaves disponíveis).
+model PayslipLayoutSettings {
+  id            String   @id @default(cuid())
+  documentTitle String   @default("Recibo de Vencimento")
+  footerNote    String?
+  lineItemsJson String
+  updatedAt     DateTime @updatedAt
+  updatedById   String?
 }
 
 // Componentes variáveis por colaborador (prémios, subsídios específicos,

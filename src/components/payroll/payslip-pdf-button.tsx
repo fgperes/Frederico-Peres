@@ -3,23 +3,18 @@
 import { FileDown } from "lucide-react";
 import { Button } from "@/components/ui";
 
+export type PayslipPdfLine = { label: string; value: number };
+
 export type PayslipPdfData = {
   employeeName: string;
   nif: string | null;
   jobTitle: string;
   year: number;
   month: number;
-  baseSalary: number;
-  overtimeHours: number;
-  overtimePay: number;
-  mealAllowanceTotal: number;
-  vacationSubsidy: number;
-  christmasSubsidy: number;
-  otherEarnings: number;
-  absenceDeduction: number;
-  socialSecurityEmployee: number;
-  irsWithholding: number;
-  otherDeductions: number;
+  documentTitle: string;
+  footerNote: string;
+  earnings: PayslipPdfLine[];
+  deductions: PayslipPdfLine[];
   grossTotal: number;
   netTotal: number;
   employerCost: number;
@@ -38,7 +33,7 @@ export function PayslipPdfButton({ data }: { data: PayslipPdfData }) {
     const doc = new jsPDF();
 
     doc.setFontSize(16);
-    doc.text("Recibo de Vencimento", 14, 18);
+    doc.text(data.documentTitle, 14, 18);
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text("people4people — SGRH", 14, 24);
@@ -50,38 +45,20 @@ export function PayslipPdfButton({ data }: { data: PayslipPdfData }) {
     doc.text(`Função: ${data.jobTitle}`, 14, 46);
     doc.text(`Período: ${MONTH_NAMES[data.month - 1]} de ${data.year}`, 14, 52);
 
-    const earnings: [string, string][] = [
-      ["Salário base", fmt(data.baseSalary)],
-    ];
-    if (data.overtimePay > 0) {
-      earnings.push([`Horas extra (${data.overtimeHours.toFixed(1)}h)`, fmt(data.overtimePay)]);
-    }
-    if (data.mealAllowanceTotal > 0) earnings.push(["Subsídio de alimentação", fmt(data.mealAllowanceTotal)]);
-    if (data.vacationSubsidy > 0) earnings.push(["Subsídio de férias", fmt(data.vacationSubsidy)]);
-    if (data.christmasSubsidy > 0) earnings.push(["Subsídio de Natal", fmt(data.christmasSubsidy)]);
-    if (data.otherEarnings > 0) earnings.push(["Outros vencimentos", fmt(data.otherEarnings)]);
-    if (data.absenceDeduction > 0) earnings.push(["Desconto por faltas não remuneradas", `-${fmt(data.absenceDeduction)}`]);
-
     autoTable(doc, {
       startY: 60,
       head: [["Vencimentos", "Valor"]],
-      body: earnings,
+      body: data.earnings.map((l) => [l.label, l.value < 0 ? `-${fmt(-l.value)}` : fmt(l.value)]),
       theme: "striped",
       headStyles: { fillColor: [124, 58, 237] },
     });
 
     const afterEarningsY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
-    const deductions: [string, string][] = [
-      ["Segurança Social", `-${fmt(data.socialSecurityEmployee)}`],
-      ["IRS (retenção na fonte, estimativa)", `-${fmt(data.irsWithholding)}`],
-    ];
-    if (data.otherDeductions > 0) deductions.push(["Outros descontos", `-${fmt(data.otherDeductions)}`]);
-
     autoTable(doc, {
       startY: afterEarningsY,
       head: [["Descontos", "Valor"]],
-      body: deductions,
+      body: data.deductions.map((l) => [l.label, l.value < 0 ? `-${fmt(-l.value)}` : fmt(l.value)]),
       theme: "striped",
       headStyles: { fillColor: [225, 29, 72] },
     });
@@ -100,12 +77,7 @@ export function PayslipPdfButton({ data }: { data: PayslipPdfData }) {
 
     doc.setFontSize(7.5);
     doc.setTextColor(150);
-    doc.text(
-      "Documento gerado automaticamente com base em pressupostos configuráveis (taxas de SS e escalões de IRS de referência).\n" +
-        "Não substitui um processamento de salários certificado — confirme os valores com a contabilidade.",
-      14,
-      285
-    );
+    doc.text(doc.splitTextToSize(data.footerNote, 180), 14, 285);
 
     doc.save(`recibo_${data.employeeName.replace(/\s+/g, "_")}_${data.year}_${String(data.month).padStart(2, "0")}.pdf`);
   }
