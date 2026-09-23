@@ -26,11 +26,62 @@ export async function getPayrollSettings() {
   return prisma.payrollSettings.create({ data: {} });
 }
 
-export async function getIrsBrackets() {
-  const existing = await prisma.irsBracket.findMany({ orderBy: { order: "asc" } });
-  if (existing.length > 0) return existing;
-  await prisma.irsBracket.createMany({ data: DEFAULT_IRS_BRACKETS });
-  return prisma.irsBracket.findMany({ orderBy: { order: "asc" } });
+export const FISCAL_REGIONS = ["CONTINENTE", "ACORES", "MADEIRA"] as const;
+export const FISCAL_REGION_LABELS: Record<string, string> = {
+  CONTINENTE: "Continente",
+  ACORES: "Açores",
+  MADEIRA: "Madeira",
+};
+
+export async function getIrsTables() {
+  return prisma.irsTable.findMany({
+    include: { brackets: { orderBy: { order: "asc" } } },
+    orderBy: [{ year: "desc" }, { region: "asc" }],
+  });
+}
+
+// Escolhe a tabela de IRS a aplicar a um recibo: a combinação exata
+// ano+região se existir; caso contrário cai para a região Continente do
+// mesmo ano e, na falta de tabelas para o ano pedido, para a tabela mais
+// recente disponível (região pedida, depois Continente). Sem nenhuma
+// tabela configurada, semeia uma tabela por omissão para o ano pedido —
+// tal como o comportamento antigo (lista única global).
+export async function getIrsBracketsFor(year: number, region: string) {
+  const tables = await getIrsTables();
+
+  if (tables.length === 0) {
+    const seeded = await prisma.irsTable.create({
+      data: {
+        year,
+        region: "CONTINENTE",
+        label: "Tabela por omissão",
+        brackets: { createMany: { data: DEFAULT_IRS_BRACKETS } },
+      },
+      include: { brackets: { orderBy: { order: "asc" } } },
+    });
+    return seeded.brackets;
+  }
+
+  const exact = tables.find((t) => t.year === year && t.region === region);
+  if (exact) return exact.brackets;
+
+  const sameYearContinente = tables.find((t) => t.year === year && t.region === "CONTINENTE");
+  if (sameYearContinente) return sameYearContinente.brackets;
+
+  const candidatesForRegion = tables
+    .filter((t) => t.region === region && t.year <= year)
+    .sort((a, b) => b.year - a.year);
+  if (candidatesForRegion[0]) return candidatesForRegion[0].brackets;
+
+  const candidatesContinente = tables
+    .filter((t) => t.region === "CONTINENTE" && t.year <= year)
+    .sort((a, b) => b.year - a.year);
+  if (candidatesContinente[0]) return candidatesContinente[0].brackets;
+
+  // Nenhuma tabela igual ou anterior ao ano pedido — usa a mais antiga
+  // disponível, para nunca ficar sem retenção nenhuma calculada.
+  const oldestFirst = [...tables].sort((a, b) => a.year - b.year);
+  return oldestFirst[0].brackets;
 }
 
 export function computeIrsWithholding(
@@ -97,9 +148,8 @@ export async function computePayslipBreakdown(
   year: number,
   month: number
 ): Promise<PayslipBreakdown> {
-  const [settings, irsBrackets, employee] = await Promise.all([
+  const [settings, employee] = await Promise.all([
     getPayrollSettings(),
-    getIrsBrackets(),
     prisma.employee.findUniqueOrThrow({
       where: { id: employeeId },
       include: {
@@ -112,6 +162,7 @@ export async function computePayslipBreakdown(
       },
     }),
   ]);
+  const irsBrackets = await getIrsBracketsFor(year, employee.fiscalRegion);
 
   const contract = employee.employeeContracts[0];
   const baseSalary = contract?.baseSalary ?? 0;
@@ -121,7 +172,7 @@ export async function computePayslipBreakdown(
   const periodStart = new Date(year, month - 1, 1);
   const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-  const [entries, shifts, absencesWithImpact, components] = await Promise.all([
+  const [entries, shifts, absencesWithImpact, components, hoursCorrections] = await Promise.all([
     prisma.timeClockEntry.findMany({
       where: { employeeId, timestamp: { gte: periodStart, lte: periodEnd } },
       orderBy: { timestamp: "asc" },
@@ -145,23 +196,44 @@ export async function computePayslipBreakdown(
         OR: [{ recurring: true }, { recurring: false, applyYear: year, applyMonth: month }],
       },
     }),
+    prisma.hoursCorrection.findMany({
+      where: { employeeId, date: { gte: periodStart, lte: periodEnd } },
+    }),
   ]);
 
   const shiftByDay = new Map(shifts.map((s) => [isoDate(s.date), s]));
   const workedByDay = computeWorkedHoursByDay(entries);
 
+  // Correções manuais de picagens/execução (Picagens → Execução) têm de se
+  // refletir no recibo — cada uma guarda o desvio (minutos) face ao valor
+  // em bruto para um dia e lado (ACTUAL = horas reais, SCHEDULED = horário
+  // previsto), tal como já é aplicado na grelha de execução.
+  const actualCorrMinByDay = new Map<string, number>();
+  const scheduledCorrMinByDay = new Map<string, number>();
+  for (const c of hoursCorrections) {
+    const key = isoDate(c.date);
+    if (c.field === "ACTUAL") actualCorrMinByDay.set(key, c.minutesDelta);
+    else if (c.field === "SCHEDULED") scheduledCorrMinByDay.set(key, c.minutesDelta);
+  }
+
   let workedHours = 0;
   let overtimeHours = 0;
   let overtimePay = 0;
+  let workedDays = 0;
   const regularHourRate = contractedWeeklyHours > 0 ? (baseSalary / (contractedWeeklyHours * (52 / 12))) : 0;
 
-  for (const [dayIso, hoursWorked] of workedByDay.entries()) {
+  const dayKeys = new Set<string>([...workedByDay.keys(), ...actualCorrMinByDay.keys()]);
+  for (const dayIso of dayKeys) {
+    const rawHours = workedByDay.get(dayIso) ?? 0;
+    const hoursWorked = Math.max(0, rawHours + (actualCorrMinByDay.get(dayIso) ?? 0) / 60);
+    if (hoursWorked === 0) continue;
+
     workedHours += hoursWorked;
+    workedDays++;
     const date = new Date(dayIso + "T12:00:00");
     const shift = shiftByDay.get(dayIso);
-    const contractedForDay = shift
-      ? timeDiffHours(shift.startTime, shift.endTime)
-      : contractedDailyHours;
+    const scheduledRaw = shift ? timeDiffHours(shift.startTime, shift.endTime) : contractedDailyHours;
+    const contractedForDay = Math.max(0, scheduledRaw + (scheduledCorrMinByDay.get(dayIso) ?? 0) / 60);
 
     const overtimeForDay = Math.max(0, hoursWorked - contractedForDay);
     if (overtimeForDay > 0) {
@@ -178,8 +250,6 @@ export async function computePayslipBreakdown(
       }
     }
   }
-
-  const workedDays = workedByDay.size;
 
   // Cada dia de ausência com impacto salarial < 100% desconta a fração
   // correspondente da diária (0% = desconto total, 50% = meia diária, etc.).
@@ -301,4 +371,166 @@ function timeDiffHours(start: string, end: string): number {
   let minutes = eh * 60 + em - (sh * 60 + sm);
   if (minutes < 0) minutes += 24 * 60; // turno noturno que passa a meia-noite
   return minutes / 60;
+}
+
+// ---------------------------------------------------------------------------
+// Layout do recibo de vencimento — que linhas aparecem, com que texto e por
+// que ordem, tanto na pré-visualização no ecrã como no PDF. Configurável em
+// /payroll/layout; guardado como JSON (lineItemsJson) para não obrigar a
+// alterar o esquema de base de dados sempre que se ajusta o layout.
+// ---------------------------------------------------------------------------
+
+export type PayslipSection = "EARNINGS" | "DEDUCTIONS";
+
+export type PayslipLineItemKey =
+  | "baseSalary"
+  | "overtimePay"
+  | "mealAllowanceTotal"
+  | "vacationSubsidy"
+  | "christmasSubsidy"
+  | "otherEarnings"
+  | "absenceDeduction"
+  | "socialSecurityEmployee"
+  | "irsWithholding"
+  | "otherDeductions";
+
+export type PayslipLineItemConfig = {
+  key: PayslipLineItemKey;
+  label: string;
+  section: PayslipSection;
+  visible: boolean;
+};
+
+// Linhas que aparecem sempre que visíveis, mesmo a 0€ (fazem sempre parte
+// de um recibo); as restantes só aparecem quando têm valor.
+const ALWAYS_SHOW_LINE_ITEMS = new Set<PayslipLineItemKey>([
+  "baseSalary",
+  "socialSecurityEmployee",
+  "irsWithholding",
+]);
+
+export const DEFAULT_PAYSLIP_LINE_ITEMS: PayslipLineItemConfig[] = [
+  { key: "baseSalary", label: "Salário base", section: "EARNINGS", visible: true },
+  { key: "overtimePay", label: "Horas extra", section: "EARNINGS", visible: true },
+  { key: "mealAllowanceTotal", label: "Subsídio de alimentação", section: "EARNINGS", visible: true },
+  { key: "vacationSubsidy", label: "Subsídio de férias", section: "EARNINGS", visible: true },
+  { key: "christmasSubsidy", label: "Subsídio de Natal", section: "EARNINGS", visible: true },
+  { key: "otherEarnings", label: "Outros vencimentos", section: "EARNINGS", visible: true },
+  { key: "absenceDeduction", label: "Desconto por faltas não remuneradas", section: "EARNINGS", visible: true },
+  { key: "socialSecurityEmployee", label: "Segurança Social (trabalhador)", section: "DEDUCTIONS", visible: true },
+  { key: "irsWithholding", label: "IRS — retenção na fonte (estimativa)", section: "DEDUCTIONS", visible: true },
+  { key: "otherDeductions", label: "Outros descontos", section: "DEDUCTIONS", visible: true },
+];
+
+const DEFAULT_PAYSLIP_FOOTER_NOTE =
+  "Documento gerado automaticamente com base em pressupostos configuráveis (taxas de SS e escalões de IRS de referência). " +
+  "Não substitui um processamento de salários certificado — confirme os valores com a contabilidade.";
+
+export type PayslipLayoutSettingsData = {
+  id: string;
+  documentTitle: string;
+  footerNote: string;
+  lineItems: PayslipLineItemConfig[];
+};
+
+function parsePayslipLineItems(json: string): PayslipLineItemConfig[] {
+  try {
+    const parsed = JSON.parse(json) as PayslipLineItemConfig[];
+    const knownKeys = new Set(DEFAULT_PAYSLIP_LINE_ITEMS.map((i) => i.key));
+    // Preserva a ordem e as personalizações guardadas para chaves
+    // conhecidas; ignora chaves obsoletas e acrescenta no fim quaisquer
+    // linhas novas que o código tenha passado a suportar entretanto.
+    const kept = parsed.filter((i) => knownKeys.has(i.key));
+    const keptKeys = new Set(kept.map((i) => i.key));
+    const appended = DEFAULT_PAYSLIP_LINE_ITEMS.filter((def) => !keptKeys.has(def.key));
+    return [...kept, ...appended];
+  } catch {
+    return DEFAULT_PAYSLIP_LINE_ITEMS;
+  }
+}
+
+export async function getPayslipLayoutSettings(): Promise<PayslipLayoutSettingsData> {
+  const existing = await prisma.payslipLayoutSettings.findFirst();
+  if (existing) {
+    return {
+      id: existing.id,
+      documentTitle: existing.documentTitle,
+      footerNote: existing.footerNote ?? DEFAULT_PAYSLIP_FOOTER_NOTE,
+      lineItems: parsePayslipLineItems(existing.lineItemsJson),
+    };
+  }
+  const created = await prisma.payslipLayoutSettings.create({
+    data: { lineItemsJson: JSON.stringify(DEFAULT_PAYSLIP_LINE_ITEMS) },
+  });
+  return {
+    id: created.id,
+    documentTitle: created.documentTitle,
+    footerNote: DEFAULT_PAYSLIP_FOOTER_NOTE,
+    lineItems: DEFAULT_PAYSLIP_LINE_ITEMS,
+  };
+}
+
+export type PayslipLine = { key: PayslipLineItemKey; label: string; section: PayslipSection; value: number };
+
+// Subconjunto do PayslipBreakdown (ou de um Payslip já gerado — os campos
+// coincidem) necessário para montar as linhas do recibo segundo o layout
+// configurado.
+type PayslipLineSource = {
+  baseSalary: number;
+  overtimeHours: number;
+  overtimePay: number;
+  mealAllowanceTotal: number;
+  vacationSubsidy: number;
+  christmasSubsidy: number;
+  otherEarnings: number;
+  absenceDeductionDays: number;
+  absenceDeduction: number;
+  socialSecurityEmployee: number;
+  irsWithholding: number;
+  otherDeductions: number;
+};
+
+function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): { value: number; suffix: string } {
+  switch (key) {
+    case "baseSalary":
+      return { value: source.baseSalary, suffix: "" };
+    case "overtimePay":
+      return {
+        value: source.overtimePay,
+        suffix: source.overtimeHours > 0 ? ` (${source.overtimeHours.toFixed(1)}h)` : "",
+      };
+    case "mealAllowanceTotal":
+      return { value: source.mealAllowanceTotal, suffix: "" };
+    case "vacationSubsidy":
+      return { value: source.vacationSubsidy, suffix: "" };
+    case "christmasSubsidy":
+      return { value: source.christmasSubsidy, suffix: "" };
+    case "otherEarnings":
+      return { value: source.otherEarnings, suffix: "" };
+    case "absenceDeduction":
+      return {
+        value: -source.absenceDeduction,
+        suffix: source.absenceDeductionDays > 0 ? ` (${source.absenceDeductionDays.toFixed(1)}d)` : "",
+      };
+    case "socialSecurityEmployee":
+      return { value: -source.socialSecurityEmployee, suffix: "" };
+    case "irsWithholding":
+      return { value: -source.irsWithholding, suffix: "" };
+    case "otherDeductions":
+      return { value: -source.otherDeductions, suffix: "" };
+  }
+}
+
+// Aplica o layout configurado (ordem, texto e visibilidade) aos valores
+// calculados de um recibo — usado tanto na pré-visualização no ecrã como
+// no PDF, para que os dois mostrem sempre exatamente as mesmas linhas.
+export function buildPayslipLines(source: PayslipLineSource, lineItems: PayslipLineItemConfig[]): PayslipLine[] {
+  const lines: PayslipLine[] = [];
+  for (const item of lineItems) {
+    if (!item.visible) continue;
+    const { value, suffix } = payslipLineValue(source, item.key);
+    if (!ALWAYS_SHOW_LINE_ITEMS.has(item.key) && value === 0) continue;
+    lines.push({ key: item.key, label: item.label + suffix, section: item.section, value });
+  }
+  return lines;
 }

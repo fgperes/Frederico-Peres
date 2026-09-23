@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
-import { Banknote, Sliders } from "lucide-react";
+import { Banknote, Sliders, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -45,9 +45,14 @@ export default async function PayrollPage({
         description="Processamento salarial mensal — com base no horário, picagens e dados contratuais."
         action={
           canEdit ? (
-            <LinkButton href="/payroll/pressupostos" variant="secondary">
-              <Sliders size={14} /> Pressupostos
-            </LinkButton>
+            <div className="flex items-center gap-2">
+              <LinkButton href="/payroll/layout" variant="secondary">
+                <LayoutTemplate size={14} /> Layout do Recibo
+              </LinkButton>
+              <LinkButton href="/payroll/pressupostos" variant="secondary">
+                <Sliders size={14} /> Pressupostos
+              </LinkButton>
+            </div>
           ) : undefined
         }
       />

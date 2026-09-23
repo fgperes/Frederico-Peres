@@ -4,8 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
-import { computePayslipBreakdown, getPayrollSettings, toPayslipRecord } from "@/lib/payroll";
+import {
+  computePayslipBreakdown,
+  getPayrollSettings,
+  toPayslipRecord,
+  FISCAL_REGIONS,
+  DEFAULT_PAYSLIP_LINE_ITEMS,
+  type PayslipLineItemKey,
+} from "@/lib/payroll";
 import { revalidatePath } from "next/cache";
+import { parseExcelFile } from "@/lib/excel";
 
 async function assertCanWrite() {
   const user = await requireUser();
@@ -81,21 +89,52 @@ export async function updatePayrollSettings(formData: FormData) {
   revalidatePath("/payroll");
 }
 
+// Uma tabela de IRS junta os escalões que se aplicam a um período (ano) e
+// região fiscal (Continente/Açores/Madeira) — RH cria uma tabela nova
+// sempre que a Autoridade Tributária publica valores atualizados ou uma
+// tabela específica de uma região.
+export async function createIrsTable(formData: FormData) {
+  const user = await assertCanWrite();
+  const year = Number(formData.get("year"));
+  const region = String(formData.get("region") ?? "CONTINENTE");
+  const label = String(formData.get("label") ?? "").trim() || null;
+
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Ano inválido.");
+  if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) throw new Error("Região inválida.");
+
+  const existing = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
+  if (existing) throw new Error(`Já existe uma tabela de IRS para ${year} — ${region}.`);
+
+  const table = await prisma.irsTable.create({ data: { year, region, label } });
+  await logAudit({ userId: user.id, action: "CREATE", entity: "IrsTable", entityId: table.id, details: `${year} — ${region}` });
+  revalidatePath("/payroll/pressupostos");
+}
+
+export async function deleteIrsTable(id: string) {
+  const user = await assertCanWrite();
+  const table = await prisma.irsTable.findUniqueOrThrow({ where: { id } });
+  await prisma.irsTable.delete({ where: { id } });
+  await logAudit({ userId: user.id, action: "DELETE", entity: "IrsTable", entityId: id, details: `${table.year} — ${table.region}` });
+  revalidatePath("/payroll/pressupostos");
+}
+
 export async function upsertIrsBracket(formData: FormData) {
   const user = await assertCanWrite();
   const id = String(formData.get("id") ?? "") || null;
+  const irsTableId = String(formData.get("irsTableId") ?? "");
   const order = Number(formData.get("order"));
   const upToGrossRaw = String(formData.get("upToGross") ?? "").trim();
   const upToGross = upToGrossRaw ? Number(upToGrossRaw) : null;
   const rate = Number(formData.get("rate"));
 
+  if (!irsTableId) throw new Error("Tabela de IRS em falta.");
   if (!(rate >= 0 && rate < 1)) throw new Error("Taxa do escalão tem de estar entre 0% e 100%.");
   if (upToGross !== null && upToGross <= 0) throw new Error("Limite do escalão tem de ser positivo.");
 
   if (id) {
     await prisma.irsBracket.update({ where: { id }, data: { order, upToGross, rate } });
   } else {
-    await prisma.irsBracket.create({ data: { order, upToGross, rate } });
+    await prisma.irsBracket.create({ data: { irsTableId, order, upToGross, rate } });
   }
 
   await logAudit({ userId: user.id, action: "UPDATE", entity: "IrsBracket", details: `Escalão ${order}` });
@@ -107,6 +146,71 @@ export async function deleteIrsBracket(id: string) {
   await prisma.irsBracket.delete({ where: { id } });
   await logAudit({ userId: user.id, action: "DELETE", entity: "IrsBracket", entityId: id });
   revalidatePath("/payroll/pressupostos");
+}
+
+export type ImportIrsTableState = { error?: string; success?: boolean; imported?: number };
+
+// "Anexar" uma tabela de IRS completa de uma vez — cria a tabela para o
+// ano/região indicados (ou reutiliza uma já existente, sem escalões) e
+// importa os escalões de um ficheiro Excel (colunas: Ordem, Até (€), Taxa).
+export async function importIrsTableAction(
+  _prev: ImportIrsTableState,
+  formData: FormData
+): Promise<ImportIrsTableState> {
+  const user = await assertCanWrite();
+
+  const year = Number(formData.get("year"));
+  const region = String(formData.get("region") ?? "CONTINENTE");
+  const label = String(formData.get("label") ?? "").trim() || null;
+  const file = formData.get("file") as File | null;
+
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) return { error: "Ano inválido." };
+  if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) return { error: "Região inválida." };
+  if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
+
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await parseExcelFile(file);
+  } catch {
+    return { error: "Não foi possível ler o ficheiro. Confirme que é um Excel válido (.xlsx)." };
+  }
+  if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
+
+  const brackets: { order: number; upToGross: number | null; rate: number }[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const order = Number(row["Ordem"] ?? i + 1);
+    const upToGrossRaw = row["Até (€)"];
+    const upToGross = upToGrossRaw === "" || upToGrossRaw == null ? null : Number(upToGrossRaw);
+    const rate = Number(row["Taxa"]);
+    if (!Number.isFinite(order) || !Number.isFinite(rate) || rate < 0 || rate >= 1) {
+      return { error: `Linha ${i + 2}: dados inválidos (confirme Ordem, Até (€) e Taxa entre 0 e 1).` };
+    }
+    brackets.push({ order, upToGross: upToGross === null || Number.isFinite(upToGross) ? upToGross : null, rate });
+  }
+
+  let table = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
+  if (table) {
+    const existingBrackets = await prisma.irsBracket.count({ where: { irsTableId: table.id } });
+    if (existingBrackets > 0) {
+      return { error: `Já existe uma tabela de IRS com escalões para ${year} — ${region}. Elimine-a primeiro se quiser substituir.` };
+    }
+  } else {
+    table = await prisma.irsTable.create({ data: { year, region, label } });
+  }
+
+  await prisma.irsBracket.createMany({ data: brackets.map((b) => ({ ...b, irsTableId: table!.id })) });
+
+  await logAudit({
+    userId: user.id,
+    action: "CREATE",
+    entity: "IrsTable",
+    entityId: table.id,
+    details: `${year} — ${region}: ${brackets.length} escalão(ões) importado(s)`,
+  });
+
+  revalidatePath("/payroll/pressupostos");
+  return { success: true, imported: brackets.length };
 }
 
 export async function updateEmployeePayrollProfile(employeeId: string, formData: FormData) {
@@ -205,4 +309,43 @@ export async function generatePayslipAction(
 
 export async function ensureSettingsSeeded() {
   await getPayrollSettings();
+}
+
+// Layout do recibo de vencimento — que linhas aparecem, com que texto e por
+// que ordem (ver /payroll/layout). O formulário envia um campo por linha
+// (label_<key>, visible_<key>, order_<key>); a secção de cada chave nunca
+// vem do formulário, vem sempre da lista fixa de chaves suportadas.
+export async function updatePayslipLayoutSettings(formData: FormData) {
+  const user = await assertCanWrite();
+
+  const documentTitle = String(formData.get("documentTitle") ?? "").trim() || "Recibo de Vencimento";
+  const footerNoteRaw = String(formData.get("footerNote") ?? "").trim();
+
+  const items = DEFAULT_PAYSLIP_LINE_ITEMS.map((def) => {
+    const key = def.key as PayslipLineItemKey;
+    const label = String(formData.get(`label_${key}`) ?? "").trim() || def.label;
+    const visible = formData.get(`visible_${key}`) === "on";
+    const order = Number(formData.get(`order_${key}`) ?? 0);
+    return { key, label, section: def.section, visible, order };
+  });
+  items.sort((a, b) => a.order - b.order);
+  const lineItems = items.map(({ key, label, section, visible }) => ({ key, label, section, visible }));
+
+  const existing = await prisma.payslipLayoutSettings.findFirst();
+  const data = {
+    documentTitle,
+    footerNote: footerNoteRaw || null,
+    lineItemsJson: JSON.stringify(lineItems),
+    updatedById: user.id,
+  };
+
+  if (existing) {
+    await prisma.payslipLayoutSettings.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.payslipLayoutSettings.create({ data });
+  }
+
+  await logAudit({ userId: user.id, action: "UPDATE", entity: "PayslipLayoutSettings" });
+  revalidatePath("/payroll/layout");
+  revalidatePath("/payroll");
 }

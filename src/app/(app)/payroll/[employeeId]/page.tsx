@@ -11,6 +11,7 @@ import {
   addPayrollComponent,
   removePayrollComponent,
 } from "../actions";
+import { FISCAL_REGION_LABELS } from "@/lib/payroll";
 
 const MARITAL_LABELS: Record<string, string> = {
   NAO_CASADO: "Não casado(a)",
@@ -232,7 +233,7 @@ export default async function EmployeePayrollPage({
             <dl className="space-y-2 text-sm">
               <Info label="Estado civil" value={employee.maritalStatus ? MARITAL_LABELS[employee.maritalStatus] : "—"} />
               <Info label="Dependentes" value={String(employee.dependents)} />
-              <Info label="Região fiscal" value={employee.fiscalRegion} />
+              <Info label="Região fiscal" value={FISCAL_REGION_LABELS[employee.fiscalRegion] ?? employee.fiscalRegion} />
             </dl>
           )}
         </Card>
