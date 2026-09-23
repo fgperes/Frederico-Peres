@@ -267,11 +267,10 @@ export function TemplateForm({
 
     startTransition(async () => {
       try {
-        if (initial) {
-          await updateTemplate(initial.id, payload);
-        } else {
-          await createTemplate(payload);
-        }
+        const result = initial
+          ? await updateTemplate(initial.id, payload)
+          : await createTemplate(payload);
+        if (result.error) throw new Error(result.error);
         router.push("/avaliacoes");
       } catch (err) {
         setStatus("error");

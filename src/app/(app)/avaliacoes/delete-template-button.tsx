@@ -17,7 +17,8 @@ export function DeleteTemplateButton({ templateId, canDelete }: { templateId: st
     setError(null);
     startTransition(async () => {
       try {
-        await deleteTemplate(templateId);
+        const result = await deleteTemplate(templateId);
+        if (result.error) throw new Error(result.error);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Ocorreu um erro ao eliminar.");

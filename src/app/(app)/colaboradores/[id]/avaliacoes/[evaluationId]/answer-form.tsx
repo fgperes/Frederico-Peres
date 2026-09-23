@@ -48,6 +48,7 @@ export function AnswerForm({
     startTransition(async () => {
       try {
         const result = await submitEvaluationAnswers(evaluationId, respondent, answers);
+        if (result.error) throw new Error(result.error);
         router.push(`/colaboradores/${result.employeeId}/avaliacoes`);
       } catch (err) {
         setStatus("error");
