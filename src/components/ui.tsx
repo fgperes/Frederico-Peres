@@ -124,14 +124,19 @@ export function Badge({
   );
 }
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-stone-900";
+
 export function LinkButton({
   href,
   children,
   variant = "primary",
+  className = "",
 }: {
   href: string;
   children: ReactNode;
   variant?: "primary" | "secondary";
+  className?: string;
 }) {
   const styles =
     variant === "primary"
@@ -140,7 +145,7 @@ export function LinkButton({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${styles}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${FOCUS_RING} ${styles} ${className}`}
     >
       {children}
     </Link>
@@ -165,12 +170,99 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${styles} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${FOCUS_RING} ${styles} ${className}`}
       {...props}
     >
       {children}
     </button>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Primitivos de formulário — estilo consistente (foco, erro, hint) para usar
+// em vez de <input>/<select>/<textarea> "em bruto". O estado de foco já é
+// garantido globalmente em globals.css para qualquer campo nativo, mas estes
+// componentes acrescentam o wrapper de label/hint/erro e o tamanho/raio
+// consistentes com o resto do sistema de design.
+// ---------------------------------------------------------------------------
+
+const FIELD_BASE =
+  "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 disabled:cursor-not-allowed disabled:bg-stone-50 disabled:text-stone-400 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:placeholder:text-stone-500 dark:disabled:bg-stone-900";
+
+export function Label({
+  children,
+  htmlFor,
+  className = "",
+}: {
+  children: ReactNode;
+  htmlFor?: string;
+  className?: string;
+}) {
+  return (
+    <label htmlFor={htmlFor} className={`mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400 ${className}`}>
+      {children}
+    </label>
+  );
+}
+
+export function Field({
+  label,
+  hint,
+  error,
+  htmlFor,
+  className = "",
+  children,
+}: {
+  label?: string;
+  hint?: string;
+  error?: string;
+  htmlFor?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={className}>
+      {label && <Label htmlFor={htmlFor}>{label}</Label>}
+      {children}
+      {error ? (
+        <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{error}</p>
+      ) : (
+        hint && <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">{hint}</p>
+      )}
+    </div>
+  );
+}
+
+export function Input({
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={`${FIELD_BASE} ${className}`} {...props} />;
+}
+
+export function Select({
+  className = "",
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select className={`${FIELD_BASE} ${className}`} {...props}>
+      {children}
+    </select>
+  );
+}
+
+export function Textarea({
+  className = "",
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={`${FIELD_BASE} ${className}`} {...props} />;
+}
+
+// Envolve tabelas largas com scroll horizontal discreto — evita que a
+// tabela force a página inteira a abrir em ecrãs pequenos.
+export function TableScroll({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`scroll-thin overflow-x-auto ${className}`}>{children}</div>;
 }
 
 export function EmptyState({

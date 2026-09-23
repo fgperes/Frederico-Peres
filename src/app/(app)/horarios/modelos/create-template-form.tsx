@@ -14,7 +14,7 @@ export function CreateTemplateForm() {
         <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
         <input name="name" required placeholder="Manhã 08h-16h" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600">Início</label>
           <input name="startTime" type="time" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
@@ -24,7 +24,7 @@ export function CreateTemplateForm() {
           <input name="endTime" type="time" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600">Pausa (min)</label>
           <input name="breakMins" type="number" defaultValue={0} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />

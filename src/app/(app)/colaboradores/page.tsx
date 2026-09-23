@@ -53,7 +53,7 @@ export default async function ColaboradoresPage({
         description="Ficha central de colaboradores e estrutura organizacional."
         action={
           canEdit ? (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <LinkButton href="/colaboradores/importar" variant="secondary">
                 Importar Excel
               </LinkButton>

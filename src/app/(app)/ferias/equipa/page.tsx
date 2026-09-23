@@ -373,44 +373,46 @@ async function TeamHeadcountTable({ employeeIds, year }: { employeeIds: string[]
       <h3 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
         Saldo de férias por colaborador ({year})
       </h3>
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
-          <tr>
-            <th className="px-3 py-2">Colaborador</th>
-            <th className="px-3 py-2">Dias do ano</th>
-            <th className="px-3 py-2">Total</th>
-            <th className="px-3 py-2">Marcados (aprovados)</th>
-            <th className="px-3 py-2">Saldo</th>
-            <th className="px-3 py-2">Ações</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-          {rows.map(({ employee, headcount }) => (
-            <tr key={employee.id}>
-              <td className="px-3 py-2 font-medium text-stone-800 dark:text-stone-200">
-                {employee.firstName} {employee.lastName}
-              </td>
-              <td className="px-3 py-2 text-stone-600 dark:text-stone-300">{headcount.entitled}</td>
-              <td className="px-3 py-2 text-stone-600 dark:text-stone-300">{headcount.total}</td>
-              <td className="px-3 py-2 text-stone-600 dark:text-stone-300">
-                {headcount.marked} ({headcount.approved})
-              </td>
-              <td
-                className={`px-3 py-2 font-medium ${
-                  headcount.saldo < 0
-                    ? "text-rose-600 dark:text-rose-400"
-                    : "text-stone-800 dark:text-stone-200"
-                }`}
-              >
-                {headcount.saldo}
-              </td>
-              <td className="px-3 py-2">
-                <BalanceEditor employeeId={employee.id} year={year} totalDays={headcount.total} />
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900/60 dark:text-stone-400">
+            <tr>
+              <th className="px-3 py-2">Colaborador</th>
+              <th className="px-3 py-2">Dias do ano</th>
+              <th className="px-3 py-2">Total</th>
+              <th className="px-3 py-2">Marcados (aprovados)</th>
+              <th className="px-3 py-2">Saldo</th>
+              <th className="px-3 py-2">Ações</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+            {rows.map(({ employee, headcount }) => (
+              <tr key={employee.id}>
+                <td className="px-3 py-2 font-medium text-stone-800 dark:text-stone-200">
+                  {employee.firstName} {employee.lastName}
+                </td>
+                <td className="px-3 py-2 text-stone-600 dark:text-stone-300">{headcount.entitled}</td>
+                <td className="px-3 py-2 text-stone-600 dark:text-stone-300">{headcount.total}</td>
+                <td className="px-3 py-2 text-stone-600 dark:text-stone-300">
+                  {headcount.marked} ({headcount.approved})
+                </td>
+                <td
+                  className={`px-3 py-2 font-medium ${
+                    headcount.saldo < 0
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-stone-800 dark:text-stone-200"
+                  }`}
+                >
+                  {headcount.saldo}
+                </td>
+                <td className="px-3 py-2">
+                  <BalanceEditor employeeId={employee.id} year={year} totalDays={headcount.total} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }
