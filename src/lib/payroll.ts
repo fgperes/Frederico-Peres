@@ -103,14 +103,19 @@ export async function computePayslipBreakdown(
     prisma.employee.findUniqueOrThrow({
       where: { id: employeeId },
       include: {
-        contracts: { where: { status: "ACTIVE" }, orderBy: { startDate: "desc" }, take: 1 },
+        employeeContracts: {
+          where: { status: "ACTIVE" },
+          orderBy: { startDate: "desc" },
+          take: 1,
+          include: { contractProfile: true },
+        },
       },
     }),
   ]);
 
-  const contract = employee.contracts[0];
+  const contract = employee.employeeContracts[0];
   const baseSalary = contract?.baseSalary ?? 0;
-  const contractedWeeklyHours = contract?.weeklyHours ?? employee.weeklyHours;
+  const contractedWeeklyHours = contract?.contractProfile.weeklyHours ?? employee.weeklyHours;
   const contractedDailyHours = contractedWeeklyHours / 5;
 
   const periodStart = new Date(year, month - 1, 1);

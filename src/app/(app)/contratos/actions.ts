@@ -16,16 +16,18 @@ async function assertCanWrite() {
   return user;
 }
 
-// CT-01/CT-05: registar dados contratuais e sincronizar horas/vínculo com a
-// ficha do colaborador, para condicionar a geração de horários.
-export async function createContract(formData: FormData) {
+// Perfis de contrato são partilhados e, depois de criados, imutáveis nos
+// termos (tipo, horas, folgas semanais) — só o nome e o estado
+// ativo/inativo podem mudar. As condições que um colaborador teve em cada
+// período ficam sempre fiéis ao histórico (EmployeeContract), mesmo que o
+// perfil seja renomeado mais tarde.
+export async function createContractProfile(formData: FormData) {
   const user = await assertCanWrite();
 
-  const employeeId = String(formData.get("employeeId"));
   let contractType = String(formData.get("contractType"));
 
-  // "+ Novo tipo de contrato…" no próprio formulário de contrato — evita
-  // depender da página separada de Tipos de Contrato para o caso comum.
+  // "+ Novo tipo de contrato…" no próprio formulário — evita depender da
+  // página separada de Tipos de Contrato para o caso comum.
   if (contractType === "__new__") {
     const label = String(formData.get("newContractTypeLabel") ?? "").trim();
     if (!label) throw new Error("Indique o nome do novo tipo de contrato.");
@@ -50,36 +52,115 @@ export async function createContract(formData: FormData) {
     }
   }
 
-  const startDate = new Date(String(formData.get("startDate")));
-  const endDateRaw = String(formData.get("endDate") ?? "");
-  const trialPeriodEndDateRaw = String(formData.get("trialPeriodEndDate") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Indique o nome do contrato.");
   const weeklyHours = Number(formData.get("weeklyHours") ?? 40);
   const weeklyRestDays = Number(formData.get("weeklyRestDays") ?? 1);
+
+  const existing = await prisma.contractProfile.findUnique({ where: { name } });
+  if (existing) throw new Error("Já existe um contrato com este nome.");
+
+  const profile = await prisma.contractProfile.create({
+    data: { name, contractType, weeklyHours, weeklyRestDays },
+  });
+
+  await logAudit({
+    userId: user.id,
+    action: "CREATE",
+    entity: "ContractProfile",
+    entityId: profile.id,
+    details: `${name} — ${contractType} — ${weeklyHours}h/semana`,
+  });
+
+  revalidatePath("/contratos");
+  redirect(`/contratos/${profile.id}`);
+}
+
+export async function renameContractProfile(profileId: string, formData: FormData) {
+  const user = await assertCanWrite();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Indique o nome do contrato.");
+
+  const existing = await prisma.contractProfile.findUnique({ where: { name } });
+  if (existing && existing.id !== profileId) throw new Error("Já existe um contrato com este nome.");
+
+  const profile = await prisma.contractProfile.update({ where: { id: profileId }, data: { name } });
+  await logAudit({ userId: user.id, action: "RENAME", entity: "ContractProfile", entityId: profile.id, details: name });
+  revalidatePath("/contratos");
+  revalidatePath(`/contratos/${profileId}`);
+}
+
+// Só é possível inativar um contrato se não tiver nenhum colaborador
+// atualmente atribuído — garante que ninguém fica sem contrato ativo só
+// porque o perfil foi inativado por baixo.
+export async function setContractProfileActive(profileId: string, active: boolean) {
+  const user = await assertCanWrite();
+
+  if (!active) {
+    const activeAssignments = await prisma.employeeContract.count({
+      where: { contractProfileId: profileId, status: "ACTIVE" },
+    });
+    if (activeAssignments > 0) {
+      throw new Error(
+        `Este contrato tem ${activeAssignments} colaborador(es) atribuído(s) e não pode ser inativado.`
+      );
+    }
+  }
+
+  const profile = await prisma.contractProfile.update({ where: { id: profileId }, data: { active } });
+  await logAudit({
+    userId: user.id,
+    action: active ? "ACTIVATE" : "DEACTIVATE",
+    entity: "ContractProfile",
+    entityId: profile.id,
+    details: profile.name,
+  });
+  revalidatePath("/contratos");
+  revalidatePath(`/contratos/${profileId}`);
+}
+
+// Atribui um colaborador a um perfil de contrato — encerra automaticamente
+// a atribuição ativa anterior desse colaborador (se existir), preservando-a
+// no histórico. Cada atribuição fica registada para sempre; nunca é
+// editada, só encerrada.
+export async function assignEmployeeContract(formData: FormData) {
+  const user = await assertCanWrite();
+
+  const employeeId = String(formData.get("employeeId"));
+  const contractProfileId = String(formData.get("contractProfileId"));
+  const startDateRaw = String(formData.get("startDate") ?? "");
+  const trialPeriodEndDateRaw = String(formData.get("trialPeriodEndDate") ?? "");
   const baseSalaryRaw = String(formData.get("baseSalary") ?? "");
   const documentName = String(formData.get("documentName") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
-  const parentContractId = String(formData.get("parentContractId") ?? "") || null;
 
-  let version = 1;
-  if (parentContractId) {
-    const parent = await prisma.contract.findUniqueOrThrow({ where: { id: parentContractId } });
-    version = parent.version + 1;
+  if (!employeeId || !contractProfileId || !startDateRaw) {
+    throw new Error("Selecione o colaborador, o contrato e a data de início.");
+  }
+  const startDate = new Date(startDateRaw);
+
+  const profile = await prisma.contractProfile.findUniqueOrThrow({ where: { id: contractProfileId } });
+  if (!profile.active) throw new Error("Este contrato está inativo e não pode ser atribuído.");
+
+  const previousActive = await prisma.employeeContract.findFirst({
+    where: { employeeId, status: "ACTIVE" },
+  });
+  if (previousActive) {
+    await prisma.employeeContract.update({
+      where: { id: previousActive.id },
+      data: { status: "ENDED", endDate: previousActive.endDate ?? startDate },
+    });
   }
 
-  const contract = await prisma.contract.create({
+  const assignment = await prisma.employeeContract.create({
     data: {
       employeeId,
-      contractType,
+      contractProfileId,
       startDate,
-      endDate: endDateRaw ? new Date(endDateRaw) : null,
       trialPeriodEndDate: trialPeriodEndDateRaw ? new Date(trialPeriodEndDateRaw) : null,
-      weeklyHours,
-      weeklyRestDays,
       baseSalary: baseSalaryRaw ? Number(baseSalaryRaw) : null,
       documentName,
       notes,
-      parentContractId,
-      version,
       status: "ACTIVE",
     },
   });
@@ -87,30 +168,37 @@ export async function createContract(formData: FormData) {
   await prisma.employee.update({
     where: { id: employeeId },
     data: {
-      weeklyHours,
-      employmentType: contractType === "PART_TIME" ? "PART_TIME" : "FULL_TIME",
+      weeklyHours: profile.weeklyHours,
+      employmentType: profile.contractType === "PART_TIME" ? "PART_TIME" : "FULL_TIME",
     },
   });
 
   await logAudit({
     userId: user.id,
-    action: parentContractId ? "AMEND" : "CREATE",
-    entity: "Contract",
-    entityId: contract.id,
-    details: `${contractType} — ${weeklyHours}h/semana`,
+    action: "ASSIGN",
+    entity: "EmployeeContract",
+    entityId: assignment.id,
+    details: `${profile.name} → colaborador ${employeeId}`,
   });
 
   revalidatePath("/contratos");
+  revalidatePath(`/contratos/${contractProfileId}`);
   revalidatePath(`/colaboradores/${employeeId}`);
-  redirect(`/contratos/${contract.id}`);
+  redirect(`/colaboradores/${employeeId}/contratos`);
 }
 
-export async function setContractStatus(contractId: string, status: "ACTIVE" | "EXPIRED" | "TERMINATED") {
+// Rescindir — encerra a atribuição atual sem apagar o histórico; o
+// colaborador mantém o registo desta atribuição para sempre.
+export async function endEmployeeContract(assignmentId: string) {
   const user = await assertCanWrite();
-  const contract = await prisma.contract.update({ where: { id: contractId }, data: { status } });
-  await logAudit({ userId: user.id, action: "UPDATE_STATUS", entity: "Contract", entityId: contract.id, details: status });
+  const assignment = await prisma.employeeContract.update({
+    where: { id: assignmentId },
+    data: { status: "ENDED", endDate: new Date() },
+  });
+  await logAudit({ userId: user.id, action: "END", entity: "EmployeeContract", entityId: assignment.id });
   revalidatePath("/contratos");
-  revalidatePath(`/contratos/${contractId}`);
+  revalidatePath(`/contratos/${assignment.contractProfileId}`);
+  revalidatePath(`/colaboradores/${assignment.employeeId}`);
 }
 
 // Tipos de contrato configuráveis (tal como os tipos de ausência).
@@ -136,7 +224,7 @@ export async function deleteContractType(contractTypeId: string) {
   const type = await prisma.contractTypeDefinition.findUniqueOrThrow({ where: { id: contractTypeId } });
   if (type.isSystem) throw new Error("Este tipo de contrato é um tipo base do sistema e não pode ser removido.");
 
-  const inUse = await prisma.contract.count({ where: { contractType: type.key } });
+  const inUse = await prisma.contractProfile.count({ where: { contractType: type.key } });
   if (inUse > 0) throw new Error(`Este tipo está em uso em ${inUse} contrato(s) e não pode ser removido.`);
 
   await prisma.contractTypeDefinition.delete({ where: { id: contractTypeId } });

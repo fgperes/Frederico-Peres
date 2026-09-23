@@ -245,6 +245,10 @@ async function main() {
   }
 
   console.log("Seed demo: contratos...");
+  // Contratos são perfis partilhados — colaboradores com o mesmo tipo e
+  // horas semanais reutilizam o mesmo ContractProfile (cria-se um por
+  // combinação), cada um com a sua própria atribuição (EmployeeContract).
+  const profileCache = new Map<string, string>();
   for (const emp of createdEmployees) {
     const employee = await prisma.employee.findUniqueOrThrow({ where: { id: emp.id } });
     const isPartTime = employee.employmentType === "PART_TIME";
@@ -260,17 +264,29 @@ async function main() {
           : randomDateBetween(new Date(2026, 8, 1), new Date(2028, 0, 1))
         : null;
 
-    await prisma.contract.create({
+    const profileKey = `${contractType}|${employee.weeklyHours}`;
+    let profileId = profileCache.get(profileKey);
+    if (!profileId) {
+      const profileName = `${contractType} ${employee.weeklyHours}h (demo)`;
+      const profile = await prisma.contractProfile.upsert({
+        where: { name: profileName },
+        update: {},
+        create: { name: profileName, contractType, weeklyHours: employee.weeklyHours },
+      });
+      profileId = profile.id;
+      profileCache.set(profileKey, profileId);
+    }
+
+    await prisma.employeeContract.create({
       data: {
         employeeId: employee.id,
-        contractType,
+        contractProfileId: profileId,
         startDate: employee.hireDate ?? new Date(),
         endDate,
         trialPeriodEndDate:
           Math.random() < 0.3 && employee.hireDate
             ? new Date(employee.hireDate.getTime() + 90 * 24 * 60 * 60 * 1000)
             : null,
-        weeklyHours: employee.weeklyHours,
         baseSalary: Math.round((900 + Math.random() * 2600) * 100) / 100,
         status: "ACTIVE",
       },

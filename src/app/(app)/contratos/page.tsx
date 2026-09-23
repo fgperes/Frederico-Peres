@@ -7,7 +7,7 @@ import Link from "next/link";
 import { addDays } from "date-fns";
 import { FileSignature } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
-import { ContractGroupsTable, type ContractGroup } from "./contract-groups-table";
+import { ContractProfilesTable } from "./contract-profiles-table";
 
 export default async function ContratosPage({
   searchParams,
@@ -23,60 +23,39 @@ export default async function ContratosPage({
   const scopedEmployees = await prisma.employee.findMany({ where: scope });
   const employeeIds = scopedEmployees.map((e) => e.id);
 
-  const [contracts, expiring, contractTypeLabels] = await Promise.all([
-    prisma.contract.findMany({
-      where: { employeeId: { in: employeeIds } },
-      include: { employee: true },
-      orderBy: { createdAt: "desc" },
+  const [profiles, expiring, contractTypeLabels] = await Promise.all([
+    prisma.contractProfile.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { assignments: { where: { status: "ACTIVE" } } } } },
     }),
-    prisma.contract.findMany({
+    prisma.employeeContract.findMany({
       where: {
         employeeId: { in: employeeIds },
         status: "ACTIVE",
         endDate: { not: null, lte: addDays(new Date(), horizonDays) },
       },
-      include: { employee: true },
+      include: { employee: true, contractProfile: true },
       orderBy: { endDate: "asc" },
     }),
     getContractTypeLabels(),
   ]);
 
-  // Um "contrato" nesta listagem é um perfil de condições (tipo + horas +
-  // folgas semanais) — pode aplicar-se a vários colaboradores, por isso
-  // aparece agrupado uma única vez, com todos os colaboradores que se
-  // enquadram nessa condição por baixo.
-  const groupsByKey = new Map<string, ContractGroup>();
-  for (const c of contracts) {
-    const key = `${c.contractType}|${c.weeklyHours}|${c.weeklyRestDays}`;
-    if (!groupsByKey.has(key)) {
-      groupsByKey.set(key, {
-        key,
-        contractTypeLabel: contractTypeLabels[c.contractType] ?? c.contractType,
-        weeklyHours: c.weeklyHours,
-        weeklyRestDays: c.weeklyRestDays,
-        entries: [],
-      });
-    }
-    groupsByKey.get(key)!.entries.push({
-      id: c.id,
-      employeeId: c.employeeId,
-      employeeName: `${c.employee.firstName} ${c.employee.lastName}`,
-      startDate: c.startDate.toLocaleDateString("pt-PT"),
-      endDate: c.endDate ? c.endDate.toLocaleDateString("pt-PT") : null,
-      status: c.status,
-      version: c.version,
-    });
-  }
-  const groups = Array.from(groupsByKey.values()).sort(
-    (a, b) => a.contractTypeLabel.localeCompare(b.contractTypeLabel) || a.weeklyHours - b.weeklyHours
-  );
+  const rows = profiles.map((p) => ({
+    id: p.id,
+    name: p.name,
+    contractTypeLabel: contractTypeLabels[p.contractType] ?? p.contractType,
+    weeklyHours: p.weeklyHours,
+    weeklyRestDays: p.weeklyRestDays,
+    active: p.active,
+    employeeCount: p._count.assignments,
+  }));
 
   return (
     <div>
       <PageHeader
         icon={FileSignature}
         title="Contratos de Trabalho"
-        description="Dados contratuais, aditamentos e alertas de prazos."
+        description="Perfis de contrato partilhados — condições fixas depois de criados; só o nome e o estado podem mudar."
         action={canEdit && <LinkButton href="/contratos/novo">+ Novo Contrato</LinkButton>}
       />
 
@@ -100,11 +79,14 @@ export default async function ContratosPage({
           <ul className="space-y-1 text-sm text-amber-900">
             {expiring.map((c) => (
               <li key={c.id}>
-                <Link href={`/contratos/${c.id}`} className="hover:underline">
+                <Link href={`/colaboradores/${c.employeeId}/contratos`} className="hover:underline">
                   {c.employee.firstName} {c.employee.lastName}
                 </Link>{" "}
-                — {contractTypeLabels[c.contractType]} — termina em{" "}
-                {c.endDate?.toLocaleDateString("pt-PT")}
+                —{" "}
+                <Link href={`/contratos/${c.contractProfileId}`} className="hover:underline">
+                  {contractTypeLabels[c.contractProfile.contractType] ?? c.contractProfile.contractType}
+                </Link>{" "}
+                — termina em {c.endDate?.toLocaleDateString("pt-PT")}
               </li>
             ))}
           </ul>
@@ -112,10 +94,10 @@ export default async function ContratosPage({
       )}
 
       <Card className="p-0">
-        {groups.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="p-6"><EmptyState message="Sem contratos registados." /></div>
         ) : (
-          <ContractGroupsTable groups={groups} />
+          <ContractProfilesTable profiles={rows} />
         )}
       </Card>
 

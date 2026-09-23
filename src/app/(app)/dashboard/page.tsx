@@ -95,7 +95,7 @@ async function ManagementDashboard({
         ? prisma.absence.count({ where: { employee: scope, status: "PENDING" } })
         : 0,
       canRead(user.roles, "contratos")
-        ? prisma.contract.count({
+        ? prisma.employeeContract.count({
             where: {
               employee: scope,
               status: "ACTIVE",

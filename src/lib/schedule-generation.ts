@@ -85,9 +85,10 @@ export async function generateSchedulesForEmployees(
         where: { employeeId: { in: employeeIds }, cycle: { isTemplate: false } },
         include: { cycle: { include: { pattern: true } } },
       }),
-      prisma.contract.findMany({
+      prisma.employeeContract.findMany({
         where: { employeeId: { in: employeeIds }, status: "ACTIVE" },
         orderBy: { startDate: "desc" },
+        include: { contractProfile: true },
       }),
       prisma.absence.findMany({
         where: { employeeId: { in: employeeIds }, status: "APPROVED", startDate: { lte: to }, endDate: { gte: from } },
@@ -257,7 +258,7 @@ export async function generateSchedulesForEmployees(
         if (hasShiftOn(employeeId, day)) continue;
 
         const week = weekKeyOf(day);
-        const maxWorkingDays = 7 - contract.weeklyRestDays;
+        const maxWorkingDays = 7 - contract.contractProfile.weeklyRestDays;
         if (workingDaysInWeek(employeeId, week) >= maxWorkingDays) continue; // já cumpriu as folgas mínimas
 
         const dow = day.getDay();
@@ -269,7 +270,7 @@ export async function generateSchedulesForEmployees(
 
           const hoursForWindow = shiftDurationHours(template.startTime, template.endTime, template.breakMins);
           const weekHours = weeklyHoursAssigned.get(week) ?? 0;
-          if (weekHours + hoursForWindow > contract.weeklyHours) continue;
+          if (weekHours + hoursForWindow > contract.contractProfile.weeklyHours) continue;
 
           if (violatesRest(lastAssignedBefore(employeeId, day), { date: day, startTime: template.startTime, endTime: template.endTime })) {
             continue;

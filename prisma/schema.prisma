@@ -256,7 +256,7 @@ model Employee {
   fiscalRegion          String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
   mealAllowanceOverride Float? // € / dia; se vazio usa o valor por omissão dos pressupostos
 
-  contracts         Contract[]
+  employeeContracts EmployeeContract[]
   shifts            Shift[]
   absences          Absence[]
   absenceBalances   AbsenceBalance[]
@@ -712,29 +712,44 @@ model ContractTypeDefinition {
   createdAt DateTime @default(now())
 }
 
-model Contract {
-  id                 String     @id @default(cuid())
-  employeeId         String
-  employee           Employee   @relation(fields: [employeeId], references: [id])
-  contractType       String // SEM_TERMO | TERMO_CERTO | TERMO_INCERTO | PRESTACAO_SERVICOS | PART_TIME
-  startDate          DateTime
-  endDate            DateTime?
-  trialPeriodEndDate DateTime?
-  weeklyHours        Float
+// Perfil de contrato partilhado e nomeado — os termos (tipo, horas/semana,
+// descanso semanal) não são editáveis depois de criado; só o nome e o
+// estado ativo/inativo. Um perfil só pode ser inativado se não tiver
+// nenhum colaborador atualmente atribuído (ver EmployeeContract).
+model ContractProfile {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  contractType   String // SEM_TERMO | TERMO_CERTO | TERMO_INCERTO | PRESTACAO_SERVICOS | PART_TIME
+  weeklyHours    Float
   // Descanso semanal mínimo exigido pelo contrato (dias/semana) — usado para
   // validar o padrão de ciclos de horário contra o art.º 205.º do Código do
   // Trabalho (mínimo legal: 1).
-  weeklyRestDays     Int        @default(1)
+  weeklyRestDays Int      @default(1)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assignments EmployeeContract[]
+}
+
+// Atribuição imutável de um perfil de contrato a um colaborador — cada
+// atribuição fica registada para sempre no histórico do colaborador
+// (nunca é editada nem apagada, só encerrada via `status`/`endDate`).
+model EmployeeContract {
+  id                 String          @id @default(cuid())
+  employeeId         String
+  employee           Employee        @relation(fields: [employeeId], references: [id])
+  contractProfileId  String
+  contractProfile    ContractProfile @relation(fields: [contractProfileId], references: [id])
+  startDate          DateTime
+  endDate            DateTime?
+  trialPeriodEndDate DateTime?
   baseSalary         Float?
-  status             String     @default("ACTIVE") // ACTIVE | EXPIRED | TERMINATED
   documentName       String?
-  version            Int        @default(1)
-  parentContractId   String?
-  parentContract     Contract?  @relation("ContractVersions", fields: [parentContractId], references: [id])
-  amendments         Contract[] @relation("ContractVersions")
   notes              String?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  status             String          @default("ACTIVE") // ACTIVE | ENDED
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 }
 
 // ---------------------------------------------------------------------------

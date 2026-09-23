@@ -31,14 +31,14 @@ export default async function EmployeePayrollPage({
   const employee = await prisma.employee.findFirst({
     where: { AND: [{ id: employeeId }, scope] },
     include: {
-      contracts: { where: { status: "ACTIVE" }, take: 1 },
+      employeeContracts: { where: { status: "ACTIVE" }, take: 1, include: { contractProfile: true } },
       payrollComponents: { orderBy: { createdAt: "desc" } },
       payslips: { orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 },
     },
   });
   if (!employee) notFound();
 
-  const contract = employee.contracts[0];
+  const contract = employee.employeeContracts[0];
   const now = new Date();
 
   return (
@@ -46,7 +46,11 @@ export default async function EmployeePayrollPage({
       <PageHeader
         icon={Banknote}
         title={`Payroll — ${employee.firstName} ${employee.lastName}`}
-        description={contract ? `Salário base: ${contract.baseSalary?.toFixed(2) ?? "—"} € · ${contract.weeklyHours}h/semana` : "Sem contrato ativo"}
+        description={
+          contract
+            ? `Salário base: ${contract.baseSalary?.toFixed(2) ?? "—"} € · ${contract.contractProfile.weeklyHours}h/semana`
+            : "Sem contrato ativo"
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
