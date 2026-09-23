@@ -26,9 +26,13 @@ export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }
       const dataUrl = await readImageAsResizedDataUrl(file, 400, 0.9);
       setLogo(dataUrl);
       startTransition(() => {
-        uploadClientCompanyLogo(dataUrl).catch((err) => {
-          setError(err instanceof Error ? err.message : "Não foi possível carregar o logótipo.");
-        });
+        uploadClientCompanyLogo(dataUrl)
+          .then((result) => {
+            if (result.error) setError(result.error);
+          })
+          .catch((err) => {
+            setError(err instanceof Error ? err.message : "Não foi possível carregar o logótipo.");
+          });
       });
     } catch {
       setError("Não foi possível processar esta imagem.");

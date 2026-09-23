@@ -34,28 +34,33 @@ export async function updateClientCompanyName(name: string) {
   revalidatePath("/acessos/documentos");
 }
 
-export async function uploadClientCompanyLogo(dataUrl: string) {
-  const user = await assertSystemAdmin();
-  if (!dataUrl.startsWith("data:image/")) {
-    throw new Error("Ficheiro inválido — escolha uma imagem.");
-  }
-  if (dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
-    throw new Error("Imagem demasiado grande. Escolha um logótipo mais pequeno.");
-  }
+export async function uploadClientCompanyLogo(dataUrl: string): Promise<{ error?: string }> {
+  try {
+    const user = await assertSystemAdmin();
+    if (!dataUrl.startsWith("data:image/")) {
+      throw new Error("Ficheiro inválido — escolha uma imagem.");
+    }
+    if (dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
+      throw new Error("Imagem demasiado grande. Escolha um logótipo mais pequeno.");
+    }
 
-  const settings = await getDocumentBranding();
-  await prisma.documentBrandingSettings.update({
-    where: { id: settings.id },
-    data: { clientCompanyLogo: dataUrl, updatedById: user.id },
-  });
-  await logAudit({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "DocumentBrandingSettings",
-    entityId: settings.id,
-    details: "Logótipo da empresa cliente carregado",
-  });
-  revalidatePath("/acessos/documentos");
+    const settings = await getDocumentBranding();
+    await prisma.documentBrandingSettings.update({
+      where: { id: settings.id },
+      data: { clientCompanyLogo: dataUrl, updatedById: user.id },
+    });
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "DocumentBrandingSettings",
+      entityId: settings.id,
+      details: "Logótipo da empresa cliente carregado",
+    });
+    revalidatePath("/acessos/documentos");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível carregar o logótipo." };
+  }
 }
 
 export async function removeClientCompanyLogo() {

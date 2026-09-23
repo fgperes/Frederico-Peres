@@ -30,27 +30,32 @@ export async function updateAvatar(avatarKey: string) {
 // Foto carregada a partir do computador — o browser já a redimensiona e
 // recomprime antes de enviar (ver lib/client-files.ts), para caber num
 // campo de texto na base de dados sem precisar de armazenamento externo.
-export async function uploadAvatarImage(dataUrl: string) {
-  const user = await requireUser();
-  if (!dataUrl.startsWith("data:image/")) {
-    throw new Error("Ficheiro inválido — escolha uma imagem.");
-  }
-  if (dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
-    throw new Error("Imagem demasiado grande. Escolha uma foto mais pequena.");
-  }
+export async function uploadAvatarImage(dataUrl: string): Promise<{ error?: string }> {
+  try {
+    const user = await requireUser();
+    if (!dataUrl.startsWith("data:image/")) {
+      throw new Error("Ficheiro inválido — escolha uma imagem.");
+    }
+    if (dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) {
+      throw new Error("Imagem demasiado grande. Escolha uma foto mais pequena.");
+    }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { avatarImage: dataUrl, avatarKey: null },
-  });
-  await logAudit({
-    userId: user.id,
-    action: "UPDATE_AVATAR",
-    entity: "User",
-    entityId: user.id,
-    details: "Foto carregada do computador",
-  });
-  refreshAvatarViews();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { avatarImage: dataUrl, avatarKey: null },
+    });
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE_AVATAR",
+      entity: "User",
+      entityId: user.id,
+      details: "Foto carregada do computador",
+    });
+    refreshAvatarViews();
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível carregar a foto." };
+  }
 }
 
 export async function removeAvatarImage() {
