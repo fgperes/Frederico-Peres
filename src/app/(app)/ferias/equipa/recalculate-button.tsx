@@ -21,7 +21,9 @@ export function RecalculateButton() {
   async function run() {
     setStatus("idle");
     try {
-      const { updated, skipped } = await recalculateHireYearEntitlements();
+      const result = await recalculateHireYearEntitlements();
+      if (result.error) throw new Error(result.error);
+      const { updated = 0, skipped = 0 } = result;
       setStatus("success");
       setMessage(
         updated > 0

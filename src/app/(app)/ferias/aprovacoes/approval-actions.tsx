@@ -16,7 +16,8 @@ export function ApprovalActions({ absenceIds }: { absenceIds: string[] }) {
       run(async () => {
         const formData = new FormData();
         formData.set("decisionNote", note);
-        await decideVacationPeriod(absenceIds, decision, formData);
+        const result = await decideVacationPeriod(absenceIds, decision, formData);
+        if (result.error) throw new Error(result.error);
         router.refresh();
       }, decision === "APPROVED" ? "Período aprovado com sucesso." : "Período rejeitado.");
     });
