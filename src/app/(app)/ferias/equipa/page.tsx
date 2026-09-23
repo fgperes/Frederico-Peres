@@ -94,10 +94,15 @@ export default async function FeriasEquipaPage({
   const rangeEnd = new Date(year, month + monthsCount, 0, 23, 59, 59);
 
   const type = await getVacationType().catch(() => null);
+  // Sobreposição é sempre calculada com base em TODOS os colaboradores
+  // visíveis ao utilizador (allEmployees, respeitando o âmbito de acesso),
+  // nunca só nos que estão filtrados na árvore — um colega da mesma equipa
+  // fora do filtro atual continua a assinalar a sobreposição nas células
+  // do(s) colaborador(es) que estão a ser mostrados.
   const absences = type
     ? await prisma.absence.findMany({
         where: {
-          employeeId: { in: employees.map((e) => e.id) },
+          employeeId: { in: allEmployees.map((e) => e.id) },
           absenceTypeId: type.id,
           status: { in: ["PENDING", "APPROVED"] },
           startDate: { gte: rangeStart, lte: rangeEnd },
@@ -105,20 +110,52 @@ export default async function FeriasEquipaPage({
       })
     : [];
 
+  const teamByEmployee = new Map(allEmployees.map((e) => [e.id, e.teamId]));
+
   // employeeId -> "AAAA-MM-DD" -> status
   const grid = new Map<string, Map<string, string>>();
-  // "AAAA-MM-DD" -> employeeIds com férias nesse dia (para deteção de sobreposição)
-  const byDateKey = new Map<string, string[]>();
+  // teamId -> "AAAA-MM-DD" -> employeeIds com férias nesse dia nessa
+  // equipa — a sobreposição só conta entre colaboradores da MESMA equipa;
+  // colaboradores sem equipa nunca entram na deteção.
+  const byTeamDate = new Map<string, Map<string, string[]>>();
   for (const a of absences) {
     const dateKey = toDateKey(a.startDate);
     if (!grid.has(a.employeeId)) grid.set(a.employeeId, new Map());
     grid.get(a.employeeId)!.set(dateKey, effectiveStatus(a));
-    if (!byDateKey.has(dateKey)) byDateKey.set(dateKey, []);
-    byDateKey.get(dateKey)!.push(a.employeeId);
+
+    const teamId = teamByEmployee.get(a.employeeId);
+    if (!teamId) continue;
+    if (!byTeamDate.has(teamId)) byTeamDate.set(teamId, new Map());
+    const dateMap = byTeamDate.get(teamId)!;
+    if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
+    dateMap.get(dateKey)!.push(a.employeeId);
   }
-  const overlapDateKeys = new Set(
-    Array.from(byDateKey.entries()).filter(([, ids]) => new Set(ids).size >= 2).map(([key]) => key)
-  );
+
+  // teamId -> Set de datas com 2+ colaboradores dessa equipa em férias.
+  const teamOverlapDates = new Map<string, Set<string>>();
+  for (const [teamId, dateMap] of byTeamDate) {
+    const overlapDates = new Set(
+      Array.from(dateMap.entries())
+        .filter(([, ids]) => new Set(ids).size >= 2)
+        .map(([key]) => key)
+    );
+    if (overlapDates.size > 0) teamOverlapDates.set(teamId, overlapDates);
+  }
+
+  function overlapDatesForEmployee(employeeId: string): Set<string> {
+    const teamId = teamByEmployee.get(employeeId);
+    if (!teamId) return new Set();
+    return teamOverlapDates.get(teamId) ?? new Set();
+  }
+
+  // União das datas de sobreposição das equipas dos colaboradores
+  // atualmente mostrados — usada só para o aviso e para realçar as
+  // colunas do cabeçalho (cada célula usa o conjunto da sua própria
+  // equipa, ver abaixo).
+  const overlapDateKeys = new Set<string>();
+  for (const e of employees) {
+    for (const d of overlapDatesForEmployee(e.id)) overlapDateKeys.add(d);
+  }
 
   const rangeLabel =
     monthsCount === 1
@@ -299,6 +336,7 @@ export default async function FeriasEquipaPage({
                 <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                   {employees.map((e) => {
                     const row = grid.get(e.id);
+                    const employeeOverlapDates = overlapDatesForEmployee(e.id);
                     return (
                       <tr key={e.id}>
                         <td className="sticky left-0 whitespace-nowrap bg-white px-2 py-1 font-medium text-stone-800 dark:bg-stone-900 dark:text-stone-200">
@@ -308,7 +346,7 @@ export default async function FeriasEquipaPage({
                           Array.from({ length: m.daysInMonth }, (_, i) => i + 1).map((day) => {
                             const dateKey = toDateKey(new Date(m.year, m.month, day));
                             const status = row?.get(dateKey);
-                            const overlap = overlapDateKeys.has(dateKey) && !!status;
+                            const overlap = employeeOverlapDates.has(dateKey) && !!status;
                             return (
                               <td key={dateKey} className="p-0.5 text-center">
                                 <div
