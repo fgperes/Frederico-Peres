@@ -23,8 +23,14 @@ async function assertCanWrite() {
   return user;
 }
 
+export type PayrollSettingsFormState = { error?: string };
+
 // Pressupostos (taxas, salário mínimo, valores de subsídios) — só Admin/RH.
-export async function updatePayrollSettings(formData: FormData) {
+export async function updatePayrollSettings(
+  _prev: PayrollSettingsFormState,
+  formData: FormData
+): Promise<PayrollSettingsFormState> {
+  try {
   const user = await assertCanWrite();
 
   const minimumWage = Number(formData.get("minimumWage"));
@@ -87,27 +93,41 @@ export async function updatePayrollSettings(formData: FormData) {
   await logAudit({ userId: user.id, action: "UPDATE", entity: "PayrollSettings", details: "Pressupostos de payroll atualizados" });
   revalidatePath("/payroll/pressupostos");
   revalidatePath("/payroll");
+  return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível guardar os pressupostos." };
+  }
 }
 
 // Uma tabela de IRS junta os escalões que se aplicam a um período (ano) e
 // região fiscal (Continente/Açores/Madeira) — RH cria uma tabela nova
 // sempre que a Autoridade Tributária publica valores atualizados ou uma
 // tabela específica de uma região.
-export async function createIrsTable(formData: FormData) {
-  const user = await assertCanWrite();
-  const year = Number(formData.get("year"));
-  const region = String(formData.get("region") ?? "CONTINENTE");
-  const label = String(formData.get("label") ?? "").trim() || null;
+export type CreateIrsTableState = { error?: string };
 
-  if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Ano inválido.");
-  if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) throw new Error("Região inválida.");
+export async function createIrsTable(
+  _prev: CreateIrsTableState,
+  formData: FormData
+): Promise<CreateIrsTableState> {
+  try {
+    const user = await assertCanWrite();
+    const year = Number(formData.get("year"));
+    const region = String(formData.get("region") ?? "CONTINENTE");
+    const label = String(formData.get("label") ?? "").trim() || null;
 
-  const existing = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
-  if (existing) throw new Error(`Já existe uma tabela de IRS para ${year} — ${region}.`);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Ano inválido.");
+    if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) throw new Error("Região inválida.");
 
-  const table = await prisma.irsTable.create({ data: { year, region, label } });
-  await logAudit({ userId: user.id, action: "CREATE", entity: "IrsTable", entityId: table.id, details: `${year} — ${region}` });
-  revalidatePath("/payroll/pressupostos");
+    const existing = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
+    if (existing) throw new Error(`Já existe uma tabela de IRS para ${year} — ${region}.`);
+
+    const table = await prisma.irsTable.create({ data: { year, region, label } });
+    await logAudit({ userId: user.id, action: "CREATE", entity: "IrsTable", entityId: table.id, details: `${year} — ${region}` });
+    revalidatePath("/payroll/pressupostos");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível criar a tabela de IRS." };
+  }
 }
 
 export async function deleteIrsTable(id: string) {
@@ -118,27 +138,37 @@ export async function deleteIrsTable(id: string) {
   revalidatePath("/payroll/pressupostos");
 }
 
-export async function upsertIrsBracket(formData: FormData) {
-  const user = await assertCanWrite();
-  const id = String(formData.get("id") ?? "") || null;
-  const irsTableId = String(formData.get("irsTableId") ?? "");
-  const order = Number(formData.get("order"));
-  const upToGrossRaw = String(formData.get("upToGross") ?? "").trim();
-  const upToGross = upToGrossRaw ? Number(upToGrossRaw) : null;
-  const rate = Number(formData.get("rate"));
+export type UpsertIrsBracketState = { error?: string };
 
-  if (!irsTableId) throw new Error("Tabela de IRS em falta.");
-  if (!(rate >= 0 && rate < 1)) throw new Error("Taxa do escalão tem de estar entre 0% e 100%.");
-  if (upToGross !== null && upToGross <= 0) throw new Error("Limite do escalão tem de ser positivo.");
+export async function upsertIrsBracket(
+  _prev: UpsertIrsBracketState,
+  formData: FormData
+): Promise<UpsertIrsBracketState> {
+  try {
+    const user = await assertCanWrite();
+    const id = String(formData.get("id") ?? "") || null;
+    const irsTableId = String(formData.get("irsTableId") ?? "");
+    const order = Number(formData.get("order"));
+    const upToGrossRaw = String(formData.get("upToGross") ?? "").trim();
+    const upToGross = upToGrossRaw ? Number(upToGrossRaw) : null;
+    const rate = Number(formData.get("rate"));
 
-  if (id) {
-    await prisma.irsBracket.update({ where: { id }, data: { order, upToGross, rate } });
-  } else {
-    await prisma.irsBracket.create({ data: { irsTableId, order, upToGross, rate } });
+    if (!irsTableId) throw new Error("Tabela de IRS em falta.");
+    if (!(rate >= 0 && rate < 1)) throw new Error("Taxa do escalão tem de estar entre 0% e 100%.");
+    if (upToGross !== null && upToGross <= 0) throw new Error("Limite do escalão tem de ser positivo.");
+
+    if (id) {
+      await prisma.irsBracket.update({ where: { id }, data: { order, upToGross, rate } });
+    } else {
+      await prisma.irsBracket.create({ data: { irsTableId, order, upToGross, rate } });
+    }
+
+    await logAudit({ userId: user.id, action: "UPDATE", entity: "IrsBracket", details: `Escalão ${order}` });
+    revalidatePath("/payroll/pressupostos");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível guardar o escalão." };
   }
-
-  await logAudit({ userId: user.id, action: "UPDATE", entity: "IrsBracket", details: `Escalão ${order}` });
-  revalidatePath("/payroll/pressupostos");
 }
 
 export async function deleteIrsBracket(id: string) {
@@ -234,30 +264,41 @@ export async function updateEmployeePayrollProfile(employeeId: string, formData:
   revalidatePath(`/colaboradores/${employeeId}`);
 }
 
-export async function addPayrollComponent(employeeId: string, formData: FormData) {
-  const user = await assertCanWrite();
+export type AddPayrollComponentState = { error?: string };
 
-  const name = String(formData.get("name") ?? "").trim();
-  const type = String(formData.get("type") ?? "EARNING");
-  const amount = Number(formData.get("amount"));
-  const recurring = formData.get("recurring") === "on";
-  const taxable = formData.get("taxable") === "on";
-  const ssApplicable = formData.get("ssApplicable") === "on";
-  const applyYear = recurring ? null : Number(formData.get("applyYear"));
-  const applyMonth = recurring ? null : Number(formData.get("applyMonth"));
+export async function addPayrollComponent(
+  employeeId: string,
+  _prev: AddPayrollComponentState,
+  formData: FormData
+): Promise<AddPayrollComponentState> {
+  try {
+    const user = await assertCanWrite();
 
-  if (!name) throw new Error("Indique um nome para a componente.");
-  if (!(amount > 0)) throw new Error("O valor tem de ser superior a 0.");
-  if (!recurring && (!applyYear || !applyMonth)) {
-    throw new Error("Indique o mês/ano para uma componente pontual.");
+    const name = String(formData.get("name") ?? "").trim();
+    const type = String(formData.get("type") ?? "EARNING");
+    const amount = Number(formData.get("amount"));
+    const recurring = formData.get("recurring") === "on";
+    const taxable = formData.get("taxable") === "on";
+    const ssApplicable = formData.get("ssApplicable") === "on";
+    const applyYear = recurring ? null : Number(formData.get("applyYear"));
+    const applyMonth = recurring ? null : Number(formData.get("applyMonth"));
+
+    if (!name) throw new Error("Indique um nome para a componente.");
+    if (!(amount > 0)) throw new Error("O valor tem de ser superior a 0.");
+    if (!recurring && (!applyYear || !applyMonth)) {
+      throw new Error("Indique o mês/ano para uma componente pontual.");
+    }
+
+    await prisma.payrollComponent.create({
+      data: { employeeId, name, type, amount, recurring, taxable, ssApplicable, applyYear, applyMonth },
+    });
+
+    await logAudit({ userId: user.id, action: "CREATE", entity: "PayrollComponent", details: `${name} (${employeeId})` });
+    revalidatePath(`/payroll/${employeeId}`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível adicionar a componente." };
   }
-
-  await prisma.payrollComponent.create({
-    data: { employeeId, name, type, amount, recurring, taxable, ssApplicable, applyYear, applyMonth },
-  });
-
-  await logAudit({ userId: user.id, action: "CREATE", entity: "PayrollComponent", details: `${name} (${employeeId})` });
-  revalidatePath(`/payroll/${employeeId}`);
 }
 
 export async function removePayrollComponent(id: string, employeeId: string) {

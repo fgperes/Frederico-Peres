@@ -1,13 +1,23 @@
-import { createContractProfile } from "./actions";
+"use client";
+
+import { useActionState } from "react";
+import { createContractProfile, type ContractProfileFormState } from "./actions";
 import { ContractTypeSelect } from "./contract-type-select";
+import { SaveBanner } from "@/components/save-banner";
 
 export function ContractProfileForm({
   contractTypes,
 }: {
   contractTypes: { key: string; label: string }[];
 }) {
+  const [state, formAction, pending] = useActionState<ContractProfileFormState, FormData>(
+    createContractProfile,
+    {}
+  );
+
   return (
-    <form action={createContractProfile} className="space-y-4">
+    <form action={formAction} className="space-y-4">
+      {state.error && <SaveBanner status="error" message={state.error} />}
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Nome do contrato</label>
         <input
@@ -38,8 +48,12 @@ export function ContractProfileForm({
         colaborador, faça-o a partir da ficha do colaborador.
       </p>
 
-      <button type="submit" className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700">
-        Guardar
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
+      >
+        {pending ? "A guardar..." : "Guardar"}
       </button>
     </form>
   );

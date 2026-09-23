@@ -1,11 +1,14 @@
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
-import { getPayrollSettings, getIrsTables, FISCAL_REGIONS, FISCAL_REGION_LABELS } from "@/lib/payroll";
+import { getPayrollSettings, getIrsTables, FISCAL_REGION_LABELS } from "@/lib/payroll";
 import { PageHeader, Card, Badge, LinkButton } from "@/components/ui";
 import { Sliders } from "lucide-react";
 import { redirect } from "next/navigation";
-import { updatePayrollSettings, upsertIrsBracket, deleteIrsBracket, createIrsTable, deleteIrsTable } from "../actions";
+import { deleteIrsBracket, deleteIrsTable } from "../actions";
 import { IrsTableImportForm } from "../irs-table-import-form";
+import { PayrollSettingsForm } from "./payroll-settings-form";
+import { CreateIrsTableForm } from "./create-irs-table-form";
+import { UpsertIrsBracketForm } from "./upsert-irs-bracket-form";
 
 export default async function PayrollSettingsPage() {
   const user = await requireUser();
@@ -35,90 +38,7 @@ export default async function PayrollSettingsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 text-sm font-semibold text-stone-900">Pressupostos Gerais</h2>
-          <form action={updatePayrollSettings} className="space-y-3">
-            <Field label="Salário mínimo nacional (€/mês)" name="minimumWage" defaultValue={settings.minimumWage} />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field
-                label="Taxa SS trabalhador"
-                name="socialSecurityEmployeeRate"
-                defaultValue={settings.socialSecurityEmployeeRate}
-                step="0.001"
-                hint="ex.: 0.11 = 11%"
-              />
-              <Field
-                label="Taxa SS entidade patronal"
-                name="socialSecurityEmployerRate"
-                defaultValue={settings.socialSecurityEmployerRate}
-                step="0.001"
-                hint="ex.: 0.2375 = 23,75%"
-              />
-            </div>
-            <Field
-              label="Taxa seguro de acidentes de trabalho"
-              name="workAccidentInsuranceRate"
-              defaultValue={settings.workAccidentInsuranceRate}
-              step="0.001"
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Subsídio de alimentação (€/dia)" name="mealAllowanceDaily" defaultValue={settings.mealAllowanceDaily} />
-              <Field
-                label="Limite isento (€/dia)"
-                name="mealAllowanceExemptCap"
-                defaultValue={settings.mealAllowanceExemptCap}
-                hint="acima disto é tributado"
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Field
-                label="Acréscimo 1ª hora extra"
-                name="overtimeRateFirstHour"
-                defaultValue={settings.overtimeRateFirstHour}
-                step="0.01"
-              />
-              <Field
-                label="Acréscimo horas extra seguintes"
-                name="overtimeRateAdditional"
-                defaultValue={settings.overtimeRateAdditional}
-                step="0.01"
-              />
-              <Field
-                label="Acréscimo fim de semana/feriado"
-                name="overtimeRateWeekendHoliday"
-                defaultValue={settings.overtimeRateWeekendHoliday}
-                step="0.01"
-              />
-            </div>
-            <Field label="Dias úteis por mês (p/ desconto de faltas)" name="workingDaysPerMonth" defaultValue={settings.workingDaysPerMonth} />
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de férias</label>
-                <select
-                  name="vacationSubsidyMode"
-                  defaultValue={settings.vacationSubsidyMode}
-                  className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-                >
-                  <option value="LUMP_SUM_JUNE">Pagamento único em junho</option>
-                  <option value="MONTHLY_DUODECIMOS">Duodécimos mensais</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de Natal</label>
-                <select
-                  name="christmasSubsidyMode"
-                  defaultValue={settings.christmasSubsidyMode}
-                  className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-                >
-                  <option value="LUMP_SUM_DECEMBER">Pagamento único em dezembro</option>
-                  <option value="MONTHLY_DUODECIMOS">Duodécimos mensais</option>
-                </select>
-              </div>
-            </div>
-
-            <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-              Guardar pressupostos
-            </button>
-          </form>
+          <PayrollSettingsForm settings={settings} />
         </Card>
 
         <Card>
@@ -134,29 +54,7 @@ export default async function PayrollSettingsPage() {
             <summary className="cursor-pointer text-xs font-medium text-stone-600">
               Ou criar uma tabela vazia para preencher manualmente
             </summary>
-            <form action={createIrsTable} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <input
-                name="year"
-                type="number"
-                placeholder="Ano"
-                required
-                defaultValue={new Date().getFullYear()}
-                className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-              />
-              <select name="region" defaultValue="CONTINENTE" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                {FISCAL_REGIONS.map((r) => (
-                  <option key={r} value={r}>{FISCAL_REGION_LABELS[r]}</option>
-                ))}
-              </select>
-              <input
-                name="label"
-                placeholder="Descrição (opcional)"
-                className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-              />
-              <button type="submit" className="col-span-2 rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
-                Criar tabela vazia
-              </button>
-            </form>
+            <CreateIrsTableForm />
           </details>
         </Card>
       </div>
@@ -214,71 +112,11 @@ export default async function PayrollSettingsPage() {
                 </table>
               </div>
 
-              <form action={upsertIrsBracket} className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-                <input type="hidden" name="irsTableId" value={table.id} />
-                <input
-                  name="order"
-                  type="number"
-                  placeholder="Ordem"
-                  required
-                  defaultValue={table.brackets.length + 1}
-                  className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-                />
-                <input
-                  name="upToGross"
-                  type="number"
-                  step="0.01"
-                  placeholder="Até € (vazio = último)"
-                  className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-                />
-                <input
-                  name="rate"
-                  type="number"
-                  step="0.001"
-                  placeholder="Taxa (0.13)"
-                  required
-                  className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-                />
-                <button
-                  type="submit"
-                  className="col-span-4 rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900"
-                >
-                  Adicionar / atualizar escalão
-                </button>
-              </form>
+              <UpsertIrsBracketForm irsTableId={table.id} nextOrder={table.brackets.length + 1} />
             </Card>
           ))
         )}
       </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  name,
-  defaultValue,
-  step = "0.01",
-  hint,
-}: {
-  label: string;
-  name: string;
-  defaultValue: number;
-  step?: string;
-  hint?: string;
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs font-medium text-stone-600">{label}</label>
-      <input
-        name={name}
-        type="number"
-        step={step}
-        defaultValue={defaultValue}
-        required
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-      />
-      {hint && <p className="mt-0.5 text-xs text-stone-400">{hint}</p>}
     </div>
   );
 }

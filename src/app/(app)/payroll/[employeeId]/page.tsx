@@ -8,10 +8,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   updateEmployeePayrollProfile,
-  addPayrollComponent,
   removePayrollComponent,
 } from "../actions";
 import { FISCAL_REGION_LABELS } from "@/lib/payroll";
+import { AddPayrollComponentForm } from "../add-payroll-component-form";
 
 const MARITAL_LABELS: Record<string, string> = {
   NAO_CASADO: "Não casado(a)",
@@ -157,35 +157,7 @@ export default async function EmployeePayrollPage({
                 ))}
               </ul>
             )}
-            {canEdit && (
-              <form action={addPayrollComponent.bind(null, employee.id)} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <input name="name" placeholder="Nome (ex.: Prémio)" required className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                <select name="type" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                  <option value="EARNING">Vencimento (+)</option>
-                  <option value="DEDUCTION">Desconto (−)</option>
-                </select>
-                <input name="amount" type="number" step="0.01" placeholder="Valor €" required className="rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                <label className="flex items-center gap-1.5 text-xs text-stone-600">
-                  <input type="checkbox" name="recurring" defaultChecked /> Recorrente (todos os meses)
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-stone-600">
-                  <input type="checkbox" name="taxable" defaultChecked /> Sujeito a IRS
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-stone-600">
-                  <input type="checkbox" name="ssApplicable" defaultChecked /> Sujeito a SS
-                </label>
-                <div />
-                <select name="applyMonth" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-                <input name="applyYear" type="number" defaultValue={now.getFullYear()} placeholder="Ano (se pontual)" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                <button type="submit" className="col-span-2 rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
-                  Adicionar componente
-                </button>
-              </form>
-            )}
+            {canEdit && <AddPayrollComponentForm employeeId={employee.id} currentYear={now.getFullYear()} />}
           </Card>
         </div>
 

@@ -118,181 +118,202 @@ async function maybeCreateLinkedUser(params: {
   });
 }
 
-export async function createEmployee(formData: FormData) {
-  const user = await assertCanWrite();
+export type EmployeeFormState = { error?: string };
 
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = employeeSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
+export async function createEmployee(
+  _prev: EmployeeFormState,
+  formData: FormData
+): Promise<EmployeeFormState> {
+  let employeeId: string;
+  try {
+    const user = await assertCanWrite();
+
+    const raw = Object.fromEntries(formData.entries());
+    const parsed = employeeSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
+    }
+    const data = parsed.data;
+
+    if (data.employeeNumber) {
+      const exists = await prisma.employee.findUnique({ where: { employeeNumber: data.employeeNumber } });
+      if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
+    }
+
+    const employee = await prisma.employee.create({
+      data: {
+        employeeNumber: toNullable(data.employeeNumber),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email.toLowerCase().trim(),
+        phone: toNullable(data.phone),
+        nif: toNullable(data.nif),
+        iban: toNullable(data.iban),
+        address: toNullable(data.address),
+        idDocument: toNullable(data.idDocument),
+        idDocumentType: toNullable(data.idDocumentType),
+        idDocumentExpiry: data.idDocumentNoExpiry
+          ? null
+          : data.idDocumentExpiry
+            ? new Date(data.idDocumentExpiry)
+            : null,
+        idDocumentNoExpiry: !!data.idDocumentNoExpiry,
+        socialSecurityNo: toNullable(data.socialSecurityNo),
+        jobTitle: data.jobTitle,
+        departmentId: toNullable(data.departmentId),
+        teamId: toNullable(data.teamId),
+        locationId: toNullable(data.locationId),
+        managerId: toNullable(data.managerId),
+        employmentType: data.employmentType ?? "FULL_TIME",
+        weeklyHours: data.weeklyHours ?? 40,
+        restrictions: toNullable(data.restrictions),
+        shiftPreferences: toNullable(data.shiftPreferences),
+        skills: toNullable(data.skills),
+        hireDate: data.hireDate ? new Date(data.hireDate) : null,
+        status: "ACTIVE",
+      },
+    });
+
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "Employee",
+      entityId: employee.id,
+      details: `${employee.firstName} ${employee.lastName}`,
+    });
+
+    await maybeCreateLinkedUser({
+      employeeId: employee.id,
+      email: employee.email,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      alreadyHasUser: false,
+      createUser: data.createUser,
+      userPassword: data.userPassword,
+      actorId: user.id,
+      actorRoles: user.roles,
+    });
+
+    employeeId = employee.id;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao criar colaborador." };
   }
-  const data = parsed.data;
-
-  if (data.employeeNumber) {
-    const exists = await prisma.employee.findUnique({ where: { employeeNumber: data.employeeNumber } });
-    if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
-  }
-
-  const employee = await prisma.employee.create({
-    data: {
-      employeeNumber: toNullable(data.employeeNumber),
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email.toLowerCase().trim(),
-      phone: toNullable(data.phone),
-      nif: toNullable(data.nif),
-      iban: toNullable(data.iban),
-      address: toNullable(data.address),
-      idDocument: toNullable(data.idDocument),
-      idDocumentType: toNullable(data.idDocumentType),
-      idDocumentExpiry: data.idDocumentNoExpiry
-        ? null
-        : data.idDocumentExpiry
-          ? new Date(data.idDocumentExpiry)
-          : null,
-      idDocumentNoExpiry: !!data.idDocumentNoExpiry,
-      socialSecurityNo: toNullable(data.socialSecurityNo),
-      jobTitle: data.jobTitle,
-      departmentId: toNullable(data.departmentId),
-      teamId: toNullable(data.teamId),
-      locationId: toNullable(data.locationId),
-      managerId: toNullable(data.managerId),
-      employmentType: data.employmentType ?? "FULL_TIME",
-      weeklyHours: data.weeklyHours ?? 40,
-      restrictions: toNullable(data.restrictions),
-      shiftPreferences: toNullable(data.shiftPreferences),
-      skills: toNullable(data.skills),
-      hireDate: data.hireDate ? new Date(data.hireDate) : null,
-      status: "ACTIVE",
-    },
-  });
-
-  await logAudit({
-    userId: user.id,
-    action: "CREATE",
-    entity: "Employee",
-    entityId: employee.id,
-    details: `${employee.firstName} ${employee.lastName}`,
-  });
-
-  await maybeCreateLinkedUser({
-    employeeId: employee.id,
-    email: employee.email,
-    firstName: employee.firstName,
-    lastName: employee.lastName,
-    alreadyHasUser: false,
-    createUser: data.createUser,
-    userPassword: data.userPassword,
-    actorId: user.id,
-    actorRoles: user.roles,
-  });
 
   revalidatePath("/colaboradores");
-  redirect(`/colaboradores/${employee.id}`);
+  redirect(`/colaboradores/${employeeId}`);
 }
 
-export async function updateEmployee(employeeId: string, formData: FormData) {
-  const user = await assertCanWrite();
+export async function updateEmployee(
+  employeeId: string,
+  _prev: EmployeeFormState,
+  formData: FormData
+): Promise<EmployeeFormState> {
+  try {
+    const user = await assertCanWrite();
 
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = employeeSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
-  }
-  const data = parsed.data;
+    const raw = Object.fromEntries(formData.entries());
+    const parsed = employeeSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
+    }
+    const data = parsed.data;
 
-  const before = await prisma.employee.findUniqueOrThrow({
-    where: { id: employeeId },
-  });
-
-  if (data.employeeNumber && data.employeeNumber !== before.employeeNumber) {
-    const exists = await prisma.employee.findUnique({ where: { employeeNumber: data.employeeNumber } });
-    if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
-  }
-
-  const employee = await prisma.employee.update({
-    where: { id: employeeId },
-    data: {
-      employeeNumber: toNullable(data.employeeNumber),
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email.toLowerCase().trim(),
-      phone: toNullable(data.phone),
-      nif: toNullable(data.nif),
-      iban: toNullable(data.iban),
-      address: toNullable(data.address),
-      idDocument: toNullable(data.idDocument),
-      idDocumentType: toNullable(data.idDocumentType),
-      idDocumentExpiry: data.idDocumentNoExpiry
-        ? null
-        : data.idDocumentExpiry
-          ? new Date(data.idDocumentExpiry)
-          : null,
-      idDocumentNoExpiry: !!data.idDocumentNoExpiry,
-      socialSecurityNo: toNullable(data.socialSecurityNo),
-      jobTitle: data.jobTitle,
-      departmentId: toNullable(data.departmentId),
-      teamId: toNullable(data.teamId),
-      locationId: toNullable(data.locationId),
-      managerId: toNullable(data.managerId),
-      // employmentType/weeklyHours não vêm daqui — passam a ser definidos
-      // exclusivamente pelo contrato ativo (ver separador Contratos).
-      restrictions: toNullable(data.restrictions),
-      shiftPreferences: toNullable(data.shiftPreferences),
-      skills: toNullable(data.skills),
-      hireDate: data.hireDate ? new Date(data.hireDate) : null,
-    },
-  });
-
-  const historyEntries: { field: string; oldValue: string; newValue: string }[] = [];
-  if (before.departmentId !== employee.departmentId) {
-    historyEntries.push({
-      field: "departmentId",
-      oldValue: before.departmentId ?? "-",
-      newValue: employee.departmentId ?? "-",
+    const before = await prisma.employee.findUniqueOrThrow({
+      where: { id: employeeId },
     });
-  }
-  if (before.jobTitle !== employee.jobTitle) {
-    historyEntries.push({
-      field: "jobTitle",
-      oldValue: before.jobTitle,
-      newValue: employee.jobTitle,
+
+    if (data.employeeNumber && data.employeeNumber !== before.employeeNumber) {
+      const exists = await prisma.employee.findUnique({ where: { employeeNumber: data.employeeNumber } });
+      if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
+    }
+
+    const employee = await prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        employeeNumber: toNullable(data.employeeNumber),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email.toLowerCase().trim(),
+        phone: toNullable(data.phone),
+        nif: toNullable(data.nif),
+        iban: toNullable(data.iban),
+        address: toNullable(data.address),
+        idDocument: toNullable(data.idDocument),
+        idDocumentType: toNullable(data.idDocumentType),
+        idDocumentExpiry: data.idDocumentNoExpiry
+          ? null
+          : data.idDocumentExpiry
+            ? new Date(data.idDocumentExpiry)
+            : null,
+        idDocumentNoExpiry: !!data.idDocumentNoExpiry,
+        socialSecurityNo: toNullable(data.socialSecurityNo),
+        jobTitle: data.jobTitle,
+        departmentId: toNullable(data.departmentId),
+        teamId: toNullable(data.teamId),
+        locationId: toNullable(data.locationId),
+        managerId: toNullable(data.managerId),
+        // employmentType/weeklyHours não vêm daqui — passam a ser definidos
+        // exclusivamente pelo contrato ativo (ver separador Contratos).
+        restrictions: toNullable(data.restrictions),
+        shiftPreferences: toNullable(data.shiftPreferences),
+        skills: toNullable(data.skills),
+        hireDate: data.hireDate ? new Date(data.hireDate) : null,
+      },
     });
-  }
-  if (historyEntries.length > 0) {
-    await prisma.employeeHistory.createMany({
-      data: historyEntries.map((h) => ({
-        employeeId: employee.id,
-        field: h.field,
-        oldValue: h.oldValue,
-        newValue: h.newValue,
-        changedBy: user.name,
-      })),
+
+    const historyEntries: { field: string; oldValue: string; newValue: string }[] = [];
+    if (before.departmentId !== employee.departmentId) {
+      historyEntries.push({
+        field: "departmentId",
+        oldValue: before.departmentId ?? "-",
+        newValue: employee.departmentId ?? "-",
+      });
+    }
+    if (before.jobTitle !== employee.jobTitle) {
+      historyEntries.push({
+        field: "jobTitle",
+        oldValue: before.jobTitle,
+        newValue: employee.jobTitle,
+      });
+    }
+    if (historyEntries.length > 0) {
+      await prisma.employeeHistory.createMany({
+        data: historyEntries.map((h) => ({
+          employeeId: employee.id,
+          field: h.field,
+          oldValue: h.oldValue,
+          newValue: h.newValue,
+          changedBy: user.name,
+        })),
+      });
+    }
+
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "Employee",
+      entityId: employee.id,
+      details: `${employee.firstName} ${employee.lastName}`,
     });
+
+    await maybeCreateLinkedUser({
+      employeeId: employee.id,
+      email: employee.email,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      alreadyHasUser: !!before.userId,
+      createUser: data.createUser,
+      userPassword: data.userPassword,
+      actorId: user.id,
+      actorRoles: user.roles,
+    });
+
+    revalidatePath("/colaboradores");
+    revalidatePath(`/colaboradores/${employee.id}`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao atualizar colaborador." };
   }
-
-  await logAudit({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "Employee",
-    entityId: employee.id,
-    details: `${employee.firstName} ${employee.lastName}`,
-  });
-
-  await maybeCreateLinkedUser({
-    employeeId: employee.id,
-    email: employee.email,
-    firstName: employee.firstName,
-    lastName: employee.lastName,
-    alreadyHasUser: !!before.userId,
-    createUser: data.createUser,
-    userPassword: data.userPassword,
-    actorId: user.id,
-    actorRoles: user.roles,
-  });
-
-  revalidatePath("/colaboradores");
-  revalidatePath(`/colaboradores/${employee.id}`);
 }
 
 export async function setEmployeeStatus(employeeId: string, status: "ACTIVE" | "INACTIVE") {

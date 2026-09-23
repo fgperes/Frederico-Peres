@@ -43,20 +43,25 @@ export async function updateDepartment(departmentId: string, formData: FormData)
   revalidatePath(`/estrutura/departamentos/${departmentId}`);
 }
 
-export async function deleteDepartment(departmentId: string) {
-  const user = await assertCanWrite();
+export async function deleteDepartment(departmentId: string): Promise<{ error?: string }> {
+  try {
+    const user = await assertCanWrite();
 
-  const dept = await prisma.department.findUniqueOrThrow({
-    where: { id: departmentId },
-    include: { _count: { select: { employees: true, teams: true, children: true } } },
-  });
-  if (dept._count.employees > 0 || dept._count.teams > 0 || dept._count.children > 0) {
-    throw new Error("Só é possível apagar um departamento vazio (sem colaboradores, equipas ou sub-departamentos).");
+    const dept = await prisma.department.findUniqueOrThrow({
+      where: { id: departmentId },
+      include: { _count: { select: { employees: true, teams: true, children: true } } },
+    });
+    if (dept._count.employees > 0 || dept._count.teams > 0 || dept._count.children > 0) {
+      throw new Error("Só é possível apagar um departamento vazio (sem colaboradores, equipas ou sub-departamentos).");
+    }
+
+    await prisma.department.delete({ where: { id: departmentId } });
+    await logAudit({ userId: user.id, action: "DELETE", entity: "Department", entityId: departmentId, details: dept.name });
+    refreshEstrutura();
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível apagar o departamento." };
   }
-
-  await prisma.department.delete({ where: { id: departmentId } });
-  await logAudit({ userId: user.id, action: "DELETE", entity: "Department", entityId: departmentId, details: dept.name });
-  refreshEstrutura();
 }
 
 export async function createTeam(formData: FormData) {
@@ -82,20 +87,25 @@ export async function updateTeam(teamId: string, formData: FormData) {
   revalidatePath(`/estrutura/equipas/${teamId}`);
 }
 
-export async function deleteTeam(teamId: string) {
-  const user = await assertCanWrite();
+export async function deleteTeam(teamId: string): Promise<{ error?: string }> {
+  try {
+    const user = await assertCanWrite();
 
-  const team = await prisma.team.findUniqueOrThrow({
-    where: { id: teamId },
-    include: { _count: { select: { employees: true } } },
-  });
-  if (team._count.employees > 0) {
-    throw new Error("Só é possível apagar uma equipa vazia (sem colaboradores).");
+    const team = await prisma.team.findUniqueOrThrow({
+      where: { id: teamId },
+      include: { _count: { select: { employees: true } } },
+    });
+    if (team._count.employees > 0) {
+      throw new Error("Só é possível apagar uma equipa vazia (sem colaboradores).");
+    }
+
+    await prisma.team.delete({ where: { id: teamId } });
+    await logAudit({ userId: user.id, action: "DELETE", entity: "Team", entityId: teamId, details: team.name });
+    refreshEstrutura();
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível apagar a equipa." };
   }
-
-  await prisma.team.delete({ where: { id: teamId } });
-  await logAudit({ userId: user.id, action: "DELETE", entity: "Team", entityId: teamId, details: team.name });
-  refreshEstrutura();
 }
 
 export async function createLocation(formData: FormData) {
@@ -121,20 +131,25 @@ export async function updateLocation(locationId: string, formData: FormData) {
   revalidatePath(`/estrutura/locais/${locationId}`);
 }
 
-export async function deleteLocation(locationId: string) {
-  const user = await assertCanWrite();
+export async function deleteLocation(locationId: string): Promise<{ error?: string }> {
+  try {
+    const user = await assertCanWrite();
 
-  const location = await prisma.location.findUniqueOrThrow({
-    where: { id: locationId },
-    include: { _count: { select: { employees: true } } },
-  });
-  if (location._count.employees > 0) {
-    throw new Error("Só é possível apagar um local vazio (sem colaboradores).");
+    const location = await prisma.location.findUniqueOrThrow({
+      where: { id: locationId },
+      include: { _count: { select: { employees: true } } },
+    });
+    if (location._count.employees > 0) {
+      throw new Error("Só é possível apagar um local vazio (sem colaboradores).");
+    }
+
+    await prisma.location.delete({ where: { id: locationId } });
+    await logAudit({ userId: user.id, action: "DELETE", entity: "Location", entityId: locationId, details: location.name });
+    refreshEstrutura();
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível apagar o local." };
   }
-
-  await prisma.location.delete({ where: { id: locationId } });
-  await logAudit({ userId: user.id, action: "DELETE", entity: "Location", entityId: locationId, details: location.name });
-  refreshEstrutura();
 }
 
 export type MigrateField = "departmentId" | "teamId" | "locationId";
