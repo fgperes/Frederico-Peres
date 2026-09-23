@@ -50,7 +50,7 @@ export default async function PayslipDetailPage({
         title={`Recibo — ${MONTH_NAMES[month - 1]} de ${year}`}
         description={`${employee.firstName} ${employee.lastName} · ${employee.jobTitle}`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isSaved && (
               <Badge color="green">Gerado {savedPayslip!.generatedAt.toLocaleDateString("pt-PT")}</Badge>
             )}

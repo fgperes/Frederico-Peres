@@ -45,7 +45,7 @@ export default async function PayrollPage({
         description="Processamento salarial mensal — com base no horário, picagens e dados contratuais."
         action={
           canEdit ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <LinkButton href="/payroll/layout" variant="secondary">
                 <LayoutTemplate size={14} /> Layout do Recibo
               </LinkButton>

@@ -158,7 +158,7 @@ export default async function EmployeePayrollPage({
               </ul>
             )}
             {canEdit && (
-              <form action={addPayrollComponent.bind(null, employee.id)} className="grid grid-cols-2 gap-2">
+              <form action={addPayrollComponent.bind(null, employee.id)} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input name="name" placeholder="Nome (ex.: Prémio)" required className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
                 <select name="type" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
                   <option value="EARNING">Vencimento (+)</option>

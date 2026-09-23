@@ -37,7 +37,7 @@ export default async function PayrollSettingsPage() {
           <h2 className="mb-4 text-sm font-semibold text-stone-900">Pressupostos Gerais</h2>
           <form action={updatePayrollSettings} className="space-y-3">
             <Field label="Salário mínimo nacional (€/mês)" name="minimumWage" defaultValue={settings.minimumWage} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field
                 label="Taxa SS trabalhador"
                 name="socialSecurityEmployeeRate"
@@ -59,7 +59,7 @@ export default async function PayrollSettingsPage() {
               defaultValue={settings.workAccidentInsuranceRate}
               step="0.001"
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Subsídio de alimentação (€/dia)" name="mealAllowanceDaily" defaultValue={settings.mealAllowanceDaily} />
               <Field
                 label="Limite isento (€/dia)"
@@ -68,7 +68,7 @@ export default async function PayrollSettingsPage() {
                 hint="acima disto é tributado"
               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field
                 label="Acréscimo 1ª hora extra"
                 name="overtimeRateFirstHour"
@@ -90,7 +90,7 @@ export default async function PayrollSettingsPage() {
             </div>
             <Field label="Dias úteis por mês (p/ desconto de faltas)" name="workingDaysPerMonth" defaultValue={settings.workingDaysPerMonth} />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de férias</label>
                 <select
@@ -134,7 +134,7 @@ export default async function PayrollSettingsPage() {
             <summary className="cursor-pointer text-xs font-medium text-stone-600">
               Ou criar uma tabela vazia para preencher manualmente
             </summary>
-            <form action={createIrsTable} className="mt-3 grid grid-cols-2 gap-2">
+            <form action={createIrsTable} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 name="year"
                 type="number"
@@ -214,7 +214,7 @@ export default async function PayrollSettingsPage() {
                 </table>
               </div>
 
-              <form action={upsertIrsBracket} className="grid grid-cols-4 gap-2">
+              <form action={upsertIrsBracket} className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <input type="hidden" name="irsTableId" value={table.id} />
                 <input
                   name="order"

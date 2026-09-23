@@ -136,7 +136,7 @@ export default async function AusenciasPage() {
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-stone-600">Início</label>
                     <input name="startDate" type="date" required className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm" />

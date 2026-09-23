@@ -80,7 +80,7 @@ export default async function CycleDetailPage({
             : `Ciclo de ${cycle.weeks} semana(s), início em ${cycle.startDate.toLocaleDateString("pt-PT")}`
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {cycle.isTemplate && <Badge color="blue">Modelo</Badge>}
             {canEdit && !cycle.isTemplate && <SaveTemplateForm cycleId={cycle.id} />}
             {canEdit && <DeleteCycleButton cycleId={cycle.id} cycleName={cycle.name} redirectAfterDelete />}

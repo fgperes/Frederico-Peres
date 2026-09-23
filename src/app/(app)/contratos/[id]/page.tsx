@@ -39,7 +39,7 @@ export default async function ContractProfileDetailPage({
         title={profile.name}
         description={`${contractTypeLabels[profile.contractType] ?? profile.contractType} · ${profile.weeklyHours}h/semana · ${profile.weeklyRestDays} folga(s)/semana`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge color={profile.active ? "green" : "slate"}>{profile.active ? "Ativo" : "Inativo"}</Badge>
             {canEdit && (
               <form action={setContractProfileActive.bind(null, profile.id, !profile.active)}>

@@ -47,3 +47,47 @@ body {
   background-color: #e7e5e4;
   border-radius: 9999px;
 }
+
+/* Estado de foco consistente e de marca (violeta) para todos os campos de
+   formulário nativos — a maioria dos formulários da app usa <input>/
+   <select>/<textarea> "em bruto" (sem um componente partilhado), por isso
+   este reforço fica centralizado aqui em vez de repetido em cada página.
+   A especificidade de elemento+pseudo-classe garante que substitui a cor
+   da borda em repouso definida por utilitários Tailwind (ex.: border-stone-300)
+   sem os alterar fora do estado de foco. */
+@layer base {
+  input,
+  select,
+  textarea {
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.16);
+  }
+
+  .dark input:focus-visible,
+  .dark select:focus-visible,
+  .dark textarea:focus-visible {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.24);
+  }
+
+  /* Toques maiores em ecrãs táteis — não interfere com o padding já
+     definido por cada campo, só garante uma altura mínima confortável. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea,
+    button,
+    a {
+      min-height: 2.25rem;
+    }
+  }
+}
