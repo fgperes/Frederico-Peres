@@ -47,177 +47,192 @@ async function assertCanActOn(targetEmployeeId: string) {
   return { user, isSelf: false };
 }
 
+export type ToggleVacationDayState = { error?: string; success?: boolean };
+
 // Marca/desmarca um único dia como férias. Comportamento depende de quem
 // está a agir:
 // - O próprio colaborador (self-service): novo pedido fica pendente de
 //   aprovação; um dia já aprovado não é cancelado diretamente — fica
 //   marcado como "pedido de cancelamento" até alguém com perfil de gestão
-//   decidir.
+//   decidir. Não pode alterar dias já passados.
 // - Um perfil de gestão a marcar férias a outro colaborador: já tem
 //   autoridade para aprovar, por isso o dia fica logo aprovado/cancelado,
-//   sem passar por um novo ciclo de aprovação.
-export async function toggleVacationDay(formData: FormData) {
-  const dateStr = String(formData.get("date") ?? "");
-  const targetEmployeeId = String(formData.get("employeeId") ?? "");
-  if (!targetEmployeeId) throw new Error("Colaborador não identificado.");
+//   sem passar por um novo ciclo de aprovação; pode alterar dias passados
+//   (ex.: corrigir o registo de férias já gozadas).
+//
+// Devolve { error } em vez de lançar exceção: em produção, a Next.js
+// esconde a mensagem de qualquer erro lançado numa Server Action (só
+// chega ao cliente um "digest" genérico) — devolver o erro como dado
+// normal é a única forma de o colaborador ver a razão real da falha.
+export async function toggleVacationDay(formData: FormData): Promise<ToggleVacationDayState> {
+  try {
+    const dateStr = String(formData.get("date") ?? "");
+    const targetEmployeeId = String(formData.get("employeeId") ?? "");
+    if (!targetEmployeeId) throw new Error("Colaborador não identificado.");
 
-  const { user, isSelf } = await assertCanActOn(targetEmployeeId);
+    const { user, isSelf } = await assertCanActOn(targetEmployeeId);
 
-  const date = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(date.getTime())) throw new Error("Data inválida.");
+    const date = new Date(`${dateStr}T00:00:00`);
+    if (Number.isNaN(date.getTime())) throw new Error("Data inválida.");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (date < today) throw new Error("Não é possível alterar férias em datas passadas.");
-  if (!isWeekday(date)) throw new Error("Só é possível marcar férias em dias úteis.");
-
-  const employee = await prisma.employee.findUniqueOrThrow({ where: { id: targetEmployeeId } });
-  const employeeName = `${employee.firstName} ${employee.lastName}`;
-  const { type, balance } = await getOrCreateVacationBalance(targetEmployeeId, date.getFullYear());
-
-  const existing = await prisma.absence.findFirst({
-    where: { employeeId: targetEmployeeId, absenceTypeId: type.id, startDate: date, endDate: date },
-  });
-
-  // Dia com um pedido novo pendente: qualquer um dos dois cancela o pedido.
-  if (existing?.status === "PENDING") {
-    await prisma.absence.delete({ where: { id: existing.id } });
-    await prisma.absenceBalance.update({
-      where: { id: balance.id },
-      data: { plannedDays: { decrement: 1 } },
-    });
-    await logAudit({ userId: user.id, action: "CANCEL", entity: "Absence", entityId: existing.id, details: "Férias" });
-    await resolveVacationTasksIfClear(targetEmployeeId);
-    revalidateFerias();
-    return;
-  }
-
-  // Dia já aprovado, com um pedido de cancelamento já em curso.
-  if (existing?.status === "APPROVED" && existing.reason === CANCEL_REQUEST_MARKER) {
     if (isSelf) {
-      // O colaborador retira o seu próprio pedido de cancelamento.
-      await prisma.absence.update({ where: { id: existing.id }, data: { reason: null } });
-      await logAudit({
-        userId: user.id,
-        action: "CANCEL",
-        entity: "Absence",
-        entityId: existing.id,
-        details: "Retirou pedido de cancelamento de férias aprovadas",
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (date < today) throw new Error("Não é possível alterar férias em datas passadas.");
+    }
+    if (!isWeekday(date)) throw new Error("Só é possível marcar férias em dias úteis.");
+
+    const employee = await prisma.employee.findUniqueOrThrow({ where: { id: targetEmployeeId } });
+    const employeeName = `${employee.firstName} ${employee.lastName}`;
+    const { type, balance } = await getOrCreateVacationBalance(targetEmployeeId, date.getFullYear());
+
+    const existing = await prisma.absence.findFirst({
+      where: { employeeId: targetEmployeeId, absenceTypeId: type.id, startDate: date, endDate: date },
+    });
+
+    // Dia com um pedido novo pendente: qualquer um dos dois cancela o pedido.
+    if (existing?.status === "PENDING") {
+      await prisma.absence.delete({ where: { id: existing.id } });
+      await prisma.absenceBalance.update({
+        where: { id: balance.id },
+        data: { plannedDays: { decrement: 1 } },
       });
+      await logAudit({ userId: user.id, action: "CANCEL", entity: "Absence", entityId: existing.id, details: "Férias" });
       await resolveVacationTasksIfClear(targetEmployeeId);
-    } else {
-      // Perfil de gestão confirma o cancelamento diretamente.
-      await prisma.absence.update({
-        where: { id: existing.id },
-        data: { status: "CANCELLED", reason: null, approvedById: user.id, decidedAt: new Date() },
+      revalidateFerias();
+      return { success: true };
+    }
+
+    // Dia já aprovado, com um pedido de cancelamento já em curso.
+    if (existing?.status === "APPROVED" && existing.reason === CANCEL_REQUEST_MARKER) {
+      if (isSelf) {
+        // O colaborador retira o seu próprio pedido de cancelamento.
+        await prisma.absence.update({ where: { id: existing.id }, data: { reason: null } });
+        await logAudit({
+          userId: user.id,
+          action: "CANCEL",
+          entity: "Absence",
+          entityId: existing.id,
+          details: "Retirou pedido de cancelamento de férias aprovadas",
+        });
+        await resolveVacationTasksIfClear(targetEmployeeId);
+      } else {
+        // Perfil de gestão confirma o cancelamento diretamente.
+        await prisma.absence.update({
+          where: { id: existing.id },
+          data: { status: "CANCELLED", reason: null, approvedById: user.id, decidedAt: new Date() },
+        });
+        await prisma.absenceBalance.update({
+          where: { id: balance.id },
+          data: { usedDays: { decrement: 1 } },
+        });
+        await logAudit({
+          userId: user.id,
+          action: "CANCEL",
+          entity: "Absence",
+          entityId: existing.id,
+          details: `Confirmou cancelamento de férias de ${employeeName}`,
+        });
+        await resolveVacationTasksIfClear(targetEmployeeId);
+      }
+      revalidateFerias();
+      return { success: true };
+    }
+
+    // Dia já aprovado, sem pedido de cancelamento em curso.
+    if (existing?.status === "APPROVED") {
+      if (isSelf) {
+        // Fica a aguardar confirmação — não cancela de imediato.
+        await prisma.absence.update({ where: { id: existing.id }, data: { reason: CANCEL_REQUEST_MARKER } });
+        await logAudit({
+          userId: user.id,
+          action: "CREATE",
+          entity: "Absence",
+          entityId: existing.id,
+          details: "Pediu cancelamento de férias aprovadas",
+        });
+        await ensureVacationTask(targetEmployeeId, employeeName, "CANCELLATION");
+      } else {
+        // Perfil de gestão cancela diretamente.
+        await prisma.absence.update({
+          where: { id: existing.id },
+          data: { status: "CANCELLED", approvedById: user.id, decidedAt: new Date() },
+        });
+        await prisma.absenceBalance.update({
+          where: { id: balance.id },
+          data: { usedDays: { decrement: 1 } },
+        });
+        await logAudit({
+          userId: user.id,
+          action: "CANCEL",
+          entity: "Absence",
+          entityId: existing.id,
+          details: `Cancelou férias de ${employeeName}`,
+        });
+      }
+      revalidateFerias();
+      return { success: true };
+    }
+
+    // Não existe pedido, ou existia mas foi rejeitado/cancelado — cria um novo.
+    const available = balance.entitledDays + balance.carryOverDays - balance.usedDays - balance.plannedDays;
+    if (available < 1) throw new Error("Sem dias de férias disponíveis para marcar.");
+
+    if (existing) {
+      await prisma.absence.delete({ where: { id: existing.id } });
+    }
+
+    if (isSelf) {
+      const absence = await prisma.absence.create({
+        data: {
+          employeeId: targetEmployeeId,
+          absenceTypeId: type.id,
+          startDate: date,
+          endDate: date,
+          days: 1,
+          status: "PENDING",
+          requestedById: user.id,
+        },
       });
       await prisma.absenceBalance.update({
         where: { id: balance.id },
-        data: { usedDays: { decrement: 1 } },
+        data: { plannedDays: { increment: 1 } },
       });
-      await logAudit({
-        userId: user.id,
-        action: "CANCEL",
-        entity: "Absence",
-        entityId: existing.id,
-        details: `Confirmou cancelamento de férias de ${employeeName}`,
+      await logAudit({ userId: user.id, action: "CREATE", entity: "Absence", entityId: absence.id, details: "Férias" });
+      await ensureVacationTask(targetEmployeeId, employeeName, "REQUEST");
+    } else {
+      // Perfil de gestão marca diretamente como aprovado.
+      const absence = await prisma.absence.create({
+        data: {
+          employeeId: targetEmployeeId,
+          absenceTypeId: type.id,
+          startDate: date,
+          endDate: date,
+          days: 1,
+          status: "APPROVED",
+          requestedById: user.id,
+          approvedById: user.id,
+          decidedAt: new Date(),
+        },
       });
-      await resolveVacationTasksIfClear(targetEmployeeId);
-    }
-    revalidateFerias();
-    return;
-  }
-
-  // Dia já aprovado, sem pedido de cancelamento em curso.
-  if (existing?.status === "APPROVED") {
-    if (isSelf) {
-      // Fica a aguardar confirmação — não cancela de imediato.
-      await prisma.absence.update({ where: { id: existing.id }, data: { reason: CANCEL_REQUEST_MARKER } });
+      await prisma.absenceBalance.update({
+        where: { id: balance.id },
+        data: { usedDays: { increment: 1 } },
+      });
       await logAudit({
         userId: user.id,
         action: "CREATE",
         entity: "Absence",
-        entityId: existing.id,
-        details: "Pediu cancelamento de férias aprovadas",
-      });
-      await ensureVacationTask(targetEmployeeId, employeeName, "CANCELLATION");
-    } else {
-      // Perfil de gestão cancela diretamente.
-      await prisma.absence.update({
-        where: { id: existing.id },
-        data: { status: "CANCELLED", approvedById: user.id, decidedAt: new Date() },
-      });
-      await prisma.absenceBalance.update({
-        where: { id: balance.id },
-        data: { usedDays: { decrement: 1 } },
-      });
-      await logAudit({
-        userId: user.id,
-        action: "CANCEL",
-        entity: "Absence",
-        entityId: existing.id,
-        details: `Cancelou férias de ${employeeName}`,
+        entityId: absence.id,
+        details: `Marcou férias aprovadas para ${employeeName}`,
       });
     }
+
     revalidateFerias();
-    return;
+    return { success: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao atualizar o calendário." };
   }
-
-  // Não existe pedido, ou existia mas foi rejeitado/cancelado — cria um novo.
-  const available = balance.entitledDays + balance.carryOverDays - balance.usedDays - balance.plannedDays;
-  if (available < 1) throw new Error("Sem dias de férias disponíveis para marcar.");
-
-  if (existing) {
-    await prisma.absence.delete({ where: { id: existing.id } });
-  }
-
-  if (isSelf) {
-    const absence = await prisma.absence.create({
-      data: {
-        employeeId: targetEmployeeId,
-        absenceTypeId: type.id,
-        startDate: date,
-        endDate: date,
-        days: 1,
-        status: "PENDING",
-        requestedById: user.id,
-      },
-    });
-    await prisma.absenceBalance.update({
-      where: { id: balance.id },
-      data: { plannedDays: { increment: 1 } },
-    });
-    await logAudit({ userId: user.id, action: "CREATE", entity: "Absence", entityId: absence.id, details: "Férias" });
-    await ensureVacationTask(targetEmployeeId, employeeName, "REQUEST");
-  } else {
-    // Perfil de gestão marca diretamente como aprovado.
-    const absence = await prisma.absence.create({
-      data: {
-        employeeId: targetEmployeeId,
-        absenceTypeId: type.id,
-        startDate: date,
-        endDate: date,
-        days: 1,
-        status: "APPROVED",
-        requestedById: user.id,
-        approvedById: user.id,
-        decidedAt: new Date(),
-      },
-    });
-    await prisma.absenceBalance.update({
-      where: { id: balance.id },
-      data: { usedDays: { increment: 1 } },
-    });
-    await logAudit({
-      userId: user.id,
-      action: "CREATE",
-      entity: "Absence",
-      entityId: absence.id,
-      details: `Marcou férias aprovadas para ${employeeName}`,
-    });
-  }
-
-  revalidateFerias();
 }
 
 // Aprova/rejeita em bloco um período (dias consecutivos do mesmo colaborador
