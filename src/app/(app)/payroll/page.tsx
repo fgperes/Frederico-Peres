@@ -29,7 +29,7 @@ export default async function PayrollPage({
   const [employees, payslips] = await Promise.all([
     prisma.employee.findMany({
       where: { ...scope, status: "ACTIVE" },
-      include: { contracts: { where: { status: "ACTIVE" }, take: 1 } },
+      include: { employeeContracts: { where: { status: "ACTIVE" }, take: 1 } },
       orderBy: { firstName: "asc" },
     }),
     prisma.payslip.findMany({ where: { year, month } }),
@@ -98,7 +98,7 @@ export default async function PayrollPage({
               <tbody className="divide-y divide-stone-100">
                 {employees.map((e) => {
                   const payslip = payslipByEmployee.get(e.id);
-                  const baseSalary = e.contracts[0]?.baseSalary;
+                  const baseSalary = e.employeeContracts[0]?.baseSalary;
                   return (
                     <tr key={e.id} className="hover:bg-stone-50">
                       <td className="px-4 py-3">

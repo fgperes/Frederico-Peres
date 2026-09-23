@@ -427,30 +427,29 @@ async function reportAcumulados(filters: ReportFilters): Promise<ReportResult> {
 
 const CONTRACT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Ativo",
-  EXPIRED: "Expirado",
-  TERMINATED: "Rescindido",
+  ENDED: "Encerrado",
 };
 
 async function reportContratos(filters: ReportFilters): Promise<ReportResult> {
   const contractTypeLabels = await getContractTypeLabels();
-  const contracts = await prisma.contract.findMany({
+  const contracts = await prisma.employeeContract.findMany({
     where: {
       employeeId: employeeFilter(filters.employeeIds),
       startDate: { lte: filters.to },
       OR: [{ endDate: null }, { endDate: { gte: filters.from } }],
     },
-    include: { employee: true },
+    include: { employee: true, contractProfile: true },
     orderBy: { startDate: "asc" },
   });
   return {
-    columns: ["Colaborador", "Tipo", "Versão", "Início", "Fim", "Horas/semana", "Remuneração base", "Estado"],
+    columns: ["Colaborador", "Contrato", "Tipo", "Início", "Fim", "Horas/semana", "Remuneração base", "Estado"],
     rows: contracts.map((c) => [
       `${c.employee.firstName} ${c.employee.lastName}`,
-      contractTypeLabels[c.contractType] ?? c.contractType,
-      c.version,
+      c.contractProfile.name,
+      contractTypeLabels[c.contractProfile.contractType] ?? c.contractProfile.contractType,
       c.startDate.toISOString().slice(0, 10),
       c.endDate ? c.endDate.toISOString().slice(0, 10) : "",
-      c.weeklyHours,
+      c.contractProfile.weeklyHours,
       c.baseSalary ? round1(c.baseSalary) : "",
       CONTRACT_STATUS_LABELS[c.status] ?? c.status,
     ]),

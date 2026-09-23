@@ -57,7 +57,7 @@ export async function getNotifications(user: SessionUser): Promise<NotificationI
   }
 
   if (canRead(user.roles, "contratos")) {
-    const count = await prisma.contract.count({
+    const count = await prisma.employeeContract.count({
       where: {
         employeeId: { in: scopedIds },
         status: "ACTIVE",

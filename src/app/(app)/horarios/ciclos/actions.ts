@@ -238,13 +238,14 @@ function findRestDaysViolations(
 
 async function loadContractedRestDays(employeeIds: string[]) {
   if (employeeIds.length === 0) return new Map<string, number>();
-  const contracts = await prisma.contract.findMany({
+  const contracts = await prisma.employeeContract.findMany({
     where: { employeeId: { in: employeeIds }, status: "ACTIVE" },
     orderBy: { startDate: "desc" },
+    include: { contractProfile: true },
   });
   const map = new Map<string, number>();
   for (const c of contracts) {
-    if (!map.has(c.employeeId)) map.set(c.employeeId, c.weeklyRestDays);
+    if (!map.has(c.employeeId)) map.set(c.employeeId, c.contractProfile.weeklyRestDays);
   }
   return map;
 }
