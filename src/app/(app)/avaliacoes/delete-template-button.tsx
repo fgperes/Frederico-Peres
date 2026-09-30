@@ -4,16 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { deleteTemplate } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function DeleteTemplateButton({ templateId, canDelete }: { templateId: string; canDelete: boolean }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
 
   if (!canDelete) return null;
 
-  function handleClick() {
-    if (!confirm("Eliminar este modelo de avaliação? Esta ação não pode ser desfeita.")) return;
+  async function handleClick() {
+    if (!(await confirm("Eliminar este modelo de avaliação? Esta ação não pode ser desfeita."))) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -28,6 +30,7 @@ export function DeleteTemplateButton({ templateId, canDelete }: { templateId: st
 
   return (
     <div className="inline-flex items-center gap-2">
+      {dialog}
       {error && <span className="text-xs text-rose-600 dark:text-rose-400">{error}</span>}
       <button
         type="button"

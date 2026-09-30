@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { updateShiftTemplate, deleteShiftTemplate } from "../actions";
 import { shiftDurationHours } from "@/lib/schedule";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type Template = {
   id: string;
@@ -26,6 +27,7 @@ export function ShiftTemplateRow({
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   function handleSave(formData: FormData) {
     setError(null);
@@ -39,8 +41,8 @@ export function ShiftTemplateRow({
     });
   }
 
-  function handleDelete() {
-    if (!confirm(`Apagar o modelo "${template.name}"? Esta ação não pode ser desfeita.`)) return;
+  async function handleDelete() {
+    if (!(await confirm(`Apagar o modelo "${template.name}"? Esta ação não pode ser desfeita.`))) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteShiftTemplate(template.id);
@@ -124,6 +126,7 @@ export function ShiftTemplateRow({
 
   return (
     <tr>
+      {dialog}
       <td className="px-4 py-3">
         <span
           className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"

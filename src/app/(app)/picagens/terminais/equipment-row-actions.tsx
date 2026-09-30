@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { deleteEquipment, toggleEquipmentActive } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function EquipmentRowActions({
   equipmentId,
@@ -15,6 +16,7 @@ export function EquipmentRowActions({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirm();
 
   function handleToggle() {
     setError(null);
@@ -24,8 +26,8 @@ export function EquipmentRowActions({
     });
   }
 
-  function handleDelete() {
-    if (!confirm(`Eliminar o equipamento "${equipmentName}"?`)) return;
+  async function handleDelete() {
+    if (!(await confirm(`Eliminar o equipamento "${equipmentName}"?`))) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteEquipment(equipmentId);
@@ -35,6 +37,7 @@ export function EquipmentRowActions({
 
   return (
     <div className="relative flex items-center gap-2">
+      {dialog}
       <button
         type="button"
         onClick={handleToggle}
