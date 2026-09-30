@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function DeleteSectionButton({
   onDelete,
@@ -15,9 +16,10 @@ export function DeleteSectionButton({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
 
-  function handleClick() {
-    if (!window.confirm(confirmMessage)) return;
+  async function handleClick() {
+    if (!(await confirm(confirmMessage))) return;
     setError(null);
     startTransition(() => {
       onDelete().then((result) => {
@@ -32,6 +34,7 @@ export function DeleteSectionButton({
 
   return (
     <div>
+      {dialog}
       <Button variant="danger" type="button" disabled={pending} onClick={handleClick}>
         <Trash2 size={14} />
         {pending ? "A apagar..." : "Apagar secção"}

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { deleteCycle } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function DeleteCycleButton({
   cycleId,
@@ -20,9 +21,10 @@ export function DeleteCycleButton({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
 
-  function handleDelete() {
-    if (!confirm(`Apagar "${cycleName}"? Esta ação não pode ser desfeita.`)) return;
+  async function handleDelete() {
+    if (!(await confirm(`Apagar "${cycleName}"? Esta ação não pode ser desfeita.`))) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteCycle(cycleId);
@@ -36,6 +38,7 @@ export function DeleteCycleButton({
 
   return (
     <div className="relative">
+      {dialog}
       <button
         type="button"
         onClick={handleDelete}

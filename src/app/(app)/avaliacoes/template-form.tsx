@@ -109,7 +109,8 @@ export function TemplateForm({
 
   function removeSection(key: string) {
     if (questions.some((q) => q.sectionKey === key)) {
-      alert("Esta secção tem perguntas. Mova-as ou elimine-as primeiro.");
+      setStatus("error");
+      setMessage("Esta secção tem perguntas. Mova-as ou elimine-as primeiro.");
       return;
     }
     setSections((ss) => ss.filter((s) => s.key !== key));

@@ -6,6 +6,7 @@ import type { ShiftTemplate } from "@prisma/client";
 import { PatternCell } from "./pattern-cell";
 import { addWeek, duplicateWeek, removeWeek, reorderWeeks, savePattern } from "./actions";
 import { WEEKDAY_LABELS } from "@/lib/dates";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type PatternCellData = {
   weekIndex: number;
@@ -42,6 +43,7 @@ export function WeeksGrid({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cells, setCells] = useState<Map<string, string | null>>(() => buildCellMap(pattern));
+  const { confirm, dialog } = useConfirm();
   // Guarda a última versão do padrão do servidor já refletida em `cells`,
   // para detetar (durante a renderização, sem useEffect) quando `pattern`
   // mudou por fora — ex.: depois de adicionar/remover/reordenar semanas.
@@ -111,6 +113,7 @@ export function WeeksGrid({
 
   return (
     <div>
+      {dialog}
       {error && (
         <p className="mb-3 whitespace-pre-line rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
           {error}
@@ -195,8 +198,8 @@ export function WeeksGrid({
                           type="button"
                           title={structuralDisabled ? "Grave as alterações do padrão primeiro" : "Remover semana"}
                           disabled={structuralDisabled}
-                          onClick={() => {
-                            if (confirm(`Remover a Semana ${position + 1}? Esta ação não pode ser desfeita.`)) {
+                          onClick={async () => {
+                            if (await confirm(`Remover a Semana ${position + 1}? Esta ação não pode ser desfeita.`)) {
                               run(() => removeWeek(cycleId, weekIndex));
                             }
                           }}
