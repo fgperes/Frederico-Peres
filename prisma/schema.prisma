@@ -59,6 +59,8 @@ model User {
   createdEvaluationTemplates EvaluationTemplate[]
   createdEvaluations         Evaluation[]         @relation("EvaluationCreatedBy")
   completedEvaluations       Evaluation[]         @relation("EvaluationCompletedBy")
+
+  anniversaryCommentsAuthored AnniversaryComment[]
 }
 
 // Notícias do dashboard. targetRoles vazio = visível para todos ("Todos" no
@@ -270,6 +272,8 @@ model Employee {
 
   evaluationAssignments EvaluationTemplateAssignment[]
   evaluations           Evaluation[]
+
+  anniversaryComments AnniversaryComment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -899,10 +903,34 @@ model ImportLog {
 // ---------------------------------------------------------------------------
 
 model ModuleSubscription {
-  id                String   @id @default(cuid())
-  predictiveEnabled Boolean  @default(false)
-  updatedAt         DateTime @updatedAt
-  updatedById       String?
+  id                      String   @id @default(cuid())
+  predictiveEnabled       Boolean  @default(false)
+  // Aniversários de entrada (dinâmica social no dashboard, à semelhança dos
+  // aniversários de nascimento) — o Administrador do Sistema pode desligar
+  // só esta parte, mantendo os aniversários de nascimento ativos.
+  workAnniversaryEnabled  Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
+  updatedById             String?
+}
+
+// Mensagem de aniversário (nascimento ou entrada na empresa) deixada por um
+// colega — é um "postal" privado: só o próprio colaborador homenageado
+// consegue ler as mensagens que recebeu (ver getMyAnniversaryMessages).
+// Um colega só pode deixar uma mensagem por pessoa/ocasião/ano — voltar a
+// comentar no mesmo ano substitui a mensagem anterior.
+model AnniversaryComment {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  kind       String // BIRTHDAY | WORK_ANNIVERSARY
+  year       Int
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, authorId, kind, year])
+  @@index([employeeId, kind, year])
 }
 
 // Identidade visual usada no cabeçalho dos documentos para download (ex.:
