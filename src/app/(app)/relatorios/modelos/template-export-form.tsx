@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { FileDown } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui";
 import { EmployeeTreeFilter, type TreeDepartment, type TreeTeam, type TreeEmployee } from "@/components/employee-tree-filter";
 import { MONTH_LABELS } from "@/lib/dates";
-import { resolveDocumentTemplateExport } from "../actions";
+import { resolveDocumentTemplateExport, type ResolvedBlock } from "./actions";
 import { buildAndDownloadDocumentPdf } from "./build-pdf";
+import { buildAndDownloadDocumentExcel } from "./build-excel";
 
-export function ExportPanel({
+export function TemplateExportForm({
   templateId,
   departments,
   teams,
@@ -20,6 +21,7 @@ export function ExportPanel({
   employees: { id: string; firstName: string; lastName: string; departmentId: string | null; teamId: string | null }[];
 }) {
   const now = new Date();
+  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -30,33 +32,46 @@ export function ExportPanel({
     teamId: e.teamId,
   }));
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const month = Number(formData.get("month"));
-    const year = Number(formData.get("year"));
-    const employeeIds = String(formData.get("employees") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  function resolve(): Promise<{ templateName: string; blocks: ResolvedBlock[] } | null> {
+    return new Promise((resolve) => {
+      const formData = new FormData(formRef.current!);
+      const month = Number(formData.get("month"));
+      const year = Number(formData.get("year"));
+      const employeeIds = String(formData.get("employees") ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    setError(null);
-    startTransition(async () => {
-      const result = await resolveDocumentTemplateExport(templateId, { month, year, employeeIds });
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      if (result.blocks.length === 0) {
-        setError("Este modelo ainda não tem blocos — adicione pelo menos um antes de gerar.");
-        return;
-      }
-      await buildAndDownloadDocumentPdf(result.templateName, result.blocks);
+      setError(null);
+      startTransition(async () => {
+        const result = await resolveDocumentTemplateExport(templateId, { month, year, employeeIds });
+        if ("error" in result) {
+          setError(result.error);
+          resolve(null);
+          return;
+        }
+        if (result.blocks.length === 0) {
+          setError("Este modelo ainda não tem blocos — adicione pelo menos um antes de gerar.");
+          resolve(null);
+          return;
+        }
+        resolve(result);
+      });
     });
   }
 
+  async function handlePdf() {
+    const result = await resolve();
+    if (result) await buildAndDownloadDocumentPdf(result.templateName, result.blocks);
+  }
+
+  async function handleExcel() {
+    const result = await resolve();
+    if (result) await buildAndDownloadDocumentExcel(result.templateName, result.blocks);
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={(e) => e.preventDefault()} className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Mês</label>
@@ -102,10 +117,16 @@ export function ExportPanel({
 
       {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
 
-      <Button type="submit" disabled={pending}>
-        <FileDown size={15} />
-        {pending ? "A gerar..." : "Gerar PDF"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" onClick={handlePdf} disabled={pending}>
+          <FileDown size={15} />
+          {pending ? "A gerar..." : "Gerar PDF"}
+        </Button>
+        <Button type="button" variant="secondary" onClick={handleExcel} disabled={pending}>
+          <FileSpreadsheet size={15} />
+          {pending ? "A gerar..." : "Gerar Excel"}
+        </Button>
+      </div>
     </form>
   );
 }

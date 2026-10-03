@@ -1,4 +1,4 @@
-import type { ResolvedBlock } from "../actions";
+import type { ResolvedBlock } from "./actions";
 
 function loadImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
