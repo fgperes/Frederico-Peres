@@ -94,6 +94,12 @@ export function EmployeeForm({
               )}
           </div>
           <Field label="Nº Segurança Social" name="socialSecurityNo" defaultValue={employee?.socialSecurityNo ?? ""} />
+          <Field
+            label="Data de nascimento"
+            name="birthDate"
+            type="date"
+            defaultValue={employee?.birthDate ? employee.birthDate.toISOString().slice(0, 10) : ""}
+          />
           <Field label="Morada" name="address" defaultValue={employee?.address ?? ""} className="sm:col-span-2" />
         </div>
       </section>

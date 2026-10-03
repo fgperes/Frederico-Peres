@@ -184,7 +184,9 @@ async function ManagementDashboard({
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const currentMonth = today.getMonth();
+  // Datas de nascimento/admissão são guardadas à meia-noite UTC — usar o
+  // mês UTC evita desalinhar um dia consoante o fuso horário do servidor.
+  const currentMonth = today.getUTCMonth();
 
   const [
     teamEmployees,
@@ -265,15 +267,17 @@ async function ManagementDashboard({
   const maxDeptCount = Math.max(1, ...deptBars.map((d) => d.count));
 
   const birthdaysThisMonth = teamEmployees
-    .filter((e) => e.birthDate && e.birthDate.getMonth() === currentMonth)
-    .map((e) => ({ ...e, day: e.birthDate!.getDate(), kind: "aniversário" as const }))
+    .filter((e) => e.birthDate && e.birthDate.getUTCMonth() === currentMonth)
+    .map((e) => ({ ...e, day: e.birthDate!.getUTCDate(), kind: "aniversário" as const }))
     .sort((a, b) => a.day - b.day);
   const anniversariesThisMonth = teamEmployees
-    .filter((e) => e.hireDate && e.hireDate.getMonth() === currentMonth && e.hireDate.getFullYear() < today.getFullYear())
+    .filter(
+      (e) => e.hireDate && e.hireDate.getUTCMonth() === currentMonth && e.hireDate.getUTCFullYear() < today.getUTCFullYear()
+    )
     .map((e) => ({
       ...e,
-      day: e.hireDate!.getDate(),
-      years: today.getFullYear() - e.hireDate!.getFullYear(),
+      day: e.hireDate!.getUTCDate(),
+      years: today.getUTCFullYear() - e.hireDate!.getUTCFullYear(),
       kind: "casa" as const,
     }))
     .sort((a, b) => a.day - b.day);
