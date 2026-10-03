@@ -1,12 +1,15 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
-import { ROLE_LABELS, accessFor, canRead } from "@/lib/roles";
+import { ROLE_LABELS, accessFor, canRead, isSystemAdmin } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { describeAuditLog } from "@/lib/audit-labels";
 import { AvatarImage } from "@/lib/avatars";
 import { formatDateTime } from "@/lib/format";
 import { getVisibleNews } from "@/lib/news";
+import { getTodaysAnniversaries, getMyAlreadyCommentedKeys, getUpcomingAbsences } from "@/lib/anniversaries";
+import { getModuleSubscription } from "@/lib/subscriptions";
+import { AnniversaryWidget } from "./anniversary-widget";
 import Link from "next/link";
 import { addDays } from "date-fns";
 import {
@@ -22,6 +25,7 @@ import {
   UserX,
   Cake,
   ClipboardCheck,
+  CalendarDays,
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -36,6 +40,13 @@ export default async function DashboardPage() {
   // os restantes perfis (com âmbito "ro"/"rw" — Gestor, RH, Auditor, etc.)
   // veem o painel de gestão, sempre restrito ao seu âmbito de dados.
   const isManagement = accessFor(user.roles, "recursos") !== "own";
+  const userIsSystemAdmin = isSystemAdmin(user.roles);
+
+  const [todaysAnniversaries, subscription] = await Promise.all([
+    getTodaysAnniversaries(),
+    getModuleSubscription(),
+  ]);
+  const alreadyCommentedKeys = await getMyAlreadyCommentedKeys(user.id, todaysAnniversaries);
 
   return (
     <div>
@@ -52,8 +63,65 @@ export default async function DashboardPage() {
         description={`Perfis: ${user.roles.map((r) => ROLE_LABELS[r]).join(", ")}`}
       />
       <NewsSection roles={user.roles} />
+
+      {(todaysAnniversaries.length > 0 || userIsSystemAdmin) && (
+        <Card className="mb-8">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+            <Cake size={16} className="text-stone-500" />
+            Aniversários de hoje
+          </h2>
+          <AnniversaryWidget
+            entries={todaysAnniversaries}
+            alreadyCommentedKeys={alreadyCommentedKeys}
+            currentEmployeeId={user.employeeId}
+            isSystemAdmin={userIsSystemAdmin}
+            workAnniversaryEnabled={subscription.workAnniversaryEnabled}
+          />
+        </Card>
+      )}
+
       {isManagement ? <ManagementDashboard user={user} /> : <ColaboradorDashboard user={user} />}
     </div>
+  );
+}
+
+function UpcomingAbsencesCard({
+  absences,
+}: {
+  absences: Awaited<ReturnType<typeof getUpcomingAbsences>>;
+}) {
+  return (
+    <Card>
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+        <CalendarDays size={16} className="text-stone-500" />
+        Próximas ausências
+      </h2>
+      {absences.length === 0 ? (
+        <p className="text-sm text-stone-500 dark:text-stone-400">Sem ausências agendadas.</p>
+      ) : (
+        <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+          {absences.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <div>
+                <Link
+                  href={`/colaboradores/${a.employeeId}`}
+                  className="font-medium text-violet-700 hover:underline dark:text-violet-400"
+                >
+                  {a.employeeName}
+                </Link>
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  {a.startDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
+                  {a.startDate.getTime() !== a.endDate.getTime()
+                    ? ` a ${a.endDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}`
+                    : ""}
+                </p>
+              </div>
+              <Badge color={a.isVacation ? "blue" : "slate"}>{a.typeName}</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 
@@ -128,6 +196,7 @@ async function ManagementDashboard({
     absentToday,
     recentAudit,
     departments,
+    upcomingAbsences,
   ] = await Promise.all([
     // Lista leve do âmbito do utilizador — alimenta o total, o gráfico por
     // departamento e os aniversários, sem repetir a mesma consulta 3 vezes.
@@ -175,6 +244,7 @@ async function ManagementDashboard({
       ? prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { user: true } })
       : [],
     prisma.department.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    canAusencias || canFerias ? getUpcomingAbsences(scope) : Promise.resolve([]),
   ]);
 
   const employeeCount = teamEmployees.length;
@@ -329,6 +399,8 @@ async function ManagementDashboard({
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {(canAusencias || canFerias) && <UpcomingAbsencesCard absences={upcomingAbsences} />}
+
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
             <Cake size={16} className="text-stone-500" />
@@ -406,7 +478,7 @@ async function ColaboradorDashboard({
   today.setHours(0, 0, 0, 0);
   const year = today.getFullYear();
 
-  const [nextShift, feriasBalance, pendingAbsences, unjustifiedDeviations] = await Promise.all([
+  const [nextShift, feriasBalance, pendingAbsences, unjustifiedDeviations, upcomingAbsences] = await Promise.all([
     prisma.shift.findFirst({
       where: { employeeId: user.employeeId, date: { gte: today }, status: "PUBLISHED" },
       orderBy: { date: "asc" },
@@ -419,6 +491,8 @@ async function ColaboradorDashboard({
     prisma.timeClockEntry.count({
       where: { employeeId: user.employeeId, hasDeviation: true, justification: null },
     }),
+    // Âmbito "própria ficha" — mostra ambos os tipos (ausências e férias).
+    getUpcomingAbsences({ id: user.employeeId }),
   ]);
 
   const feriasDisponiveis = feriasBalance
@@ -461,6 +535,10 @@ async function ColaboradorDashboard({
           accent="rose"
           href="/picagens"
         />
+      </div>
+
+      <div className="mb-8">
+        <UpcomingAbsencesCard absences={upcomingAbsences} />
       </div>
 
       <Card>
