@@ -10,10 +10,10 @@ const MIN_REST_MINUTES = 11 * 60; // Código do Trabalho, art.º 214.º
 // turnos de origem preditiva a partir da procura histórica — heurística
 // simples (médias por janela horária) enquanto o modelo Erlang C definitivo
 // (em preparação) não é integrado.
-const DEFAULT_CAPACITY_PER_EMPLOYEE = 10;
+export const DEFAULT_CAPACITY_PER_EMPLOYEE = 10;
 
-type Window = { label: string; startHour: number; endHour: number };
-const WINDOWS: Window[] = [
+export type Window = { label: string; startHour: number; endHour: number };
+export const WINDOWS: Window[] = [
   { label: "Manhã", startHour: 6, endHour: 14 },
   { label: "Tarde", startHour: 14, endHour: 22 },
   { label: "Noite", startHour: 22, endHour: 30 }, // 22h-06h

@@ -18,6 +18,11 @@ import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { MonthYearPicker } from "./month-year-picker";
 import { FilterPopover } from "./filter-popover";
+import { ScheduleAlertsBanner } from "./schedule-alerts-banner";
+import { FullscreenSection } from "./fullscreen-section";
+import type { ShiftTemplateOption } from "./shift-modal";
+import { findScheduleAlerts } from "@/lib/schedule-alerts";
+import { computeCoverage } from "@/lib/schedule-coverage";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
@@ -52,7 +57,7 @@ export default async function EscalasPage({
     ],
   };
 
-  const [employees, departments, teams, branding] = await Promise.all([
+  const [employees, departments, teams, branding, shiftTemplates] = await Promise.all([
     prisma.employee.findMany({
       where: employeeWhere,
       include: { user: { select: { avatarKey: true, avatarImage: true } } },
@@ -61,6 +66,10 @@ export default async function EscalasPage({
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
     getDocumentBranding(),
+    prisma.shiftTemplate.findMany({
+      select: { id: true, name: true, startTime: true, endTime: true, color: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
   const employeeIds = employees.map((e) => e.id);
 
@@ -194,6 +203,7 @@ export default async function EscalasPage({
           teams={teams}
           canEdit={canEdit}
           branding={branding}
+          shiftTemplates={shiftTemplates}
         />
       ) : (
         <MonthView
@@ -205,6 +215,7 @@ export default async function EscalasPage({
           teams={teams}
           canEdit={canEdit}
           branding={branding}
+          shiftTemplates={shiftTemplates}
         />
       )}
     </div>
@@ -265,15 +276,19 @@ function PeriodStatusBadge({ shifts }: { shifts: { status: string }[] }) {
 
 function StatusLegend() {
   return (
-    <p className="mt-3 flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
+    <p className="mt-3 flex flex-wrap items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
       <span className="flex items-center gap-1">
         <Badge color="amber">rascunho</Badge> por publicar
       </span>
       <span className="flex items-center gap-1">
-        <Badge color="green">publicado</Badge> imutável
+        <Badge color="green">publicado</Badge>
       </span>
       <span className="flex items-center gap-1">
-        <Badge color="blue">férias</Badge> / <Badge color="slate">outra ausência</Badge>
+        <Badge color="red">alterado após publicação</Badge>
+      </span>
+      <span className="flex items-center gap-1">
+        <Badge color="blue">férias</Badge> / <Badge color="red">baixa</Badge> / <Badge color="amber">formação</Badge> /{" "}
+        <Badge color="slate">outra ausência</Badge>
       </span>
       <span className="flex items-center gap-1 italic text-stone-400 dark:text-stone-600">Folga — sem turno nem ausência</span>
     </p>
@@ -316,6 +331,49 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
   return entries;
 }
 
+// Alertas (descanso/sobreposição/excesso de horas/dias seguidos) e
+// cobertura prevista para os turnos já carregados — partilhado entre as
+// vistas de semana e de mês.
+async function loadAlertsAndCoverage(
+  employeeIds: string[],
+  employees: { id: string; firstName: string; lastName: string }[],
+  shifts: { employeeId: string; date: Date; startTime: string; endTime: string }[],
+  days: Date[],
+  departmentId: string | null | undefined
+) {
+  const contracts =
+    employeeIds.length > 0
+      ? await prisma.employeeContract.findMany({
+          where: { employeeId: { in: employeeIds }, status: "ACTIVE" },
+          include: { contractProfile: { select: { weeklyHours: true } } },
+        })
+      : [];
+  const weeklyContractHoursByEmployee = new Map<string, number>();
+  for (const c of contracts) {
+    if (!weeklyContractHoursByEmployee.has(c.employeeId)) {
+      weeklyContractHoursByEmployee.set(c.employeeId, c.contractProfile.weeklyHours);
+    }
+  }
+
+  const alerts = findScheduleAlerts(shifts, employees, weeklyContractHoursByEmployee);
+  const alertCells = new Set<string>();
+  for (const a of alerts) {
+    for (const d of a.dates) alertCells.add(`${a.employeeId}_${d}`);
+  }
+
+  const employeesByDay = new Map<string, Set<string>>();
+  for (const s of shifts) {
+    const dayIso = isoDate(s.date);
+    const set = employeesByDay.get(dayIso) ?? new Set<string>();
+    set.add(s.employeeId);
+    employeesByDay.set(dayIso, set);
+  }
+  const shiftsByDay = new Map([...employeesByDay.entries()].map(([k, v]) => [k, v.size] as const));
+  const coverage = await computeCoverage(days, departmentId, shiftsByDay);
+
+  return { alerts, alertCells, coverage };
+}
+
 // Sigla curta para o PDF do horário (a afixar) — "F" para folga, 3 letras
 // maiúsculas do tipo de ausência (ex.: "Férias" -> "FÉR", "Baixa Médica" ->
 // "BAI"). Qualquer dia sem turno nem ausência é folga — não fica em branco.
@@ -342,6 +400,7 @@ async function WeekView({
   teams,
   canEdit,
   branding,
+  shiftTemplates,
 }: {
   params: { week?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
@@ -351,6 +410,7 @@ async function WeekView({
   teams: { id: string; name: string }[];
   canEdit: boolean;
   branding: Branding;
+  shiftTemplates: ShiftTemplateOption[];
 }) {
   const weekStart = getWeekStart(params.week);
   const weekStartIso = isoDate(weekStart);
@@ -366,6 +426,13 @@ async function WeekView({
     }),
     loadAbsencesForDays(employeeIds, days),
   ]);
+  const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
+    employeeIds,
+    employees,
+    shifts,
+    days,
+    params.departmentId
+  );
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
@@ -406,7 +473,19 @@ async function WeekView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
+      <ScheduleAlertsBanner alerts={alerts} />
+      <FullscreenSection>
+        <ScheduleGrid
+          employees={employees}
+          days={days}
+          shifts={shifts}
+          absences={absences}
+          shiftTemplates={shiftTemplates}
+          alertCells={alertCells}
+          coverage={coverage ?? undefined}
+          canEdit={canEdit}
+        />
+      </FullscreenSection>
       <StatusLegend />
     </>
   );
@@ -421,6 +500,7 @@ async function MonthView({
   teams,
   canEdit,
   branding,
+  shiftTemplates,
 }: {
   params: { month?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
@@ -430,6 +510,7 @@ async function MonthView({
   teams: { id: string; name: string }[];
   canEdit: boolean;
   branding: Branding;
+  shiftTemplates: ShiftTemplateOption[];
 }) {
   const monthStart = getMonthStart(params.month);
   const monthStartIso = isoDate(monthStart);
@@ -445,6 +526,13 @@ async function MonthView({
     }),
     loadAbsencesForDays(employeeIds, days),
   ]);
+  const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
+    employeeIds,
+    employees,
+    shifts,
+    days,
+    params.departmentId
+  );
 
   // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
   // numa página, "segunda, 14/09" por coluna não cabe de forma legível.
@@ -489,7 +577,19 @@ async function MonthView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
+      <ScheduleAlertsBanner alerts={alerts} />
+      <FullscreenSection>
+        <ScheduleGrid
+          employees={employees}
+          days={days}
+          shifts={shifts}
+          absences={absences}
+          shiftTemplates={shiftTemplates}
+          alertCells={alertCells}
+          coverage={coverage ?? undefined}
+          canEdit={canEdit}
+        />
+      </FullscreenSection>
       <StatusLegend />
     </>
   );
