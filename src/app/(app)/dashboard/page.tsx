@@ -385,6 +385,7 @@ async function loadManagementDashboardData(user: Awaited<ReturnType<typeof requi
     monthlyEntries,
     alreadyCommentedMonthlyKeys,
     monthName: MONTH_NAMES[currentMonth],
+    todayDay: today.getUTCDate(),
   };
 }
 
@@ -456,7 +457,7 @@ function ManagementDashboardBody({
 }) {
   return (
     <>
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="mb-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
             <Building2 size={16} className="text-stone-500" />
@@ -497,7 +498,7 @@ function ManagementDashboardBody({
         )}
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="mb-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
             <Cake size={16} className="text-stone-500" />
@@ -511,6 +512,7 @@ function ManagementDashboardBody({
               alreadyCommentedKeys={data.alreadyCommentedMonthlyKeys}
               currentEmployeeId={currentEmployeeId}
               monthName={data.monthName}
+              todayDay={data.todayDay}
             />
           )}
         </Card>
