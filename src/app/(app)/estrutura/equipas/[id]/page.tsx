@@ -2,9 +2,11 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
+import { AvatarImage } from "@/lib/avatars";
 import { updateTeam, deleteTeam } from "../../actions";
 import { DeleteSectionButton } from "../../delete-section-button";
 import { MigrateEmployeeForm } from "../../migrate-employee-form";
+import { TeamDistributionBar } from "../../team-distribution-bar";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { Users2 } from "lucide-react";
@@ -24,10 +26,16 @@ export default async function EquipaDetailPage({
     where: { id },
     include: {
       department: true,
-      employees: { orderBy: { firstName: "asc" }, include: { location: true } },
+      employees: {
+        orderBy: { firstName: "asc" },
+        include: { location: true, user: { select: { avatarKey: true, avatarImage: true } } },
+      },
     },
   });
   if (!team) notFound();
+
+  const fullTimeCount = team.employees.filter((e) => e.employmentType === "FULL_TIME").length;
+  const partTimeCount = team.employees.length - fullTimeCount;
 
   const [departments, teamsInDept] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: "asc" } }),
@@ -109,6 +117,11 @@ export default async function EquipaDetailPage({
           <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
             Colaboradores na equipa
           </h2>
+          {team.employees.length > 0 && (
+            <div className="mt-2">
+              <TeamDistributionBar fullTime={fullTimeCount} partTime={partTimeCount} />
+            </div>
+          )}
         </div>
         {team.employees.length === 0 ? (
           <div className="p-6">
@@ -118,16 +131,24 @@ export default async function EquipaDetailPage({
           <ul className="divide-y divide-stone-100 dark:divide-stone-800">
             {team.employees.map((e) => (
               <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 text-sm">
-                <div>
-                  <Link
-                    href={`/colaboradores/${e.id}`}
-                    className="font-medium text-violet-700 hover:underline dark:text-violet-400"
-                  >
-                    {e.firstName} {e.lastName}
-                  </Link>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
-                    <span>{e.jobTitle}</span>
-                    {e.location && <Badge color="blue">{e.location.name}</Badge>}
+                <div className="flex items-center gap-3">
+                  <AvatarImage
+                    avatarKey={e.user?.avatarKey}
+                    avatarImage={e.user?.avatarImage}
+                    name={`${e.firstName} ${e.lastName}`}
+                    size={32}
+                  />
+                  <div>
+                    <Link
+                      href={`/colaboradores/${e.id}`}
+                      className="font-medium text-violet-700 hover:underline dark:text-violet-400"
+                    >
+                      {e.firstName} {e.lastName}
+                    </Link>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
+                      <span>{e.jobTitle}</span>
+                      {e.location && <Badge color="blue">{e.location.name}</Badge>}
+                    </div>
                   </div>
                 </div>
                 {canEdit && (
