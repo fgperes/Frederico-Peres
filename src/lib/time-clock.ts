@@ -34,15 +34,17 @@ export function getDayClockTimes(entries: { type: string; timestamp: Date }[]): 
 
 // Recalcula, no servidor, o desvio (real - previsto, em minutos) de um
 // colaborador num dia — exatamente a mesma conta que a grelha de execução
-// mostra (inclui correções manuais já aplicadas a cada lado). Usado para
-// tirar um "retrato" fiável no momento de uma decisão do gestor de RH
+// mostra (inclui a correção manual do real já aplicada; o previsto vem
+// sempre da escala, nunca é corrigido à mão). Sem turno marcado nesse dia
+// não há nada a comparar, por isso o desvio é sempre 0. Usado para tirar
+// um "retrato" fiável no momento de uma decisão do gestor de RH
 // (TimeClockDayDecision.diffMinutes), sem confiar em valores vindos do
 // cliente.
 export async function computeDayDiffMinutes(employeeId: string, dateIso: string): Promise<number> {
   const date = new Date(`${dateIso}T00:00:00.000Z`);
   const dayEnd = new Date(`${dateIso}T23:59:59.999Z`);
 
-  const [shift, entries, corrections] = await Promise.all([
+  const [shift, entries, actualCorrection] = await Promise.all([
     prisma.shift.findFirst({
       where: { employeeId, date, status: "PUBLISHED" },
       include: { shiftTemplate: true },
@@ -50,19 +52,14 @@ export async function computeDayDiffMinutes(employeeId: string, dateIso: string)
     prisma.timeClockEntry.findMany({
       where: { employeeId, timestamp: { gte: date, lte: dayEnd } },
     }),
-    prisma.hoursCorrection.findMany({ where: { employeeId, date } }),
+    prisma.hoursCorrection.findFirst({ where: { employeeId, date, field: "ACTUAL" } }),
   ]);
 
-  const scheduledRaw = shift
-    ? shiftDurationHours(shift.startTime, shift.endTime, shift.shiftTemplate?.breakMins ?? 0)
-    : 0;
+  if (!shift) return 0;
+
+  const scheduledRaw = shiftDurationHours(shift.startTime, shift.endTime, shift.shiftTemplate?.breakMins ?? 0);
   const actualRaw = computeWorkedHoursByDay(entries).get(isoDate(date)) ?? 0;
+  const actualCorrected = actualRaw + (actualCorrection?.minutesDelta ?? 0) / 60;
 
-  const scheduledCorrMin = corrections.find((c) => c.field === "SCHEDULED")?.minutesDelta ?? 0;
-  const actualCorrMin = corrections.find((c) => c.field === "ACTUAL")?.minutesDelta ?? 0;
-
-  const scheduledCorrected = scheduledRaw + scheduledCorrMin / 60;
-  const actualCorrected = actualRaw + actualCorrMin / 60;
-
-  return Math.round((actualCorrected - scheduledCorrected) * 60);
+  return Math.round((actualCorrected - scheduledRaw) * 60);
 }

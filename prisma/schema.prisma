@@ -471,10 +471,14 @@ model HoursCorrection {
   employeeId   String
   employee     Employee @relation(fields: [employeeId], references: [id])
   date         DateTime
-  // A que lado da comparação (execução vs. planeado) a correção se aplica —
-  // permite corrigir tanto o real (picagens) como o previsto (escala), cada
-  // um com o seu próprio ajuste, e recalcular a diferença a partir dos dois.
+  // Sempre "ACTUAL" na prática (o previsto vem só da escala, nunca é
+  // corrigido) — mantido por compatibilidade com correções antigas.
   field        String   @default("ACTUAL") // ACTUAL | SCHEDULED
+  // Corrige o horário real (entrada/saída), não um número de horas —
+  // minutesDelta é derivado destas horas e mantido para o cálculo do
+  // saldo/payroll continuar a ler um único valor, como antes.
+  startTime    String?
+  endTime      String?
   minutesDelta Int
   reason       String?
   createdById  String
