@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Search } from "lucide-react";
 
 export type TreeDepartment = { id: string; name: string };
@@ -136,11 +137,44 @@ export function EmployeeTreeFilter({
 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(
+    null
+  );
+
+  // O painel é renderizado num portal com posição fixa (em vez de absoluta
+  // dentro do próprio campo), para não ficar cortado quando este filtro é
+  // usado dentro de um modal ou outro contentor com overflow limitado. A
+  // altura do painel ajusta-se sempre ao espaço disponível até ao fundo do
+  // ecrã, nunca ultrapassando esse limite.
+  useEffect(() => {
+    if (!open) return;
+    function updatePosition() {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const top = rect.bottom + 4;
+      const maxHeight = Math.max(160, window.innerHeight - top - 16);
+      setPanelPos({ top, left: rect.left, width: rect.width, maxHeight });
+    }
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function onClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        panelRef.current &&
+        !panelRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
@@ -165,9 +199,21 @@ export function EmployeeTreeFilter({
         <ChevronDown size={14} className={`text-stone-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && (
-        <div className="absolute z-10 mt-1 w-full rounded-md border border-stone-300 bg-white text-sm shadow-lg dark:border-stone-700 dark:bg-stone-800">
-          <div className="relative border-b border-stone-100 p-2 dark:border-stone-700">
+      {open &&
+        panelPos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              position: "fixed",
+              top: panelPos.top,
+              left: panelPos.left,
+              width: panelPos.width,
+              maxHeight: panelPos.maxHeight,
+            }}
+            className="z-50 flex flex-col overflow-hidden rounded-md border border-stone-300 bg-white text-sm shadow-lg dark:border-stone-700 dark:bg-stone-800"
+          >
+          <div className="relative shrink-0 border-b border-stone-100 p-2 dark:border-stone-700">
             <Search size={13} className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
@@ -178,7 +224,7 @@ export function EmployeeTreeFilter({
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto p-2">
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {visibleEmployees.length === 0 ? (
               <p className="px-2 py-3 text-xs text-stone-500">Sem colaboradores para &quot;{query}&quot;.</p>
             ) : (
@@ -288,13 +334,14 @@ export function EmployeeTreeFilter({
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="w-full border-t border-stone-100 px-2 py-1.5 text-left text-xs text-stone-500 underline hover:text-stone-700 dark:border-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+              className="w-full shrink-0 border-t border-stone-100 px-2 py-1.5 text-left text-xs text-stone-500 underline hover:text-stone-700 dark:border-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
             >
               Limpar seleção ({selected.size})
             </button>
           )}
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
