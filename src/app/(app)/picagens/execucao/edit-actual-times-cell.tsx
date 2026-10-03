@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, RotateCcw } from "lucide-react";
+import { TimeField } from "@/components/time-field";
 import { setActualTimesCorrectionAction, deleteHoursCorrectionAction, type CorrectionState } from "./actions";
 
 // Corrige o horário real de um dia (entrada/saída) — nunca um número de
@@ -67,19 +68,16 @@ export function EditActualTimesCell({
     return (
       <div className="flex flex-col items-center gap-1 rounded-md border border-violet-300 bg-violet-50/50 p-1.5 dark:border-violet-700 dark:bg-violet-500/10">
         <div className="flex items-center gap-1">
-          <input
-            type="time"
+          <TimeField
             value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className="w-[5.5rem] rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
-            autoFocus
+            onChange={setStart}
+            inputClassName="w-14 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
           />
           <span className="text-xs text-stone-400">→</span>
-          <input
-            type="time"
+          <TimeField
             value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            className="w-[5.5rem] rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
+            onChange={setEnd}
+            inputClassName="w-14 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
           />
         </div>
         <input
