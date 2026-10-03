@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { Button, Field, Input, Select, Badge } from "@/components/ui";
+import { TimeField } from "@/components/time-field";
 import { isoDate } from "@/lib/dates";
 import { createShiftAction, updateShiftAction, deleteSingleShiftAction } from "./actions";
 
@@ -195,10 +196,10 @@ export function ShiftModal({
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Início">
-            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <TimeField value={startTime} onChange={setStartTime} />
           </Field>
           <Field label="Fim">
-            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <TimeField value={endTime} onChange={setEndTime} />
           </Field>
         </div>
 

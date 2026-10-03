@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { TimeField } from "@/components/time-field";
 import { updateShiftTemplate, deleteShiftTemplate } from "../actions";
 import { shiftDurationHours } from "@/lib/schedule";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -66,22 +67,20 @@ export function ShiftTemplateRow({
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-medium text-stone-600">Início</label>
-              <input
+              <TimeField
                 name="startTime"
-                type="time"
                 required
                 defaultValue={template.startTime}
-                className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                inputClassName="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-medium text-stone-600">Fim</label>
-              <input
+              <TimeField
                 name="endTime"
-                type="time"
                 required
                 defaultValue={template.endTime}
-                className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                inputClassName="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
