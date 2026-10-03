@@ -46,6 +46,7 @@ export default async function TiposAusenciaPage() {
                     <th className="px-4 py-3">Documento</th>
                     <th className="px-4 py-3">Unidade</th>
                     <th className="px-4 py-3">Limite anual</th>
+                    <th className="px-4 py-3">Bolsa de horas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
@@ -77,6 +78,11 @@ export default async function TiposAusenciaPage() {
                         {t.unitType === "WORKING_DAYS" ? "Dias úteis" : "Dias corridos"}
                       </td>
                       <td className="px-4 py-3">{t.annualLimitDays ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <Badge color={t.countsAgainstHourPool ? "amber" : "slate"}>
+                          {t.countsAgainstHourPool ? "Desconta" : "Não desconta"}
+                        </Badge>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -137,6 +143,9 @@ export default async function TiposAusenciaPage() {
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="affectsBalance" defaultChecked /> Afeta saldo de dias
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="countsAgainstHourPool" /> Desconta da bolsa de horas quando aprovada
             </label>
             <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
               Criar tipo
