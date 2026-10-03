@@ -369,6 +369,10 @@ model Shift {
   shiftTemplate        ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
   source               String         @default("MANUAL") // MANUAL | CYCLE | PREDICTIVE
   status               String         @default("DRAFT") // DRAFT | PUBLISHED
+  // Um turno publicado é editável (correção pontual), mas fica marcado —
+  // a grelha destaca-o com uma cor própria para ficar claro que já não
+  // corresponde exatamente ao que foi publicado/notificado ao colaborador.
+  editedAfterPublish   Boolean        @default(false)
   notes                String?
   // Alerta de refeição em falta (5h+ sem pausa): timestamp de deteção e,
   // se o colaborador dispensar o lembrete, timestamp da dispensa.

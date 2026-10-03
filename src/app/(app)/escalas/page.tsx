@@ -17,6 +17,12 @@ import { SendScheduleButton } from "./send-schedule-button";
 import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { MonthYearPicker } from "./month-year-picker";
+import { FilterPopover } from "./filter-popover";
+import { ScheduleAlertsBanner } from "./schedule-alerts-banner";
+import { FullscreenSection } from "./fullscreen-section";
+import type { ShiftTemplateOption } from "./shift-modal";
+import { findScheduleAlerts } from "@/lib/schedule-alerts";
+import { computeCoverage } from "@/lib/schedule-coverage";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
@@ -51,15 +57,24 @@ export default async function EscalasPage({
     ],
   };
 
-  const [employees, departments, teams, branding] = await Promise.all([
-    prisma.employee.findMany({ where: employeeWhere, orderBy: [{ lastName: "asc" }] }),
+  const [employees, departments, teams, branding, shiftTemplates] = await Promise.all([
+    prisma.employee.findMany({
+      where: employeeWhere,
+      include: { user: { select: { avatarKey: true, avatarImage: true } } },
+      orderBy: [{ lastName: "asc" }],
+    }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
     getDocumentBranding(),
+    prisma.shiftTemplate.findMany({
+      select: { id: true, name: true, startTime: true, endTime: true, color: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
   const employeeIds = employees.map((e) => e.id);
 
   const filterQuery = `departmentId=${params.departmentId ?? ""}&teamId=${params.teamId ?? ""}&employeeId=${params.employeeId ?? ""}`;
+  const activeFilterCount = [params.departmentId, params.teamId, params.employeeId].filter(Boolean).length;
 
   return (
     <div>
@@ -70,67 +85,69 @@ export default async function EscalasPage({
       />
 
       <Card className="mb-6 bg-gradient-to-br from-white to-stone-50 dark:from-stone-900 dark:to-stone-950">
-        <form className="flex flex-wrap items-end justify-between gap-4" method="get">
-          <div className="flex flex-wrap items-end gap-3">
+        <form className="flex flex-wrap items-center justify-between gap-4" method="get">
+          <FilterPopover activeCount={activeFilterCount}>
             <input type="hidden" name="view" value={view} />
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Departamento
-              </label>
-              <select
-                name="departmentId"
-                defaultValue={params.departmentId ?? ""}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-              >
-                <option value="">Todos</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
-              <select
-                name="teamId"
-                defaultValue={params.teamId ?? ""}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-              >
-                <option value="">Todas</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Colaborador
-              </label>
-              <select
-                name="employeeId"
-                defaultValue={params.employeeId ?? ""}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-              >
-                <option value="">Todos</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.firstName} {e.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
             {view === "week" && <input type="hidden" name="week" value={params.week ?? ""} />}
             {view === "month" && <input type="hidden" name="month" value={params.month ?? ""} />}
-            <button
-              type="submit"
-              className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
-            >
-              Filtrar
-            </button>
-          </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                  Departamento
+                </label>
+                <select
+                  name="departmentId"
+                  defaultValue={params.departmentId ?? ""}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  <option value="">Todos</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
+                <select
+                  name="teamId"
+                  defaultValue={params.teamId ?? ""}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  <option value="">Todas</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                  Colaborador
+                </label>
+                <select
+                  name="employeeId"
+                  defaultValue={params.employeeId ?? ""}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  <option value="">Todos</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.firstName} {e.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
+              >
+                Filtrar
+              </button>
+            </div>
+          </FilterPopover>
 
           <div className="flex overflow-hidden rounded-full border border-stone-300 dark:border-stone-700">
             <Link
@@ -186,6 +203,7 @@ export default async function EscalasPage({
           teams={teams}
           canEdit={canEdit}
           branding={branding}
+          shiftTemplates={shiftTemplates}
         />
       ) : (
         <MonthView
@@ -197,13 +215,24 @@ export default async function EscalasPage({
           teams={teams}
           canEdit={canEdit}
           branding={branding}
+          shiftTemplates={shiftTemplates}
         />
       )}
     </div>
   );
 }
 
-function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: string; label: string }) {
+function PeriodNav({
+  prevHref,
+  nextHref,
+  todayHref,
+  label,
+}: {
+  prevHref: string;
+  nextHref: string;
+  todayHref: string;
+  label: string;
+}) {
   return (
     <div className="flex items-center gap-1">
       <Link
@@ -212,6 +241,13 @@ function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: 
         className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 text-stone-600 hover:bg-white dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
       >
         <ChevronLeft size={15} />
+      </Link>
+      <Link
+        href={todayHref}
+        prefetch={false}
+        className="rounded-full border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-600 hover:bg-white dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+      >
+        Hoje
       </Link>
       <span className="min-w-[180px] px-2 text-center text-sm font-semibold capitalize text-stone-800 dark:text-stone-200">
         {label}
@@ -227,17 +263,32 @@ function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: 
   );
 }
 
+// Resumo do estado dos turnos visíveis no período — espelha o badge do
+// módulo de referência (rascunho/publicado) junto à navegação de período.
+function PeriodStatusBadge({ shifts }: { shifts: { status: string }[] }) {
+  if (shifts.length === 0) return null;
+  const hasDraft = shifts.some((s) => s.status === "DRAFT");
+  const hasPublished = shifts.some((s) => s.status === "PUBLISHED");
+  if (hasDraft) return <Badge color="amber">rascunho</Badge>;
+  if (hasPublished) return <Badge color="green">publicado</Badge>;
+  return null;
+}
+
 function StatusLegend() {
   return (
-    <p className="mt-3 flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
+    <p className="mt-3 flex flex-wrap items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
       <span className="flex items-center gap-1">
         <Badge color="amber">rascunho</Badge> por publicar
       </span>
       <span className="flex items-center gap-1">
-        <Badge color="green">publicado</Badge> imutável
+        <Badge color="green">publicado</Badge>
       </span>
       <span className="flex items-center gap-1">
-        <Badge color="blue">férias</Badge> / <Badge color="slate">outra ausência</Badge>
+        <Badge color="red">alterado após publicação</Badge>
+      </span>
+      <span className="flex items-center gap-1">
+        <Badge color="blue">férias</Badge> / <Badge color="red">baixa</Badge> / <Badge color="amber">formação</Badge> /{" "}
+        <Badge color="slate">outra ausência</Badge>
       </span>
       <span className="flex items-center gap-1 italic text-stone-400 dark:text-stone-600">Folga — sem turno nem ausência</span>
     </p>
@@ -280,6 +331,49 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
   return entries;
 }
 
+// Alertas (descanso/sobreposição/excesso de horas/dias seguidos) e
+// cobertura prevista para os turnos já carregados — partilhado entre as
+// vistas de semana e de mês.
+async function loadAlertsAndCoverage(
+  employeeIds: string[],
+  employees: { id: string; firstName: string; lastName: string }[],
+  shifts: { employeeId: string; date: Date; startTime: string; endTime: string }[],
+  days: Date[],
+  departmentId: string | null | undefined
+) {
+  const contracts =
+    employeeIds.length > 0
+      ? await prisma.employeeContract.findMany({
+          where: { employeeId: { in: employeeIds }, status: "ACTIVE" },
+          include: { contractProfile: { select: { weeklyHours: true } } },
+        })
+      : [];
+  const weeklyContractHoursByEmployee = new Map<string, number>();
+  for (const c of contracts) {
+    if (!weeklyContractHoursByEmployee.has(c.employeeId)) {
+      weeklyContractHoursByEmployee.set(c.employeeId, c.contractProfile.weeklyHours);
+    }
+  }
+
+  const alerts = findScheduleAlerts(shifts, employees, weeklyContractHoursByEmployee);
+  const alertCells = new Set<string>();
+  for (const a of alerts) {
+    for (const d of a.dates) alertCells.add(`${a.employeeId}_${d}`);
+  }
+
+  const employeesByDay = new Map<string, Set<string>>();
+  for (const s of shifts) {
+    const dayIso = isoDate(s.date);
+    const set = employeesByDay.get(dayIso) ?? new Set<string>();
+    set.add(s.employeeId);
+    employeesByDay.set(dayIso, set);
+  }
+  const shiftsByDay = new Map([...employeesByDay.entries()].map(([k, v]) => [k, v.size] as const));
+  const coverage = await computeCoverage(days, departmentId, shiftsByDay);
+
+  return { alerts, alertCells, coverage };
+}
+
 // Sigla curta para o PDF do horário (a afixar) — "F" para folga, 3 letras
 // maiúsculas do tipo de ausência (ex.: "Férias" -> "FÉR", "Baixa Médica" ->
 // "BAI"). Qualquer dia sem turno nem ausência é folga — não fica em branco.
@@ -306,6 +400,7 @@ async function WeekView({
   teams,
   canEdit,
   branding,
+  shiftTemplates,
 }: {
   params: { week?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
@@ -315,6 +410,7 @@ async function WeekView({
   teams: { id: string; name: string }[];
   canEdit: boolean;
   branding: Branding;
+  shiftTemplates: ShiftTemplateOption[];
 }) {
   const weekStart = getWeekStart(params.week);
   const weekStartIso = isoDate(weekStart);
@@ -326,9 +422,17 @@ async function WeekView({
   const [shifts, absences] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { in: days } },
+      include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
   ]);
+  const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
+    employeeIds,
+    employees,
+    shifts,
+    days,
+    params.departmentId
+  );
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
@@ -339,11 +443,15 @@ async function WeekView({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <PeriodNav
-          prevHref={`/escalas?view=week&week=${prevWeek}&${filterQuery}`}
-          nextHref={`/escalas?view=week&week=${nextWeek}&${filterQuery}`}
-          label={`Semana de ${weekLabel}`}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodNav
+            prevHref={`/escalas?view=week&week=${prevWeek}&${filterQuery}`}
+            nextHref={`/escalas?view=week&week=${nextWeek}&${filterQuery}`}
+            todayHref={`/escalas?view=week&${filterQuery}`}
+            label={`Semana de ${weekLabel}`}
+          />
+          <PeriodStatusBadge shifts={shifts} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <SchedulePdfButton
@@ -365,7 +473,19 @@ async function WeekView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
+      <ScheduleAlertsBanner alerts={alerts} />
+      <FullscreenSection>
+        <ScheduleGrid
+          employees={employees}
+          days={days}
+          shifts={shifts}
+          absences={absences}
+          shiftTemplates={shiftTemplates}
+          alertCells={alertCells}
+          coverage={coverage ?? undefined}
+          canEdit={canEdit}
+        />
+      </FullscreenSection>
       <StatusLegend />
     </>
   );
@@ -380,6 +500,7 @@ async function MonthView({
   teams,
   canEdit,
   branding,
+  shiftTemplates,
 }: {
   params: { month?: string; departmentId?: string; teamId?: string };
   filterQuery: string;
@@ -389,6 +510,7 @@ async function MonthView({
   teams: { id: string; name: string }[];
   canEdit: boolean;
   branding: Branding;
+  shiftTemplates: ShiftTemplateOption[];
 }) {
   const monthStart = getMonthStart(params.month);
   const monthStartIso = isoDate(monthStart);
@@ -400,9 +522,17 @@ async function MonthView({
   const [shifts, absences] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
+      include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
   ]);
+  const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
+    employeeIds,
+    employees,
+    shifts,
+    days,
+    params.departmentId
+  );
 
   // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
   // numa página, "segunda, 14/09" por coluna não cabe de forma legível.
@@ -420,9 +550,11 @@ async function MonthView({
           <PeriodNav
             prevHref={`/escalas?view=month&month=${prevMonth}&${filterQuery}`}
             nextHref={`/escalas?view=month&month=${nextMonth}&${filterQuery}`}
+            todayHref={`/escalas?view=month&${filterQuery}`}
             label={monthLabel}
           />
           <MonthYearPicker year={monthStart.getFullYear()} month={monthStart.getMonth()} filterQuery={filterQuery} />
+          <PeriodStatusBadge shifts={shifts} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -445,7 +577,19 @@ async function MonthView({
         </div>
       </div>
 
-      <ScheduleGrid employees={employees} days={days} shifts={shifts} absences={absences} />
+      <ScheduleAlertsBanner alerts={alerts} />
+      <FullscreenSection>
+        <ScheduleGrid
+          employees={employees}
+          days={days}
+          shifts={shifts}
+          absences={absences}
+          shiftTemplates={shiftTemplates}
+          alertCells={alertCells}
+          coverage={coverage ?? undefined}
+          canEdit={canEdit}
+        />
+      </FullscreenSection>
       <StatusLegend />
     </>
   );
