@@ -2,10 +2,11 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { employeeScopeWhere } from "@/lib/scope";
 import { canWrite } from "@/lib/roles";
-import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
+import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
+import { AvatarImage } from "@/lib/avatars";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
-import { Users } from "lucide-react";
+import { Users, UserCheck, UserPlus, ShieldOff } from "lucide-react";
 
 export default async function ColaboradoresPage({
   searchParams,
@@ -35,15 +36,28 @@ export default async function ColaboradoresPage({
     ],
   };
 
-  const [employees, departments] = await Promise.all([
-    prisma.employee.findMany({
-      where,
-      include: { department: true, team: true, location: true },
-      orderBy: [{ status: "asc" }, { lastName: "asc" }],
-      take: 200,
-    }),
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
-  ]);
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [employees, departments, totalCount, activeCount, noAccessCount, newThisMonthCount] =
+    await Promise.all([
+      prisma.employee.findMany({
+        where,
+        include: {
+          department: true,
+          team: true,
+          location: true,
+          user: { select: { avatarKey: true, avatarImage: true } },
+        },
+        orderBy: [{ status: "asc" }, { lastName: "asc" }],
+        take: 200,
+      }),
+      prisma.department.findMany({ orderBy: { name: "asc" } }),
+      prisma.employee.count({ where: scope }),
+      prisma.employee.count({ where: { AND: [scope, { status: "ACTIVE" }] } }),
+      prisma.employee.count({ where: { AND: [scope, { userId: null }] } }),
+      prisma.employee.count({ where: { AND: [scope, { hireDate: { gte: monthStart } }] } }),
+    ]);
 
   return (
     <div>
@@ -64,6 +78,19 @@ export default async function ColaboradoresPage({
           ) : undefined
         }
       />
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total de colaboradores" value={totalCount} icon={Users} accent="violet" />
+        <StatCard label="Ativos" value={activeCount} icon={UserCheck} accent="emerald" />
+        <StatCard
+          label="Sem conta de acesso"
+          value={noAccessCount}
+          icon={ShieldOff}
+          accent="amber"
+          hint="Ainda não convidados para a aplicação"
+        />
+        <StatCard label="Admitidos este mês" value={newThisMonthCount} icon={UserPlus} accent="sky" />
+      </div>
 
       <Card className="mb-6">
         <form className="flex flex-wrap items-end gap-3" method="get">
@@ -144,13 +171,31 @@ export default async function ColaboradoresPage({
                     {e.employeeNumber ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/colaboradores/${e.id}`}
-                      className="font-medium text-violet-700 hover:underline dark:text-violet-400"
-                    >
-                      {e.firstName} {e.lastName}
-                    </Link>
-                    <div className="text-xs text-stone-500 dark:text-stone-400">{e.email}</div>
+                    <div className="flex items-center gap-3">
+                      <AvatarImage
+                        avatarKey={e.user?.avatarKey}
+                        avatarImage={e.user?.avatarImage}
+                        name={`${e.firstName} ${e.lastName}`}
+                        size={32}
+                      />
+                      <div>
+                        <Link
+                          href={`/colaboradores/${e.id}`}
+                          className="font-medium text-violet-700 hover:underline dark:text-violet-400"
+                        >
+                          {e.firstName} {e.lastName}
+                        </Link>
+                        <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
+                          {e.email}
+                          {!e.userId && (
+                            <span
+                              title="Sem conta de acesso"
+                              className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-stone-700 dark:text-stone-300">{e.jobTitle}</td>
                   <td className="px-4 py-3 text-stone-700 dark:text-stone-300">

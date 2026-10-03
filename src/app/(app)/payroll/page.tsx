@@ -2,8 +2,9 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
-import { Banknote, Sliders, LayoutTemplate } from "lucide-react";
+import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
+import { AvatarImage } from "@/lib/avatars";
+import { Banknote, Sliders, LayoutTemplate, Users, FileCheck2, Clock3 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -29,13 +30,19 @@ export default async function PayrollPage({
   const [employees, payslips] = await Promise.all([
     prisma.employee.findMany({
       where: { ...scope, status: "ACTIVE" },
-      include: { employeeContracts: { where: { status: "ACTIVE" }, take: 1 } },
+      include: {
+        employeeContracts: { where: { status: "ACTIVE" }, take: 1 },
+        user: { select: { avatarKey: true, avatarImage: true } },
+      },
       orderBy: { firstName: "asc" },
     }),
     prisma.payslip.findMany({ where: { year, month } }),
   ]);
 
   const payslipByEmployee = new Map(payslips.map((p) => [p.employeeId, p]));
+  const generatedCount = employees.filter((e) => payslipByEmployee.has(e.id)).length;
+  const pendingCount = employees.length - generatedCount;
+  const netTotal = payslips.reduce((sum, p) => sum + p.netTotal, 0);
 
   return (
     <div>
@@ -56,6 +63,18 @@ export default async function PayrollPage({
           ) : undefined
         }
       />
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Colaboradores no âmbito" value={employees.length} icon={Users} accent="violet" />
+        <StatCard label="Recibos gerados" value={generatedCount} icon={FileCheck2} accent="emerald" />
+        <StatCard label="Por gerar" value={pendingCount} icon={Clock3} accent="amber" />
+        <StatCard
+          label="Total líquido do mês"
+          value={`${netTotal.toFixed(2)} €`}
+          icon={Banknote}
+          accent="sky"
+        />
+      </div>
 
       <Card className="mb-6">
         <form method="get" className="flex flex-wrap items-end gap-3">
@@ -107,7 +126,16 @@ export default async function PayrollPage({
                   return (
                     <tr key={e.id} className="hover:bg-stone-50">
                       <td className="px-4 py-3">
-                        <Link href={`/payroll/${e.id}`} className="font-medium text-violet-700 hover:underline">
+                        <Link
+                          href={`/payroll/${e.id}`}
+                          className="flex items-center gap-3 font-medium text-violet-700 hover:underline"
+                        >
+                          <AvatarImage
+                            avatarKey={e.user?.avatarKey}
+                            avatarImage={e.user?.avatarImage}
+                            name={`${e.firstName} ${e.lastName}`}
+                            size={28}
+                          />
                           {e.firstName} {e.lastName}
                         </Link>
                       </td>

@@ -4,6 +4,7 @@ import { accessFor } from "@/lib/roles";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { AvatarImage } from "@/lib/avatars";
 import { EstruturaTabs } from "../tabs";
+import { OrganogramaZoomWrapper } from "./zoom-wrapper";
 import Link from "next/link";
 import { Network } from "lucide-react";
 
@@ -83,17 +84,17 @@ export default async function OrganogramaPage() {
 
       <EstruturaTabs showGeral={showGeral} />
 
-      <Card className="overflow-hidden p-0">
+      <Card className="p-0">
         {roots.length === 0 ? (
           <EmptyState message="Sem colaboradores ativos para representar." />
         ) : (
-          <div className="overflow-x-auto pb-2">
-            <div className="flex justify-center gap-12 p-6" style={{ minWidth: "100%", width: "max-content" }}>
+          <OrganogramaZoomWrapper>
+            <div className="flex justify-center gap-12 p-6">
               {roots.map((node) => (
                 <OrgNode key={node.id} node={node} depth={0} />
               ))}
             </div>
-          </div>
+          </OrganogramaZoomWrapper>
         )}
       </Card>
     </div>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { EstruturaTabs } from "./tabs";
+import { TeamDistributionBar } from "./team-distribution-bar";
 import { createDepartment, createTeam, createLocation } from "./actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -20,7 +21,11 @@ export default async function EstruturaPage() {
       orderBy: { name: "asc" },
     }),
     prisma.team.findMany({
-      include: { department: true, _count: { select: { employees: true } } },
+      include: {
+        department: true,
+        _count: { select: { employees: true } },
+        employees: { select: { employmentType: true } },
+      },
       orderBy: { name: "asc" },
     }),
     prisma.location.findMany({
@@ -92,23 +97,32 @@ export default async function EstruturaPage() {
             <EmptyState message="Sem equipas." />
           ) : (
             <ul className="mb-4 divide-y divide-stone-100 text-sm dark:divide-stone-800">
-              {teams.map((t) => (
-                <li key={t.id}>
-                  <Link
-                    href={`/estrutura/equipas/${t.id}`}
-                    className="flex items-center justify-between py-2.5 text-stone-700 hover:text-violet-700 dark:text-stone-300 dark:hover:text-violet-400"
-                  >
-                    <span>
-                      {t.name}
-                      <span className="text-stone-500 dark:text-stone-500"> · {t.department.name}</span>
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
-                      {t._count.employees} colab.
-                      <ChevronRight size={14} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {teams.map((t) => {
+                const fullTime = t.employees.filter((e) => e.employmentType === "FULL_TIME").length;
+                const partTime = t.employees.length - fullTime;
+                return (
+                  <li key={t.id} className="py-2.5">
+                    <Link
+                      href={`/estrutura/equipas/${t.id}`}
+                      className="flex items-center justify-between text-stone-700 hover:text-violet-700 dark:text-stone-300 dark:hover:text-violet-400"
+                    >
+                      <span>
+                        {t.name}
+                        <span className="text-stone-500 dark:text-stone-500"> · {t.department.name}</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
+                        {t._count.employees} colab.
+                        <ChevronRight size={14} />
+                      </span>
+                    </Link>
+                    {t._count.employees > 0 && (
+                      <div className="mt-1.5">
+                        <TeamDistributionBar fullTime={fullTime} partTime={partTime} />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {canEdit && (
