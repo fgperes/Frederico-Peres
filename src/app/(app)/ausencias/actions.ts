@@ -6,6 +6,8 @@ import { canWrite } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { countDays } from "@/lib/business-days";
+import { shiftDurationHours } from "@/lib/schedule";
+import { isoDate, eachDayBetween } from "@/lib/dates";
 
 async function assertCanManage() {
   const user = await requireUser();
@@ -143,6 +145,46 @@ export async function decideAbsence(
       data: { status: decision, approvedById: user.id, decidedAt: new Date(), decisionNote },
     });
 
+    // Tipos marcados para descontar da bolsa de horas (ex.: "Compensação de
+    // horas") criam, ao aprovar, um débito por dia coberto — as horas que
+    // estavam previstas em escala nesse dia (ou, sem turno, a média diária
+    // do horário contratual).
+    if (decision === "APPROVED" && absence.absenceType.countsAgainstHourPool) {
+      const employee = await prisma.employee.findUniqueOrThrow({
+        where: { id: absence.employeeId },
+        select: { weeklyHours: true },
+      });
+      const days = eachDayBetween(absence.startDate, absence.endDate);
+      const dayEnd = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+      const shifts = await prisma.shift.findMany({
+        where: {
+          employeeId: absence.employeeId,
+          date: { gte: absence.startDate, lte: dayEnd(absence.endDate) },
+          status: "PUBLISHED",
+        },
+        include: { shiftTemplate: true },
+      });
+      const shiftByDay = new Map(shifts.map((s) => [isoDate(s.date), s]));
+
+      await prisma.hourPoolMovement.createMany({
+        data: days.map((day) => {
+          const shift = shiftByDay.get(isoDate(day));
+          const hours = shift
+            ? shiftDurationHours(shift.startTime, shift.endTime, shift.shiftTemplate?.breakMins ?? 0)
+            : employee.weeklyHours / 5;
+          return {
+            employeeId: absence.employeeId,
+            date: day,
+            minutes: -Math.round(hours * 60),
+            source: "ABSENCE",
+            reason: absence.absenceType.name,
+            absenceId: absence.id,
+            createdById: user.id,
+          };
+        }),
+      });
+    }
+
     await logAudit({
       userId: user.id,
       action: decision === "APPROVED" ? "APPROVE" : "REJECT",
@@ -152,6 +194,7 @@ export async function decideAbsence(
 
     revalidatePath("/ausencias");
     revalidatePath("/horarios");
+    revalidatePath(`/colaboradores/${absence.employeeId}/bolsa-horas`);
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Não foi possível decidir o pedido." };
@@ -197,6 +240,7 @@ export async function createAbsenceType(formData: FormData) {
   const unitType = String(formData.get("unitType") ?? "WORKING_DAYS");
   const annualLimitDaysRaw = String(formData.get("annualLimitDays") ?? "");
   const affectsBalance = formData.get("affectsBalance") === "on";
+  const countsAgainstHourPool = formData.get("countsAgainstHourPool") === "on";
   const socialSecurityCode = String(formData.get("socialSecurityCode") ?? "").trim() || null;
   const salaryImpactPercentRaw = String(formData.get("salaryImpactPercent") ?? "100");
   const salaryImpactPercent = Math.min(100, Math.max(0, Number(salaryImpactPercentRaw) || 0));
@@ -211,6 +255,7 @@ export async function createAbsenceType(formData: FormData) {
       unitType,
       annualLimitDays: annualLimitDaysRaw ? Number(annualLimitDaysRaw) : null,
       affectsBalance,
+      countsAgainstHourPool,
       socialSecurityCode,
       salaryImpactPercent,
     },

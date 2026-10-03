@@ -61,6 +61,10 @@ model User {
   completedEvaluations       Evaluation[]         @relation("EvaluationCompletedBy")
 
   anniversaryCommentsAuthored AnniversaryComment[]
+
+  timeClockDayDecisionsCreated TimeClockDayDecision[] @relation("TimeClockDayDecisionCreatedBy")
+  hourPoolMovementsCreated     HourPoolMovement[]     @relation("HourPoolMovementCreatedBy")
+  hourPoolMovementsReversed    HourPoolMovement[]     @relation("HourPoolMovementReversedBy")
 }
 
 // Notícias do dashboard. targetRoles vazio = visível para todos ("Todos" no
@@ -275,6 +279,9 @@ model Employee {
 
   anniversaryComments AnniversaryComment[]
 
+  timeClockDayDecisions TimeClockDayDecision[]
+  hourPoolMovements     HourPoolMovement[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -486,28 +493,32 @@ model HoursCorrection {
 // ---------------------------------------------------------------------------
 
 model AbsenceType {
-  id                  String           @id @default(cuid())
-  name                String           @unique
-  paid                Boolean          @default(true)
-  requiresDocument    Boolean          @default(false)
-  unitType            String           @default("WORKING_DAYS") // WORKING_DAYS | CALENDAR_DAYS
-  annualLimitDays     Float?
-  approvalLevels      Int              @default(1)
-  affectsBalance      Boolean          @default(true)
+  id                    String           @id @default(cuid())
+  name                  String           @unique
+  paid                  Boolean          @default(true)
+  requiresDocument      Boolean          @default(false)
+  unitType              String           @default("WORKING_DAYS") // WORKING_DAYS | CALENDAR_DAYS
+  annualLimitDays       Float?
+  approvalLevels        Int              @default(1)
+  affectsBalance        Boolean          @default(true)
   // Marca o tipo "Férias", gerido pelo módulo dedicado (não pelas Ausências).
-  isVacation          Boolean          @default(false)
+  isVacation            Boolean          @default(false)
   // Código de motivo de ausência usado na comunicação à Segurança Social
   // (DMR/plataforma que a substitui) — texto livre, preenchido por RH/
   // contabilidade; a aplicação não valida nem atribui automaticamente.
-  socialSecurityCode  String?
+  socialSecurityCode    String?
   // % do salário normal mantido durante este tipo de ausência: 100 = sem
   // dedução (totalmente pago pela entidade empregadora), 0 = sem
   // remuneração da entidade (ex.: subsídio pago diretamente pela SS), ou
   // um valor intermédio. Usado no cálculo do recibo de vencimento.
-  salaryImpactPercent Float            @default(100)
-  createdAt           DateTime         @default(now())
-  absences            Absence[]
-  balances            AbsenceBalance[]
+  salaryImpactPercent   Float            @default(100)
+  // Quando aprovada, uma ausência deste tipo desconta da bolsa de horas do
+  // colaborador (ver HourPoolMovement) as horas que estavam previstas em
+  // escala para os dias cobertos — ex.: "Compensação de horas".
+  countsAgainstHourPool Boolean          @default(false)
+  createdAt             DateTime         @default(now())
+  absences              Absence[]
+  balances              AbsenceBalance[]
 }
 
 model Absence {
@@ -529,6 +540,9 @@ model Absence {
   decidedAt     DateTime?
   decisionNote  String?
   createdAt     DateTime    @default(now())
+
+  timeClockDayDecisions TimeClockDayDecision[]
+  hourPoolMovements     HourPoolMovement[]
 
   @@index([employeeId, startDate])
 }
@@ -903,14 +917,69 @@ model ImportLog {
 // ---------------------------------------------------------------------------
 
 model ModuleSubscription {
-  id                      String   @id @default(cuid())
-  predictiveEnabled       Boolean  @default(false)
+  id                        String   @id @default(cuid())
+  predictiveEnabled         Boolean  @default(false)
   // Aniversários de entrada (dinâmica social no dashboard, à semelhança dos
   // aniversários de nascimento) — o Administrador do Sistema pode desligar
   // só esta parte, mantendo os aniversários de nascimento ativos.
-  workAnniversaryEnabled  Boolean  @default(true)
-  updatedAt               DateTime @updatedAt
-  updatedById             String?
+  workAnniversaryEnabled    Boolean  @default(true)
+  // Margem de segurança (minutos) para o saldo diário de picagens — abaixo
+  // disto o dia não precisa de correção/justificação; acima, o gestor de
+  // RH tem de decidir o que fazer ao desvio (ver TimeClockDayDecision).
+  timeClockToleranceMinutes Int      @default(15)
+  updatedAt                 DateTime @updatedAt
+  updatedById               String?
+}
+
+// Decisão do gestor de RH sobre o desvio (real vs. previsto) de um dia de
+// picagens, quando esse desvio ultrapassa a margem de segurança
+// (ModuleSubscription.timeClockToleranceMinutes). Uma por colaborador/dia —
+// voltar a decidir substitui a anterior (upsert).
+model TimeClockDayDecision {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id])
+  date         DateTime
+  // Desvio (real - previsto, em minutos) no momento da decisão.
+  diffMinutes  Int
+  // DEDUCTION  = injustificado e |desvio| > 1h → desconto em payroll
+  // POOL       = injustificado ≤ 1h, ou explicitamente para a bolsa de horas
+  // JUSTIFIED  = coberto por uma ausência aprovada (absenceId)
+  // OVERTIME   = desvio positivo reconhecido como hora extra → payroll
+  decisionType String
+  absenceId    String?
+  absence      Absence? @relation(fields: [absenceId], references: [id])
+  createdById  String
+  createdBy    User     @relation("TimeClockDayDecisionCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([employeeId, date])
+}
+
+// Bolsa de horas (banco de horas) de um colaborador — ledger de créditos e
+// débitos. Alimentada por decisões de picagens (POOL) e por ausências cujo
+// tipo desconta da bolsa (AbsenceType.countsAgainstHourPool). O gestor de
+// RH pode anular um movimento (fica marcado reversedAt/reversedById, sem
+// apagar o histórico).
+model HourPoolMovement {
+  id           String    @id @default(cuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  date         DateTime
+  minutes      Int // positivo = crédito, negativo = débito
+  source       String // TIME_CLOCK | ABSENCE
+  reason       String?
+  absenceId    String?
+  absence      Absence?  @relation(fields: [absenceId], references: [id])
+  createdById  String
+  createdBy    User      @relation("HourPoolMovementCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  reversedAt   DateTime?
+  reversedById String?
+  reversedBy   User?     @relation("HourPoolMovementReversedBy", fields: [reversedById], references: [id])
+
+  @@index([employeeId, date])
 }
 
 // Mensagem de aniversário (nascimento ou entrada na empresa) deixada por um

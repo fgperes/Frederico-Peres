@@ -25,6 +25,7 @@ export const REPORT_DEFINITIONS: { key: string; label: string; usesRange: boolea
   { key: "terminais", label: "Terminais de Picagem", usesRange: true },
   { key: "escalas_publicacao", label: "Escalas — Publicação (Rascunho vs. Publicado)", usesRange: true },
   { key: "noticias", label: "Notícias (Publicações)", usesRange: true },
+  { key: "bolsa_horas", label: "Bolsa de Horas — Movimentos", usesRange: true },
 ];
 
 export async function generateReport(key: string, filters: ReportFilters): Promise<ReportResult> {
@@ -61,6 +62,8 @@ export async function generateReport(key: string, filters: ReportFilters): Promi
       return reportEscalasPublicacao(filters);
     case "noticias":
       return reportNoticias(filters);
+    case "bolsa_horas":
+      return reportBolsaHoras(filters);
     default:
       throw new Error("Relatório desconhecido.");
   }
@@ -566,6 +569,36 @@ async function reportEscalasPublicacao(filters: ReportFilters): Promise<ReportRe
 }
 
 // --- Notícias ------------------------------------------------------------
+
+// --- Bolsa de horas -------------------------------------------------------
+
+const HOUR_POOL_SOURCE_LABELS: Record<string, string> = {
+  TIME_CLOCK: "Decisão de picagens",
+  ABSENCE: "Ausência",
+};
+
+async function reportBolsaHoras(filters: ReportFilters): Promise<ReportResult> {
+  const movements = await prisma.hourPoolMovement.findMany({
+    where: {
+      date: { gte: filters.from, lte: filters.to },
+      employeeId: employeeFilter(filters.employeeIds),
+    },
+    include: { employee: true, createdBy: true },
+    orderBy: { date: "asc" },
+  });
+  return {
+    columns: ["Colaborador", "Data", "Origem", "Motivo", "Minutos", "Estado", "Criado por"],
+    rows: movements.map((m) => [
+      `${m.employee.firstName} ${m.employee.lastName}`,
+      m.date.toISOString().slice(0, 10),
+      HOUR_POOL_SOURCE_LABELS[m.source] ?? m.source,
+      m.reason ?? "",
+      m.minutes,
+      m.reversedAt ? "Anulado" : "Ativo",
+      m.createdBy.name,
+    ]),
+  };
+}
 
 async function reportNoticias(filters: ReportFilters): Promise<ReportResult> {
   const news = await prisma.news.findMany({

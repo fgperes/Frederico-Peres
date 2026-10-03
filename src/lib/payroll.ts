@@ -167,18 +167,14 @@ export async function computePayslipBreakdown(
   const contract = employee.employeeContracts[0];
   const baseSalary = contract?.baseSalary ?? 0;
   const contractedWeeklyHours = contract?.contractProfile.weeklyHours ?? employee.weeklyHours;
-  const contractedDailyHours = contractedWeeklyHours / 5;
 
   const periodStart = new Date(year, month - 1, 1);
   const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-  const [entries, shifts, absencesWithImpact, components, hoursCorrections] = await Promise.all([
+  const [entries, absencesWithImpact, components, hoursCorrections, dayDecisions] = await Promise.all([
     prisma.timeClockEntry.findMany({
       where: { employeeId, timestamp: { gte: periodStart, lte: periodEnd } },
       orderBy: { timestamp: "asc" },
-    }),
-    prisma.shift.findMany({
-      where: { employeeId, date: { gte: periodStart, lte: periodEnd } },
     }),
     prisma.absence.findMany({
       where: {
@@ -199,9 +195,19 @@ export async function computePayslipBreakdown(
     prisma.hoursCorrection.findMany({
       where: { employeeId, date: { gte: periodStart, lte: periodEnd } },
     }),
+    // Decisões do gestor de RH sobre desvios de picagens (Picagens →
+    // Execução): só um dia com decisão "OVERTIME" entra como hora extra, e
+    // só um dia "DEDUCTION" desconta — um desvio por decidir, ou decidido
+    // como bolsa de horas/justificado, não mexe no recibo.
+    prisma.timeClockDayDecision.findMany({
+      where: {
+        employeeId,
+        date: { gte: periodStart, lte: periodEnd },
+        decisionType: { in: ["OVERTIME", "DEDUCTION"] },
+      },
+    }),
   ]);
 
-  const shiftByDay = new Map(shifts.map((s) => [isoDate(s.date), s]));
   const workedByDay = computeWorkedHoursByDay(entries);
 
   // Correções manuais de picagens/execução (Picagens → Execução) têm de se
@@ -209,17 +215,20 @@ export async function computePayslipBreakdown(
   // em bruto para um dia e lado (ACTUAL = horas reais, SCHEDULED = horário
   // previsto), tal como já é aplicado na grelha de execução.
   const actualCorrMinByDay = new Map<string, number>();
-  const scheduledCorrMinByDay = new Map<string, number>();
   for (const c of hoursCorrections) {
-    const key = isoDate(c.date);
-    if (c.field === "ACTUAL") actualCorrMinByDay.set(key, c.minutesDelta);
-    else if (c.field === "SCHEDULED") scheduledCorrMinByDay.set(key, c.minutesDelta);
+    if (c.field === "ACTUAL") actualCorrMinByDay.set(isoDate(c.date), c.minutesDelta);
   }
+
+  // Decisões do gestor de RH sobre o desvio de cada dia (ver Picagens →
+  // Execução): diffMinutes já é o desvio (real - previsto, com correções
+  // incluídas) tirado "em retrato" no momento da decisão.
+  const decisionByDay = new Map(dayDecisions.map((d) => [isoDate(d.date), d]));
 
   let workedHours = 0;
   let overtimeHours = 0;
   let overtimePay = 0;
   let workedDays = 0;
+  let unjustifiedDeductionHours = 0;
   const regularHourRate = contractedWeeklyHours > 0 ? (baseSalary / (contractedWeeklyHours * (52 / 12))) : 0;
 
   const dayKeys = new Set<string>([...workedByDay.keys(), ...actualCorrMinByDay.keys()]);
@@ -231,23 +240,29 @@ export async function computePayslipBreakdown(
     workedHours += hoursWorked;
     workedDays++;
     const date = new Date(dayIso + "T12:00:00");
-    const shift = shiftByDay.get(dayIso);
-    const scheduledRaw = shift ? timeDiffHours(shift.startTime, shift.endTime) : contractedDailyHours;
-    const contractedForDay = Math.max(0, scheduledRaw + (scheduledCorrMinByDay.get(dayIso) ?? 0) / 60);
 
-    const overtimeForDay = Math.max(0, hoursWorked - contractedForDay);
-    if (overtimeForDay > 0) {
-      overtimeHours += overtimeForDay;
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      if (isWeekend) {
-        overtimePay += overtimeForDay * regularHourRate * settings.overtimeRateWeekendHoliday;
-      } else {
-        const firstHour = Math.min(overtimeForDay, 1);
-        const rest = overtimeForDay - firstHour;
-        overtimePay +=
-          firstHour * regularHourRate * settings.overtimeRateFirstHour +
-          rest * regularHourRate * settings.overtimeRateAdditional;
+    // Horas extra e descontos por picagens só entram no recibo quando o
+    // gestor de RH decidiu explicitamente o desvio desse dia — um desvio
+    // por decidir, posto na bolsa de horas, ou justificado por uma
+    // ausência, não altera o salário.
+    const decision = decisionByDay.get(dayIso);
+    if (decision?.decisionType === "OVERTIME") {
+      const overtimeForDay = Math.max(0, decision.diffMinutes / 60);
+      if (overtimeForDay > 0) {
+        overtimeHours += overtimeForDay;
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        if (isWeekend) {
+          overtimePay += overtimeForDay * regularHourRate * settings.overtimeRateWeekendHoliday;
+        } else {
+          const firstHour = Math.min(overtimeForDay, 1);
+          const rest = overtimeForDay - firstHour;
+          overtimePay +=
+            firstHour * regularHourRate * settings.overtimeRateFirstHour +
+            rest * regularHourRate * settings.overtimeRateAdditional;
+        }
       }
+    } else if (decision?.decisionType === "DEDUCTION") {
+      unjustifiedDeductionHours += Math.abs(decision.diffMinutes) / 60;
     }
   }
 
@@ -271,7 +286,11 @@ export async function computePayslipBreakdown(
   const earningComponents = components.filter((c) => c.type === "EARNING");
   const deductionComponents = components.filter((c) => c.type === "DEDUCTION");
   const otherEarnings = earningComponents.reduce((sum, c) => sum + c.amount, 0);
-  const otherDeductions = deductionComponents.reduce((sum, c) => sum + c.amount, 0);
+  // Inclui o desconto por desvios de picagens injustificados (>1h, decisão
+  // "DEDUCTION" do gestor de RH em Picagens → Execução) junto dos restantes
+  // descontos pontuais/recorrentes.
+  const otherDeductions =
+    deductionComponents.reduce((sum, c) => sum + c.amount, 0) + unjustifiedDeductionHours * regularHourRate;
 
   const vacationSubsidy =
     settings.vacationSubsidyMode === "MONTHLY_DUODECIMOS"
@@ -363,14 +382,6 @@ export function toPayslipRecord(b: PayslipBreakdown) {
     employerCost: b.employerCost,
     belowMinimumWage: b.belowMinimumWage,
   };
-}
-
-function timeDiffHours(start: string, end: string): number {
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  let minutes = eh * 60 + em - (sh * 60 + sm);
-  if (minutes < 0) minutes += 24 * 60; // turno noturno que passa a meia-noite
-  return minutes / 60;
 }
 
 // ---------------------------------------------------------------------------

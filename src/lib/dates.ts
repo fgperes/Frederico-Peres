@@ -67,3 +67,9 @@ export function getMonthDays(monthStart: Date): Date[] {
 export function addMonthsIso(dateStr: string, months: number): string {
   return isoDate(addMonths(parseISO(dateStr), months));
 }
+
+// Todos os dias entre duas datas, inclusive — usado para percorrer dia a
+// dia um intervalo arbitrário (ex.: período de uma ausência).
+export function eachDayBetween(start: Date, end: Date): Date[] {
+  return eachDayOfInterval({ start, end });
+}
