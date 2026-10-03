@@ -105,6 +105,11 @@ async function FeriasCalendar({
   const { type, balance } = await getOrCreateVacationBalance(employeeId, year);
   const headcount = computeHeadcount(balance);
   const history = await getVacationHistory(employeeId);
+  const employee = await prisma.employee.findUniqueOrThrow({
+    where: { id: employeeId },
+    select: { firstName: true, lastName: true },
+  });
+  const employeeName = `${employee.firstName} ${employee.lastName}`;
 
   const absences = await prisma.absence.findMany({
     where: {
@@ -124,7 +129,16 @@ async function FeriasCalendar({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
-        <CalendarPanel year={year} marks={marks} interactive employeeId={employeeId} isSelf={isSelf} />
+        <CalendarPanel
+          year={year}
+          marks={marks}
+          interactive
+          employeeId={employeeId}
+          employeeName={employeeName}
+          isSelf={isSelf}
+          headcount={headcount}
+          planned={balance.plannedDays}
+        />
       </div>
       <VacationHeadcountCard title={`Resumo de férias — ${year}`} headcount={headcount} />
       <VacationHistoryTable employeeId={employeeId} rows={history} canManage={canManage} />
