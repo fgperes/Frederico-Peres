@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createCycleFromTemplate } from "./actions";
+import { DateField } from "@/components/date-field";
 
 export function UseTemplateForm({
   templateId,
@@ -49,11 +50,10 @@ export function UseTemplateForm({
         placeholder="Nome do novo ciclo"
         className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
       />
-      <input
+      <DateField
         name="startDate"
-        type="date"
         required
-        className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+        inputClassName="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
       />
       <div className="flex gap-2">
         <button
