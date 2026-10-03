@@ -197,9 +197,13 @@ export function ScheduleGrid({
               {employees.map((e, rowIdx) => {
                 const planned = plannedHoursByEmployee.get(e.id) ?? 0;
                 const employeeName = `${e.firstName} ${e.lastName}`;
+                const rowBg =
+                  rowIdx % 2 === 1 ? "bg-stone-50 dark:bg-stone-950" : "bg-white dark:bg-stone-900";
                 return (
-                  <tr key={e.id} className={rowIdx % 2 === 1 ? "bg-stone-50/50 dark:bg-stone-950/40" : ""}>
-                    <td className="sticky left-0 z-10 border-b border-r border-stone-200 bg-inherit px-4 py-2.5 dark:border-stone-800">
+                  <tr key={e.id} className={rowBg}>
+                    <td
+                      className={`sticky left-0 z-10 border-b border-r border-stone-200 px-4 py-2.5 dark:border-stone-800 ${rowBg}`}
+                    >
                       <div className="flex items-center gap-2.5">
                         <AvatarImage
                           avatarKey={e.user?.avatarKey}
