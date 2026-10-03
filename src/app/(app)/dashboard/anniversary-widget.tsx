@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MessageSquarePlus, Check } from "lucide-react";
+import { Check, Send } from "lucide-react";
 import { AvatarImage } from "@/lib/avatars";
-import { Button } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
 import { AnniversaryMessagesModal } from "./anniversary-messages-modal";
 import { postAnniversaryComment, setWorkAnniversaryEnabled, getMyAnniversaryMessages, type AnniversaryMessage } from "./actions";
 
@@ -17,6 +17,10 @@ export type TodayAnniversaryEntry = {
   years?: number;
 };
 
+// Estilo em feed de "publicações" (um cartão por pessoa/ocasião), à
+// semelhança do mural de celebrações visto no vídeo de referência — mas as
+// mensagens continuam privadas (só o homenageado as vê); não há reações
+// nem contagens públicas, porque isso exporia quem comentou.
 export function AnniversaryWidget({
   entries,
   alreadyCommentedKeys,
@@ -39,22 +43,22 @@ export function AnniversaryWidget({
       {entries.length === 0 ? (
         <p className="text-sm text-stone-500 dark:text-stone-400">Sem aniversários hoje.</p>
       ) : (
-        <ul className="space-y-3">
+        <div className="space-y-3">
           {entries.map((e) => (
-            <AnniversaryRow
+            <AnniversaryCard
               key={`${e.employeeId}-${e.kind}`}
               entry={e}
               isSelf={e.employeeId === currentEmployeeId}
               alreadyCommented={alreadyCommented.has(`${e.employeeId}_${e.kind}`)}
             />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
 }
 
-function AnniversaryRow({
+function AnniversaryCard({
   entry,
   isSelf,
   alreadyCommented,
@@ -63,7 +67,6 @@ function AnniversaryRow({
   isSelf: boolean;
   alreadyCommented: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [sent, setSent] = useState(alreadyCommented);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -97,13 +100,9 @@ function AnniversaryRow({
 
   const name = `${entry.firstName} ${entry.lastName}`;
   const isBirthday = entry.kind === "BIRTHDAY";
-  const message = isBirthday
-    ? isSelf
-      ? "🎂 Hoje é o seu aniversário — Feliz Aniversário!"
-      : "🎂 Feliz Aniversário!"
-    : isSelf
-      ? `🎉 Hoje celebra ${entry.years} ano${entry.years === 1 ? "" : "s"} de casa!`
-      : `🎉 ${entry.years} ano${entry.years === 1 ? "" : "s"} de casa`;
+  const headline = isBirthday
+    ? `É o aniversário de ${name}. Felicidades! 🎂`
+    : `${name} celebra hoje ${entry.years} ano${entry.years === 1 ? "" : "s"} de casa! 🎉`;
 
   function handleSubmit() {
     setError(null);
@@ -114,57 +113,63 @@ function AnniversaryRow({
         return;
       }
       setSent(true);
-      setExpanded(false);
+      setBody("");
     });
   }
 
   return (
-    <li className="flex items-start gap-3">
-      <AvatarImage avatarKey={entry.avatarKey} avatarImage={entry.avatarImage} name={name} size={36} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{name}</p>
-        <p className="text-xs text-stone-500 dark:text-stone-400">{message}</p>
+    <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <div className="flex items-start gap-3">
+        <AvatarImage avatarKey={entry.avatarKey} avatarImage={entry.avatarImage} name={name} size={40} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{headline}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-400 dark:text-stone-500">
+            <Badge color={isBirthday ? "blue" : "amber"}>{isBirthday ? "Aniversário" : "Aniversário de entrada"}</Badge>
+            · Hoje
+          </p>
+        </div>
+      </div>
 
+      <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
         {isSelf ? (
           <button
             type="button"
             onClick={openMessages}
-            className="mt-1.5 text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
+            className="text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
           >
-            Ver as minhas mensagens
+            Ver as mensagens que recebeu →
           </button>
         ) : sent ? (
-          <p className="mt-1.5 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-            <Check size={12} /> Mensagem enviada
+          <p className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+            <Check size={13} /> Mensagem enviada
           </p>
-        ) : expanded ? (
-          <div className="mt-1.5 space-y-1.5">
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              maxLength={500}
-              rows={2}
-              placeholder="Escreva uma mensagem..."
-              className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-            />
-            {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
-            <div className="flex gap-1.5">
-              <Button onClick={handleSubmit} disabled={pending || !body.trim()} className="px-2.5 py-1 text-xs">
-                {pending ? "A enviar..." : "Enviar"}
-              </Button>
-              <Button variant="secondary" onClick={() => setExpanded(false)} className="px-2.5 py-1 text-xs">
-                Cancelar
+        ) : (
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                value={body}
+                onChange={(ev) => setBody(ev.target.value)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" && !ev.shiftKey && body.trim()) {
+                    ev.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                maxLength={500}
+                placeholder="Escrever um comentário..."
+                className="flex-1 rounded-full border border-stone-300 px-3 py-1.5 text-xs dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+              />
+              <Button
+                onClick={handleSubmit}
+                disabled={pending || !body.trim()}
+                className="flex h-7 w-7 shrink-0 items-center justify-center !rounded-full !p-0"
+                title="Enviar"
+              >
+                <Send size={13} />
               </Button>
             </div>
+            {error && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{error}</p>}
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="mt-1.5 flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
-          >
-            <MessageSquarePlus size={12} /> Deixar mensagem
-          </button>
         )}
       </div>
 
@@ -181,7 +186,7 @@ function AnniversaryRow({
           onSelectYear={loadMessages}
         />
       )}
-    </li>
+    </div>
   );
 }
 

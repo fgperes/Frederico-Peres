@@ -22,10 +22,14 @@ export type TodayAnniversary = {
 // entrada (ModuleSubscription.workAnniversaryEnabled); os de nascimento
 // ficam sempre ativos.
 export async function getTodaysAnniversaries(): Promise<TodayAnniversary[]> {
+  // Datas de nascimento/admissão são guardadas à meia-noite UTC (input
+  // type="date" → new Date("YYYY-MM-DD") interpreta sempre em UTC) — usar
+  // os getters UTC ao ler evita que um servidor noutro fuso horário "veja"
+  // o dia anterior ou seguinte.
   const today = new Date();
-  const month = today.getMonth();
-  const day = today.getDate();
-  const year = today.getFullYear();
+  const month = today.getUTCMonth();
+  const day = today.getUTCDate();
+  const year = today.getUTCFullYear();
 
   const subscription = await getModuleSubscription();
 
@@ -43,7 +47,7 @@ export async function getTodaysAnniversaries(): Promise<TodayAnniversary[]> {
 
   const results: TodayAnniversary[] = [];
   for (const e of employees) {
-    if (e.birthDate && e.birthDate.getMonth() === month && e.birthDate.getDate() === day) {
+    if (e.birthDate && e.birthDate.getUTCMonth() === month && e.birthDate.getUTCDate() === day) {
       results.push({
         employeeId: e.id,
         firstName: e.firstName,
@@ -56,9 +60,9 @@ export async function getTodaysAnniversaries(): Promise<TodayAnniversary[]> {
     if (
       subscription.workAnniversaryEnabled &&
       e.hireDate &&
-      e.hireDate.getMonth() === month &&
-      e.hireDate.getDate() === day &&
-      e.hireDate.getFullYear() < year
+      e.hireDate.getUTCMonth() === month &&
+      e.hireDate.getUTCDate() === day &&
+      e.hireDate.getUTCFullYear() < year
     ) {
       results.push({
         employeeId: e.id,
@@ -67,7 +71,7 @@ export async function getTodaysAnniversaries(): Promise<TodayAnniversary[]> {
         avatarKey: e.user?.avatarKey ?? null,
         avatarImage: e.user?.avatarImage ?? null,
         kind: "WORK_ANNIVERSARY",
-        years: year - e.hireDate.getFullYear(),
+        years: year - e.hireDate.getUTCFullYear(),
       });
     }
   }
