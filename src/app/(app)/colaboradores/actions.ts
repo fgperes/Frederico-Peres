@@ -313,10 +313,11 @@ export async function updateEmployee(
 
     revalidatePath("/colaboradores");
     revalidatePath(`/colaboradores/${employee.id}`);
-    return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erro ao atualizar colaborador." };
   }
+
+  redirect("/colaboradores?saved=1");
 }
 
 export async function setEmployeeStatus(employeeId: string, status: "ACTIVE" | "INACTIVE") {

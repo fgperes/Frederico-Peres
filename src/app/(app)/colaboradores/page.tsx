@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { employeeScopeWhere } from "@/lib/scope";
 import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
+import { SaveBanner } from "@/components/save-banner";
 import { AvatarImage } from "@/lib/avatars";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
@@ -11,7 +12,7 @@ import { Users, UserCheck, UserPlus, ShieldOff } from "lucide-react";
 export default async function ColaboradoresPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; departmentId?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; departmentId?: string; status?: string; saved?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
@@ -78,6 +79,10 @@ export default async function ColaboradoresPage({
           ) : undefined
         }
       />
+
+      {params.saved === "1" && (
+        <SaveBanner status="success" message="Alteração guardada com sucesso." />
+      )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total de colaboradores" value={totalCount} icon={Users} accent="violet" />
