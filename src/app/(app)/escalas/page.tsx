@@ -17,7 +17,7 @@ import { SendScheduleButton } from "./send-schedule-button";
 import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { MonthYearPicker } from "./month-year-picker";
-import { FilterPopover } from "./filter-popover";
+import { ScheduleFilterPanel } from "./schedule-filter-panel";
 import { ScheduleAlertsBanner } from "./schedule-alerts-banner";
 import { FullscreenSection } from "./fullscreen-section";
 import type { ShiftTemplateOption } from "./shift-modal";
@@ -29,6 +29,22 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 
+// Os filtros aceitam vários valores por campo — quando só há um valor
+// selecionado o Next.js entrega uma string simples (não um array de um
+// elemento), por isso é preciso normalizar sempre para array.
+function toArray(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function buildFilterQuery(departmentIds: string[], teamIds: string[], employeeIds: string[]): string {
+  const usp = new URLSearchParams();
+  for (const id of departmentIds) usp.append("departmentId", id);
+  for (const id of teamIds) usp.append("teamId", id);
+  for (const id of employeeIds) usp.append("employeeId", id);
+  return usp.toString();
+}
+
 export default async function EscalasPage({
   searchParams,
 }: {
@@ -36,9 +52,9 @@ export default async function EscalasPage({
     view?: string;
     week?: string;
     month?: string;
-    departmentId?: string;
-    teamId?: string;
-    employeeId?: string;
+    departmentId?: string | string[];
+    teamId?: string | string[];
+    employeeId?: string | string[];
   }>;
 }) {
   const user = await requireUser();
@@ -47,21 +63,33 @@ export default async function EscalasPage({
   const scope = await employeeScopeWhere(user);
   const view = params.view === "month" ? "month" : "week";
 
+  const filterDepartmentIds = toArray(params.departmentId);
+  const filterTeamIds = toArray(params.teamId);
+  const filterEmployeeIds = toArray(params.employeeId);
+
   const employeeWhere: Prisma.EmployeeWhereInput = {
     AND: [
       scope,
       { status: "ACTIVE" },
-      params.departmentId ? { departmentId: params.departmentId } : {},
-      params.teamId ? { teamId: params.teamId } : {},
-      params.employeeId ? { id: params.employeeId } : {},
+      filterDepartmentIds.length > 0 ? { departmentId: { in: filterDepartmentIds } } : {},
+      filterTeamIds.length > 0 ? { teamId: { in: filterTeamIds } } : {},
+      filterEmployeeIds.length > 0 ? { id: { in: filterEmployeeIds } } : {},
     ],
   };
 
-  const [employees, departments, teams, branding, shiftTemplates] = await Promise.all([
+  const [employees, allEmployees, departments, teams, branding, shiftTemplates] = await Promise.all([
     prisma.employee.findMany({
       where: employeeWhere,
       include: { user: { select: { avatarKey: true, avatarImage: true } } },
       orderBy: [{ lastName: "asc" }],
+    }),
+    // Lista completa (só com o âmbito de acesso, sem os filtros aplicados)
+    // para o seletor de filtros poder escolher entre todos, não só entre
+    // os que já correspondem ao filtro atual.
+    prisma.employee.findMany({
+      where: { AND: [scope, { status: "ACTIVE" }] },
+      select: { id: true, firstName: true, lastName: true, departmentId: true },
+      orderBy: [{ firstName: "asc" }],
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
@@ -73,8 +101,7 @@ export default async function EscalasPage({
   ]);
   const employeeIds = employees.map((e) => e.id);
 
-  const filterQuery = `departmentId=${params.departmentId ?? ""}&teamId=${params.teamId ?? ""}&employeeId=${params.employeeId ?? ""}`;
-  const activeFilterCount = [params.departmentId, params.teamId, params.employeeId].filter(Boolean).length;
+  const filterQuery = buildFilterQuery(filterDepartmentIds, filterTeamIds, filterEmployeeIds);
 
   return (
     <div>
@@ -85,69 +112,19 @@ export default async function EscalasPage({
       />
 
       <Card className="mb-6 bg-gradient-to-br from-white to-stone-50 dark:from-stone-900 dark:to-stone-950">
-        <form className="flex flex-wrap items-center justify-between gap-4" method="get">
-          <FilterPopover activeCount={activeFilterCount}>
-            <input type="hidden" name="view" value={view} />
-            {view === "week" && <input type="hidden" name="week" value={params.week ?? ""} />}
-            {view === "month" && <input type="hidden" name="month" value={params.month ?? ""} />}
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                  Departamento
-                </label>
-                <select
-                  name="departmentId"
-                  defaultValue={params.departmentId ?? ""}
-                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-                >
-                  <option value="">Todos</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
-                <select
-                  name="teamId"
-                  defaultValue={params.teamId ?? ""}
-                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-                >
-                  <option value="">Todas</option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                  Colaborador
-                </label>
-                <select
-                  name="employeeId"
-                  defaultValue={params.employeeId ?? ""}
-                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-                >
-                  <option value="">Todos</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.firstName} {e.lastName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
-              >
-                Filtrar
-              </button>
-            </div>
-          </FilterPopover>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <ScheduleFilterPanel
+            departments={departments}
+            teams={teams}
+            employees={allEmployees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId }))}
+            initialDepartmentIds={filterDepartmentIds}
+            initialTeamIds={filterTeamIds}
+            initialEmployeeIds={filterEmployeeIds}
+            basePath="/escalas"
+            view={view}
+            week={params.week}
+            month={params.month}
+          />
 
           <div className="flex overflow-hidden rounded-full border border-stone-300 dark:border-stone-700">
             <Link
@@ -173,7 +150,7 @@ export default async function EscalasPage({
               Mês
             </Link>
           </div>
-        </form>
+        </div>
       </Card>
 
       {canEdit && (
@@ -374,6 +351,17 @@ async function loadAlertsAndCoverage(
   return { alerts, alertCells, coverage };
 }
 
+function filterSubtitle(
+  departmentIds: string[],
+  teamIds: string[],
+  departments: { id: string; name: string }[],
+  teams: { id: string; name: string }[]
+): string {
+  const deptNames = departmentIds.map((id) => departments.find((d) => d.id === id)?.name).filter(Boolean);
+  const teamNames = teamIds.map((id) => teams.find((t) => t.id === id)?.name).filter(Boolean);
+  return [...deptNames, ...teamNames].join(" / ") || "Todos os departamentos";
+}
+
 // Sigla curta para o PDF do horário (a afixar) — "F" para folga, 3 letras
 // maiúsculas do tipo de ausência (ex.: "Férias" -> "FÉR", "Baixa Médica" ->
 // "BAI"). Qualquer dia sem turno nem ausência é folga — não fica em branco.
@@ -402,7 +390,7 @@ async function WeekView({
   branding,
   shiftTemplates,
 }: {
-  params: { week?: string; departmentId?: string; teamId?: string };
+  params: { week?: string; departmentId?: string | string[]; teamId?: string | string[] };
   filterQuery: string;
   employees: { id: string; firstName: string; lastName: string; employeeNumber: string | null; weeklyHours: number }[];
   employeeIds: string[];
@@ -412,6 +400,8 @@ async function WeekView({
   branding: Branding;
   shiftTemplates: ShiftTemplateOption[];
 }) {
+  const filterDepartmentIds = toArray(params.departmentId);
+  const filterTeamIds = toArray(params.teamId);
   const weekStart = getWeekStart(params.week);
   const weekStartIso = isoDate(weekStart);
   const days = getWeekDays(weekStart);
@@ -431,7 +421,7 @@ async function WeekView({
     employees,
     shifts,
     days,
-    params.departmentId
+    filterDepartmentIds.length === 1 ? filterDepartmentIds[0] : null
   );
 
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
@@ -456,14 +446,7 @@ async function WeekView({
         <div className="flex flex-wrap items-center gap-2">
           <SchedulePdfButton
             title={`Escala semanal — ${weekLabel}`}
-            subtitle={
-              [
-                params.departmentId ? departments.find((d) => d.id === params.departmentId)?.name : null,
-                params.teamId ? teams.find((t) => t.id === params.teamId)?.name : null,
-              ]
-                .filter(Boolean)
-                .join(" / ") || "Todos os departamentos"
-            }
+            subtitle={filterSubtitle(filterDepartmentIds, filterTeamIds, departments, teams)}
             weekDayLabels={WEEKDAY_LABELS}
             rows={pdfRows}
             clientCompanyName={branding.clientCompanyName}
@@ -502,7 +485,7 @@ async function MonthView({
   branding,
   shiftTemplates,
 }: {
-  params: { month?: string; departmentId?: string; teamId?: string };
+  params: { month?: string; departmentId?: string | string[]; teamId?: string | string[] };
   filterQuery: string;
   employees: { id: string; firstName: string; lastName: string; employeeNumber: string | null; weeklyHours: number }[];
   employeeIds: string[];
@@ -512,6 +495,8 @@ async function MonthView({
   branding: Branding;
   shiftTemplates: ShiftTemplateOption[];
 }) {
+  const filterDepartmentIds = toArray(params.departmentId);
+  const filterTeamIds = toArray(params.teamId);
   const monthStart = getMonthStart(params.month);
   const monthStartIso = isoDate(monthStart);
   const days = getMonthDays(monthStart);
@@ -531,7 +516,7 @@ async function MonthView({
     employees,
     shifts,
     days,
-    params.departmentId
+    filterDepartmentIds.length === 1 ? filterDepartmentIds[0] : null
   );
 
   // Sem o nome do dia da semana no cabeçalho do PDF — com 28-31 colunas
@@ -560,14 +545,7 @@ async function MonthView({
         <div className="flex flex-wrap items-center gap-2">
           <SchedulePdfButton
             title={`Escala mensal — ${monthLabel}`}
-            subtitle={
-              [
-                params.departmentId ? departments.find((d) => d.id === params.departmentId)?.name : null,
-                params.teamId ? teams.find((t) => t.id === params.teamId)?.name : null,
-              ]
-                .filter(Boolean)
-                .join(" / ") || "Todos os departamentos"
-            }
+            subtitle={filterSubtitle(filterDepartmentIds, filterTeamIds, departments, teams)}
             weekDayLabels={dayLabels}
             rows={pdfRows}
             clientCompanyName={branding.clientCompanyName}
