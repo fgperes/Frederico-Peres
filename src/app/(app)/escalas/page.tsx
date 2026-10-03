@@ -17,6 +17,7 @@ import { SendScheduleButton } from "./send-schedule-button";
 import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { MonthYearPicker } from "./month-year-picker";
+import { FilterPopover } from "./filter-popover";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
 import Link from "next/link";
@@ -52,7 +53,11 @@ export default async function EscalasPage({
   };
 
   const [employees, departments, teams, branding] = await Promise.all([
-    prisma.employee.findMany({ where: employeeWhere, orderBy: [{ lastName: "asc" }] }),
+    prisma.employee.findMany({
+      where: employeeWhere,
+      include: { user: { select: { avatarKey: true, avatarImage: true } } },
+      orderBy: [{ lastName: "asc" }],
+    }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
     prisma.team.findMany({ orderBy: { name: "asc" } }),
     getDocumentBranding(),
@@ -60,6 +65,7 @@ export default async function EscalasPage({
   const employeeIds = employees.map((e) => e.id);
 
   const filterQuery = `departmentId=${params.departmentId ?? ""}&teamId=${params.teamId ?? ""}&employeeId=${params.employeeId ?? ""}`;
+  const activeFilterCount = [params.departmentId, params.teamId, params.employeeId].filter(Boolean).length;
 
   return (
     <div>
@@ -70,67 +76,69 @@ export default async function EscalasPage({
       />
 
       <Card className="mb-6 bg-gradient-to-br from-white to-stone-50 dark:from-stone-900 dark:to-stone-950">
-        <form className="flex flex-wrap items-end justify-between gap-4" method="get">
-          <div className="flex flex-wrap items-end gap-3">
+        <form className="flex flex-wrap items-center justify-between gap-4" method="get">
+          <FilterPopover activeCount={activeFilterCount}>
             <input type="hidden" name="view" value={view} />
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Departamento
-              </label>
-              <select
-                name="departmentId"
-                defaultValue={params.departmentId ?? ""}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-              >
-                <option value="">Todos</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
-              <select
-                name="teamId"
-                defaultValue={params.teamId ?? ""}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-              >
-                <option value="">Todas</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Colaborador
-              </label>
-              <select
-                name="employeeId"
-                defaultValue={params.employeeId ?? ""}
-                className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-              >
-                <option value="">Todos</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.firstName} {e.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
             {view === "week" && <input type="hidden" name="week" value={params.week ?? ""} />}
             {view === "month" && <input type="hidden" name="month" value={params.month ?? ""} />}
-            <button
-              type="submit"
-              className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
-            >
-              Filtrar
-            </button>
-          </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                  Departamento
+                </label>
+                <select
+                  name="departmentId"
+                  defaultValue={params.departmentId ?? ""}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  <option value="">Todos</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Equipa</label>
+                <select
+                  name="teamId"
+                  defaultValue={params.teamId ?? ""}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  <option value="">Todas</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                  Colaborador
+                </label>
+                <select
+                  name="employeeId"
+                  defaultValue={params.employeeId ?? ""}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                >
+                  <option value="">Todos</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.firstName} {e.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
+              >
+                Filtrar
+              </button>
+            </div>
+          </FilterPopover>
 
           <div className="flex overflow-hidden rounded-full border border-stone-300 dark:border-stone-700">
             <Link
@@ -203,7 +211,17 @@ export default async function EscalasPage({
   );
 }
 
-function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: string; label: string }) {
+function PeriodNav({
+  prevHref,
+  nextHref,
+  todayHref,
+  label,
+}: {
+  prevHref: string;
+  nextHref: string;
+  todayHref: string;
+  label: string;
+}) {
   return (
     <div className="flex items-center gap-1">
       <Link
@@ -212,6 +230,13 @@ function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: 
         className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-300 text-stone-600 hover:bg-white dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
       >
         <ChevronLeft size={15} />
+      </Link>
+      <Link
+        href={todayHref}
+        prefetch={false}
+        className="rounded-full border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-600 hover:bg-white dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+      >
+        Hoje
       </Link>
       <span className="min-w-[180px] px-2 text-center text-sm font-semibold capitalize text-stone-800 dark:text-stone-200">
         {label}
@@ -225,6 +250,17 @@ function PeriodNav({ prevHref, nextHref, label }: { prevHref: string; nextHref: 
       </Link>
     </div>
   );
+}
+
+// Resumo do estado dos turnos visíveis no período — espelha o badge do
+// módulo de referência (rascunho/publicado) junto à navegação de período.
+function PeriodStatusBadge({ shifts }: { shifts: { status: string }[] }) {
+  if (shifts.length === 0) return null;
+  const hasDraft = shifts.some((s) => s.status === "DRAFT");
+  const hasPublished = shifts.some((s) => s.status === "PUBLISHED");
+  if (hasDraft) return <Badge color="amber">rascunho</Badge>;
+  if (hasPublished) return <Badge color="green">publicado</Badge>;
+  return null;
 }
 
 function StatusLegend() {
@@ -326,6 +362,7 @@ async function WeekView({
   const [shifts, absences] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { in: days } },
+      include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
   ]);
@@ -339,11 +376,15 @@ async function WeekView({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <PeriodNav
-          prevHref={`/escalas?view=week&week=${prevWeek}&${filterQuery}`}
-          nextHref={`/escalas?view=week&week=${nextWeek}&${filterQuery}`}
-          label={`Semana de ${weekLabel}`}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <PeriodNav
+            prevHref={`/escalas?view=week&week=${prevWeek}&${filterQuery}`}
+            nextHref={`/escalas?view=week&week=${nextWeek}&${filterQuery}`}
+            todayHref={`/escalas?view=week&${filterQuery}`}
+            label={`Semana de ${weekLabel}`}
+          />
+          <PeriodStatusBadge shifts={shifts} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <SchedulePdfButton
@@ -400,6 +441,7 @@ async function MonthView({
   const [shifts, absences] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
+      include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
   ]);
@@ -420,9 +462,11 @@ async function MonthView({
           <PeriodNav
             prevHref={`/escalas?view=month&month=${prevMonth}&${filterQuery}`}
             nextHref={`/escalas?view=month&month=${nextMonth}&${filterQuery}`}
+            todayHref={`/escalas?view=month&${filterQuery}`}
             label={monthLabel}
           />
           <MonthYearPicker year={monthStart.getFullYear()} month={monthStart.getMonth()} filterQuery={filterQuery} />
+          <PeriodStatusBadge shifts={shifts} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

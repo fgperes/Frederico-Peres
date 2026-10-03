@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Wand2, Send, Trash2, AlertTriangle, ChevronDown, Users } from "lucide-react";
+import { Wand2, Send, Trash2, AlertTriangle, ChevronDown, Users, SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
 import { Modal } from "@/components/modal";
 import { EmployeeTree, type TreeDepartment, type TreeEmployee } from "./employee-tree";
@@ -30,6 +30,7 @@ export function GenerateToolbar({
   const [to, setTo] = useState(defaultTo);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [paramsExpanded, setParamsExpanded] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmKind>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -89,67 +90,18 @@ export function GenerateToolbar({
   return (
     <>
       <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-[0_1px_3px_rgba(28,25,23,0.06)] dark:border-stone-800 dark:bg-stone-900">
-        <div className="flex flex-wrap items-end gap-3">
-          <span className="mb-1.5 flex items-center gap-1.5 self-end text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
-            <Wand2 size={13} /> Gerar Escalas
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setParamsExpanded((v) => !v)}
+            className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <SlidersHorizontal size={14} className="text-stone-400" />
+            {selected.size > 0 ? `${selected.size} colaborador(es)` : "Definir colaboradores"} · {from} a {to}
+            <ChevronDown size={13} className={`text-stone-400 transition-transform ${paramsExpanded ? "rotate-180" : ""}`} />
+          </button>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">De</label>
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Até</label>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
-            />
-          </div>
-
-          <div className="relative">
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Colaboradores</label>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setPickerOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-              >
-                <Users size={14} className="text-stone-400" />
-                {selected.size > 0 ? `${selected.size} selecionado(s)` : "Selecionar"}
-                <ChevronDown size={13} className="text-stone-400" />
-              </button>
-              {employees.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelected(new Set(employees.map((e) => e.id)))}
-                  title="Seleciona todos os colaboradores que correspondem aos filtros acima (Departamento/Equipa/Colaborador)"
-                  className="whitespace-nowrap text-xs text-violet-700 hover:underline dark:text-violet-400"
-                >
-                  Selecionar {employees.length} filtrado(s)
-                </button>
-              )}
-            </div>
-
-            {pickerOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
-                <div className="absolute left-0 top-full z-30 mt-1 w-80 rounded-lg border border-stone-200 bg-white p-2 shadow-xl dark:border-stone-700 dark:bg-stone-900">
-                  <EmployeeTree departments={departments} employees={employees} selected={selected} onChange={setSelected} />
-                </div>
-              </>
-            )}
-          </div>
-
-          <p className="mb-1.5 self-end text-[11px] text-stone-400">Intervalo mínimo: 1 semana.</p>
-
-          <div className="ml-auto flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button disabled={disabled} onClick={() => setConfirm("generate")}>
               <Wand2 size={14} /> Gerar
             </Button>
@@ -161,6 +113,69 @@ export function GenerateToolbar({
             </Button>
           </div>
         </div>
+
+        {paramsExpanded && (
+          <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-stone-100 pt-4 dark:border-stone-800">
+            <span className="mb-1.5 flex items-center gap-1.5 self-end text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+              <Wand2 size={13} /> Gerar Escalas
+            </span>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">De</label>
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Até</label>
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+              />
+            </div>
+
+            <div className="relative">
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Colaboradores</label>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen((v) => !v)}
+                  className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+                >
+                  <Users size={14} className="text-stone-400" />
+                  {selected.size > 0 ? `${selected.size} selecionado(s)` : "Selecionar"}
+                  <ChevronDown size={13} className="text-stone-400" />
+                </button>
+                {employees.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set(employees.map((e) => e.id)))}
+                    title="Seleciona todos os colaboradores que correspondem aos filtros acima (Departamento/Equipa/Colaborador)"
+                    className="whitespace-nowrap text-xs text-violet-700 hover:underline dark:text-violet-400"
+                  >
+                    Selecionar {employees.length} filtrado(s)
+                  </button>
+                )}
+              </div>
+
+              {pickerOpen && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
+                  <div className="absolute left-0 top-full z-30 mt-1 w-80 rounded-lg border border-stone-200 bg-white p-2 shadow-xl dark:border-stone-700 dark:bg-stone-900">
+                    <EmployeeTree departments={departments} employees={employees} selected={selected} onChange={setSelected} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <p className="mb-1.5 self-end text-[11px] text-stone-400">Intervalo mínimo: 1 semana.</p>
+          </div>
+        )}
 
         {error && (
           <p className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
