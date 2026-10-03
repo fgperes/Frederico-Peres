@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createHoliday, type HolidayFormState } from "./actions";
+import { DateField } from "@/components/date-field";
 
 const initialState: HolidayFormState = {};
 
@@ -23,11 +24,10 @@ export function HolidayForm({ locations }: { locations: { id: string; name: stri
       )}
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Data</label>
-        <input
+        <DateField
           name="date"
-          type="date"
           required
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          inputClassName="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
         />
       </div>
       <div>

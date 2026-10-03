@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { generatePredictiveProposalAction, type PredictiveState } from "./actions";
 import type { Department } from "@prisma/client";
+import { DateField } from "@/components/date-field";
 
 const initialState: PredictiveState = {};
 
@@ -19,7 +20,7 @@ export function PredictiveForm({ departments }: { departments: Department[] }) {
         <label className="mb-1 block text-xs font-medium text-stone-600">
           Semana (qualquer data dessa semana)
         </label>
-        <input name="week" type="date" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
+        <DateField name="week" required inputClassName="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Departamento</label>

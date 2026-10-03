@@ -5,6 +5,7 @@ import type { Department, Location, Team, Employee } from "@prisma/client";
 import { ID_DOCUMENT_TYPES, ID_DOCUMENT_TYPE_LABELS } from "@/lib/employee-constants";
 import { SearchableSelect } from "@/components/searchable-select";
 import { SaveBanner } from "@/components/save-banner";
+import { DateField } from "@/components/date-field";
 import type { EmployeeFormState } from "./actions";
 
 export function EmployeeForm({
@@ -63,8 +64,7 @@ export function EmployeeForm({
               Data de caducidade
             </label>
             <div className="flex items-center gap-3">
-              <input
-                type="date"
+              <DateField
                 name="idDocumentExpiry"
                 disabled={noExpiry}
                 defaultValue={
@@ -72,7 +72,7 @@ export function EmployeeForm({
                     ? employee.idDocumentExpiry.toISOString().slice(0, 10)
                     : ""
                 }
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:bg-stone-100 disabled:text-stone-400 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:disabled:bg-stone-900 dark:disabled:text-stone-600"
+                inputClassName="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:bg-stone-100 disabled:text-stone-400 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:disabled:bg-stone-900 dark:disabled:text-stone-600"
               />
               <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-stone-600 dark:text-stone-400">
                 <input
@@ -94,10 +94,9 @@ export function EmployeeForm({
               )}
           </div>
           <Field label="Nº Segurança Social" name="socialSecurityNo" defaultValue={employee?.socialSecurityNo ?? ""} />
-          <Field
+          <DateField
             label="Data de nascimento"
             name="birthDate"
-            type="date"
             defaultValue={employee?.birthDate ? employee.birthDate.toISOString().slice(0, 10) : ""}
           />
           <Field label="Morada" name="address" defaultValue={employee?.address ?? ""} className="sm:col-span-2" />
@@ -162,7 +161,7 @@ export function EmployeeForm({
                 .map((m) => ({ value: m.id, label: `${m.firstName} ${m.lastName}` }))}
             />
           </div>
-          <Field label="Data de admissão" name="hireDate" type="date"
+          <DateField label="Data de admissão" name="hireDate"
             defaultValue={employee?.hireDate ? employee.hireDate.toISOString().slice(0, 10) : ""} />
         </div>
       </section>

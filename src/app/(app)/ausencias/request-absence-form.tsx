@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { requestAbsence, type RequestAbsenceState } from "./actions";
 import { SaveBanner } from "@/components/save-banner";
+import { DateField } from "@/components/date-field";
 
 export function RequestAbsenceForm({
   absenceTypes,
@@ -34,20 +35,18 @@ export function RequestAbsenceForm({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Início</label>
-          <input
+          <DateField
             name="startDate"
-            type="date"
             required
-            className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+            inputClassName="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Fim</label>
-          <input
+          <DateField
             name="endDate"
-            type="date"
             required
-            className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+            inputClassName="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
           />
         </div>
       </div>

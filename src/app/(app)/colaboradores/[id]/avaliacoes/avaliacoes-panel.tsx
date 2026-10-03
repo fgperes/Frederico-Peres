@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, ClipboardCheck } from "lucide-react";
 import { Card, Badge, EmptyState } from "@/components/ui";
+import { DateField } from "@/components/date-field";
 import { SaveBanner, type SaveStatus } from "@/components/save-banner";
 import { EvaluationPdfButton, type EvaluationPdfData } from "@/components/evaluations/evaluation-pdf-button";
 import { scheduleEvaluation } from "./actions";
@@ -121,12 +122,11 @@ export function AvaliacoesPanel({
                 <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
                   Data agendada
                 </label>
-                <input
-                  type="date"
+                <DateField
                   value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
+                  onChange={setScheduledDate}
                   required
-                  className="rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+                  inputClassName="rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
                 />
               </div>
               <button

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Wand2, Send, Trash2, AlertTriangle, ChevronDown, Users, SlidersHorizontal } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
+import { DateField } from "@/components/date-field";
 import { Modal } from "@/components/modal";
 import { EmployeeTree, type TreeDepartment, type TreeEmployee } from "./employee-tree";
 import {
@@ -122,20 +123,18 @@ export function GenerateToolbar({
 
             <div>
               <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">De</label>
-              <input
-                type="date"
+              <DateField
                 value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                onChange={setFrom}
+                inputClassName="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Até</label>
-              <input
-                type="date"
+              <DateField
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
+                onChange={setTo}
+                inputClassName="rounded-lg border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800"
               />
             </div>
 
