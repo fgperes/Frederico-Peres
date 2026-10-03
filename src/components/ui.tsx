@@ -71,33 +71,46 @@ export function StatCard({
   hint,
   icon: Icon,
   accent = "violet",
+  href,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   icon?: LucideIcon;
   accent?: keyof typeof STAT_ACCENTS;
+  href?: string;
 }) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-stone-500 dark:text-stone-400">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-            {value}
-          </p>
-          {hint && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{hint}</p>}
-        </div>
-        {Icon && (
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${STAT_ACCENTS[accent]}`}
-          >
-            <Icon size={18} strokeWidth={2} />
-          </span>
-        )}
+  const body = (
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-sm font-medium text-stone-500 dark:text-stone-400">{label}</p>
+        <p className="mt-1.5 text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          {value}
+        </p>
+        {hint && <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{hint}</p>}
       </div>
-    </Card>
+      {Icon && (
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${STAT_ACCENTS[accent]}`}
+        >
+          <Icon size={18} strokeWidth={2} />
+        </span>
+      )}
+    </div>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block rounded-2xl border border-stone-200 bg-white p-5 shadow-[0_1px_3px_rgba(28,25,23,0.06)] transition-all hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md dark:border-stone-800 dark:bg-stone-900 dark:shadow-none dark:hover:border-violet-700"
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return <Card className="p-5">{body}</Card>;
 }
 
 const BADGE_COLORS = {
