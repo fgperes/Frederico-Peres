@@ -27,11 +27,13 @@ export function MonthlyAnniversariesList({
   alreadyCommentedKeys,
   currentEmployeeId,
   monthName,
+  todayDay,
 }: {
   entries: MonthlyAnniversaryEntry[];
   alreadyCommentedKeys: string[];
   currentEmployeeId: string | null;
   monthName: string;
+  todayDay: number;
 }) {
   const alreadyCommented = new Set(alreadyCommentedKeys);
   const [selected, setSelected] = useState<MonthlyAnniversaryEntry | null>(null);
@@ -39,14 +41,17 @@ export function MonthlyAnniversariesList({
   return (
     <>
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-        {entries.map((e) => (
-          <li key={`${e.employeeId}-${e.kind}`}>
-            <button
-              type="button"
-              onClick={() => setSelected(e)}
-              className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm"
-            >
-              <span className="font-medium text-violet-700 hover:underline dark:text-violet-400">
+        {entries.map((e) => {
+          const isToday = e.day === todayDay;
+          const label = (
+            <>
+              <span
+                className={
+                  isToday
+                    ? "font-medium text-violet-700 dark:text-violet-400"
+                    : "font-medium text-stone-700 dark:text-stone-300"
+                }
+              >
                 {e.firstName} {e.lastName}
               </span>
               <span className="text-xs text-stone-500 dark:text-stone-400">
@@ -54,9 +59,24 @@ export function MonthlyAnniversariesList({
                   ? `🎂 dia ${e.day}`
                   : `🎉 ${e.years} ano${e.years === 1 ? "" : "s"} de casa · dia ${e.day}`}
               </span>
-            </button>
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li key={`${e.employeeId}-${e.kind}`}>
+              {isToday ? (
+                <button
+                  type="button"
+                  onClick={() => setSelected(e)}
+                  className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm"
+                >
+                  {label}
+                </button>
+              ) : (
+                <div className="flex items-center justify-between gap-3 py-2 text-sm">{label}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {selected && (
