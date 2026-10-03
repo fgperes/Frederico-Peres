@@ -10,6 +10,7 @@ import { getVisibleNews } from "@/lib/news";
 import { getTodaysAnniversaries, getMyAlreadyCommentedKeys, getUpcomingAbsences } from "@/lib/anniversaries";
 import { getModuleSubscription } from "@/lib/subscriptions";
 import { AnniversaryWidget } from "./anniversary-widget";
+import { MonthlyAnniversariesList, type MonthlyAnniversaryEntry } from "./monthly-anniversaries";
 import Link from "next/link";
 import { addDays } from "date-fns";
 import {
@@ -22,7 +23,6 @@ import {
   AlertTriangle,
   Megaphone,
   Building2,
-  UserX,
   Cake,
   ClipboardCheck,
   CalendarDays,
@@ -42,9 +42,11 @@ export default async function DashboardPage() {
   const isManagement = accessFor(user.roles, "recursos") !== "own";
   const userIsSystemAdmin = isSystemAdmin(user.roles);
 
-  const [todaysAnniversaries, subscription] = await Promise.all([
+  const [todaysAnniversaries, subscription, managementData, colaboradorData] = await Promise.all([
     getTodaysAnniversaries(),
     getModuleSubscription(),
+    isManagement ? loadManagementDashboardData(user) : Promise.resolve(null),
+    isManagement ? Promise.resolve(null) : loadColaboradorDashboardData(user),
   ]);
   const alreadyCommentedKeys = await getMyAlreadyCommentedKeys(user.id, todaysAnniversaries);
 
@@ -62,7 +64,12 @@ export default async function DashboardPage() {
         title={`Bem-vindo, ${user.name?.split(" ")[0]}`}
         description={`Perfis: ${user.roles.map((r) => ROLE_LABELS[r]).join(", ")}`}
       />
-      <NewsSection roles={user.roles} />
+
+      {managementData ? (
+        <ManagementStatCards data={managementData} />
+      ) : colaboradorData ? (
+        <ColaboradorStatCards data={colaboradorData} />
+      ) : null}
 
       {(todaysAnniversaries.length > 0 || userIsSystemAdmin) && (
         <Card className="mb-8">
@@ -80,46 +87,100 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {isManagement ? <ManagementDashboard user={user} /> : <ColaboradorDashboard user={user} />}
+      <NewsSection roles={user.roles} />
+
+      {managementData ? (
+        <ManagementDashboardBody data={managementData} currentEmployeeId={user.employeeId} />
+      ) : colaboradorData ? (
+        <ColaboradorDashboardBody data={colaboradorData} />
+      ) : (
+        <EmptyState message="Não existe uma ficha de colaborador associada à sua conta." />
+      )}
     </div>
   );
 }
 
-function UpcomingAbsencesCard({
-  absences,
+function AbsencesCard({
+  today,
+  upcoming,
 }: {
-  absences: Awaited<ReturnType<typeof getUpcomingAbsences>>;
+  today?: {
+    id: string;
+    employee: { id: string; firstName: string; lastName: string };
+    absenceType: { name: string; isVacation: boolean };
+  }[];
+  upcoming: Awaited<ReturnType<typeof getUpcomingAbsences>>;
 }) {
+  const hasToday = !!today && today.length > 0;
+  const hasUpcoming = upcoming.length > 0;
+
   return (
     <Card>
       <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
         <CalendarDays size={16} className="text-stone-500" />
-        Próximas ausências
+        Ausências e Férias
       </h2>
-      {absences.length === 0 ? (
-        <p className="text-sm text-stone-500 dark:text-stone-400">Sem ausências agendadas.</p>
+      {!hasToday && !hasUpcoming ? (
+        <p className="text-sm text-stone-500 dark:text-stone-400">Sem ausências a registar.</p>
       ) : (
-        <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-          {absences.map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div>
-                <Link
-                  href={`/colaboradores/${a.employeeId}`}
-                  className="font-medium text-violet-700 hover:underline dark:text-violet-400"
-                >
-                  {a.employeeName}
-                </Link>
-                <p className="text-xs text-stone-500 dark:text-stone-400">
-                  {a.startDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
-                  {a.startDate.getTime() !== a.endDate.getTime()
-                    ? ` a ${a.endDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}`
-                    : ""}
-                </p>
-              </div>
-              <Badge color={a.isVacation ? "blue" : "slate"}>{a.typeName}</Badge>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-5">
+          {today !== undefined && (
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">
+                Hoje
+              </h3>
+              {hasToday ? (
+                <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+                  {today.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <Link
+                        href={`/colaboradores/${a.employee.id}`}
+                        className="font-medium text-violet-700 hover:underline dark:text-violet-400"
+                      >
+                        {a.employee.firstName} {a.employee.lastName}
+                      </Link>
+                      <Badge color={a.absenceType.isVacation ? "blue" : "slate"}>{a.absenceType.name}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-stone-500 dark:text-stone-400">Ninguém ausente hoje.</p>
+              )}
+            </div>
+          )}
+          <div>
+            {today !== undefined && (
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">
+                Próximas
+              </h3>
+            )}
+            {hasUpcoming ? (
+              <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+                {upcoming.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <div>
+                      <Link
+                        href={`/colaboradores/${a.employeeId}`}
+                        className="font-medium text-violet-700 hover:underline dark:text-violet-400"
+                      >
+                        {a.employeeName}
+                      </Link>
+                      <p className="text-xs text-stone-500 dark:text-stone-400">
+                        {a.startDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
+                        {a.startDate.getTime() !== a.endDate.getTime()
+                          ? ` a ${a.endDate.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}`
+                          : ""}
+                      </p>
+                    </div>
+                    <Badge color={a.isVacation ? "blue" : "slate"}>{a.typeName}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-stone-500 dark:text-stone-400">Sem ausências agendadas.</p>
+            )}
+          </div>
+        </div>
       )}
     </Card>
   );
@@ -169,11 +230,7 @@ const MONTH_NAMES = [
   "dezembro",
 ];
 
-async function ManagementDashboard({
-  user,
-}: {
-  user: Awaited<ReturnType<typeof requireUser>>;
-}) {
+async function loadManagementDashboardData(user: Awaited<ReturnType<typeof requireUser>>) {
   const scope = await employeeScopeWhere(user);
   const canAusencias = canRead(user.roles, "ausencias");
   const canFerias = canRead(user.roles, "ferias");
@@ -204,7 +261,15 @@ async function ManagementDashboard({
     // departamento e os aniversários, sem repetir a mesma consulta 3 vezes.
     prisma.employee.findMany({
       where: { ...scope, status: "ACTIVE" },
-      select: { id: true, firstName: true, lastName: true, departmentId: true, birthDate: true, hireDate: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        departmentId: true,
+        birthDate: true,
+        hireDate: true,
+        user: { select: { avatarKey: true, avatarImage: true } },
+      },
     }),
     canAusencias
       ? prisma.absence.count({ where: { employee: scope, status: "PENDING", absenceType: { isVacation: false } } })
@@ -266,90 +331,142 @@ async function ManagementDashboard({
     .sort((a, b) => b.count - a.count);
   const maxDeptCount = Math.max(1, ...deptBars.map((d) => d.count));
 
-  const birthdaysThisMonth = teamEmployees
-    .filter((e) => e.birthDate && e.birthDate.getUTCMonth() === currentMonth)
-    .map((e) => ({ ...e, day: e.birthDate!.getUTCDate(), kind: "aniversário" as const }))
-    .sort((a, b) => a.day - b.day);
-  const anniversariesThisMonth = teamEmployees
-    .filter(
-      (e) => e.hireDate && e.hireDate.getUTCMonth() === currentMonth && e.hireDate.getUTCFullYear() < today.getUTCFullYear()
-    )
-    .map((e) => ({
-      ...e,
-      day: e.hireDate!.getUTCDate(),
-      years: today.getUTCFullYear() - e.hireDate!.getUTCFullYear(),
-      kind: "casa" as const,
-    }))
-    .sort((a, b) => a.day - b.day);
+  const monthlyEntries: MonthlyAnniversaryEntry[] = [
+    ...teamEmployees
+      .filter((e) => e.birthDate && e.birthDate.getUTCMonth() === currentMonth)
+      .map((e) => ({
+        employeeId: e.id,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        avatarKey: e.user?.avatarKey ?? null,
+        avatarImage: e.user?.avatarImage ?? null,
+        kind: "BIRTHDAY" as const,
+        day: e.birthDate!.getUTCDate(),
+      })),
+    ...teamEmployees
+      .filter(
+        (e) => e.hireDate && e.hireDate.getUTCMonth() === currentMonth && e.hireDate.getUTCFullYear() < today.getUTCFullYear()
+      )
+      .map((e) => ({
+        employeeId: e.id,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        avatarKey: e.user?.avatarKey ?? null,
+        avatarImage: e.user?.avatarImage ?? null,
+        kind: "WORK_ANNIVERSARY" as const,
+        day: e.hireDate!.getUTCDate(),
+        years: today.getUTCFullYear() - e.hireDate!.getUTCFullYear(),
+      })),
+  ].sort((a, b) => a.day - b.day);
 
+  const alreadyCommentedMonthlyKeys = await getMyAlreadyCommentedKeys(
+    user.id,
+    monthlyEntries.map((e) => ({ employeeId: e.employeeId, kind: e.kind }))
+  );
+
+  return {
+    employeeCount,
+    canAusencias,
+    canFerias,
+    canContratos,
+    canPicagens,
+    canAvaliacoes,
+    canAcessos,
+    pendingAusencias,
+    pendingFerias,
+    expiringContracts,
+    openDeviations,
+    overdueEvaluations,
+    deptBars,
+    maxDeptCount,
+    absentToday,
+    recentAudit,
+    upcomingAbsences,
+    monthlyEntries,
+    alreadyCommentedMonthlyKeys,
+    monthName: MONTH_NAMES[currentMonth],
+  };
+}
+
+function ManagementStatCards({ data }: { data: Awaited<ReturnType<typeof loadManagementDashboardData>> }) {
+  return (
+    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        label="Colaboradores ativos"
+        value={data.employeeCount}
+        icon={Users}
+        accent="violet"
+        href="/colaboradores?status=ACTIVE"
+      />
+      {data.canFerias && (
+        <StatCard
+          label="Férias pendentes"
+          value={data.pendingFerias}
+          icon={PalmtreeIcon}
+          accent="amber"
+          href="/ferias/aprovacoes"
+        />
+      )}
+      {data.canAusencias && (
+        <StatCard
+          label="Ausências pendentes"
+          value={data.pendingAusencias}
+          icon={FileSignature}
+          accent="sky"
+          href="/ausencias"
+        />
+      )}
+      {data.canContratos && (
+        <StatCard
+          label="Contratos a expirar (30d)"
+          value={data.expiringContracts}
+          icon={FileSignature}
+          accent="rose"
+          href="/contratos?horizon=30"
+        />
+      )}
+      {data.canPicagens && (
+        <StatCard
+          label="Desvios de picagem por rever"
+          value={data.openDeviations}
+          icon={Fingerprint}
+          accent="sky"
+          href="/picagens/execucao"
+        />
+      )}
+      {data.canAvaliacoes && (
+        <StatCard
+          label="Avaliações atrasadas"
+          value={data.overdueEvaluations}
+          icon={ClipboardCheck}
+          accent="rose"
+          href="/avaliacoes"
+        />
+      )}
+    </div>
+  );
+}
+
+function ManagementDashboardBody({
+  data,
+  currentEmployeeId,
+}: {
+  data: Awaited<ReturnType<typeof loadManagementDashboardData>>;
+  currentEmployeeId: string | null;
+}) {
   return (
     <>
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Colaboradores ativos"
-          value={employeeCount}
-          icon={Users}
-          accent="violet"
-          href="/colaboradores?status=ACTIVE"
-        />
-        {canFerias && (
-          <StatCard
-            label="Férias pendentes"
-            value={pendingFerias}
-            icon={PalmtreeIcon}
-            accent="amber"
-            href="/ferias/aprovacoes"
-          />
-        )}
-        {canAusencias && (
-          <StatCard
-            label="Ausências pendentes"
-            value={pendingAusencias}
-            icon={FileSignature}
-            accent="sky"
-            href="/ausencias"
-          />
-        )}
-        {canContratos && (
-          <StatCard
-            label="Contratos a expirar (30d)"
-            value={expiringContracts}
-            icon={FileSignature}
-            accent="rose"
-            href="/contratos?horizon=30"
-          />
-        )}
-        {canPicagens && (
-          <StatCard
-            label="Desvios de picagem por rever"
-            value={openDeviations}
-            icon={Fingerprint}
-            accent="sky"
-            href="/picagens/execucao"
-          />
-        )}
-        {canAvaliacoes && (
-          <StatCard
-            label="Avaliações atrasadas"
-            value={overdueEvaluations}
-            icon={ClipboardCheck}
-            accent="rose"
-            href="/avaliacoes"
-          />
-        )}
-      </div>
-
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
             <Building2 size={16} className="text-stone-500" />
             Colaboradores por departamento
           </h2>
-          {deptBars.length === 0 ? (
+          {data.deptBars.length === 0 ? (
             <p className="text-sm text-stone-500 dark:text-stone-400">Sem colaboradores no seu âmbito.</p>
           ) : (
             <ul className="space-y-2.5">
-              {deptBars.map((d) => (
+              {data.deptBars.map((d) => (
                 <li key={d.id ?? "none"}>
                   <Link
                     href={d.id ? `/colaboradores?departmentId=${d.id}` : "/colaboradores"}
@@ -365,7 +482,7 @@ async function ManagementDashboard({
                     <div className="h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                       <div
                         className="h-full rounded-full bg-violet-500 transition-all group-hover:bg-violet-600"
-                        style={{ width: `${Math.max(4, (d.count / maxDeptCount) * 100)}%` }}
+                        style={{ width: `${Math.max(4, (d.count / data.maxDeptCount) * 100)}%` }}
                       />
                     </div>
                   </Link>
@@ -375,78 +492,40 @@ async function ManagementDashboard({
           )}
         </Card>
 
-        {(canAusencias || canFerias) && (
-          <Card>
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-              <UserX size={16} className="text-stone-500" />
-              Ausentes hoje
-            </h2>
-            {absentToday.length === 0 ? (
-              <p className="text-sm text-stone-500 dark:text-stone-400">Ninguém ausente hoje no seu âmbito.</p>
-            ) : (
-              <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-                {absentToday.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                    <Link
-                      href={`/colaboradores/${a.employee.id}`}
-                      className="font-medium text-violet-700 hover:underline dark:text-violet-400"
-                    >
-                      {a.employee.firstName} {a.employee.lastName}
-                    </Link>
-                    <Badge color={a.absenceType.isVacation ? "blue" : "slate"}>{a.absenceType.name}</Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+        {(data.canAusencias || data.canFerias) && (
+          <AbsencesCard today={data.absentToday} upcoming={data.upcomingAbsences} />
         )}
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {(canAusencias || canFerias) && <UpcomingAbsencesCard absences={upcomingAbsences} />}
-
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
             <Cake size={16} className="text-stone-500" />
-            Este mês — {MONTH_NAMES[currentMonth]}
+            Aniversários deste mês
           </h2>
-          {birthdaysThisMonth.length === 0 && anniversariesThisMonth.length === 0 ? (
+          {data.monthlyEntries.length === 0 ? (
             <p className="text-sm text-stone-500 dark:text-stone-400">Sem aniversários este mês no seu âmbito.</p>
           ) : (
-            <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-              {birthdaysThisMonth.map((e) => (
-                <li key={`b-${e.id}`} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <Link href={`/colaboradores/${e.id}`} className="font-medium text-violet-700 hover:underline dark:text-violet-400">
-                    {e.firstName} {e.lastName}
-                  </Link>
-                  <span className="text-xs text-stone-500 dark:text-stone-400">🎂 dia {e.day}</span>
-                </li>
-              ))}
-              {anniversariesThisMonth.map((e) => (
-                <li key={`a-${e.id}`} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <Link href={`/colaboradores/${e.id}`} className="font-medium text-violet-700 hover:underline dark:text-violet-400">
-                    {e.firstName} {e.lastName}
-                  </Link>
-                  <span className="text-xs text-stone-500 dark:text-stone-400">
-                    🎉 {e.years} ano{e.years === 1 ? "" : "s"} de casa · dia {e.day}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <MonthlyAnniversariesList
+              entries={data.monthlyEntries}
+              alreadyCommentedKeys={data.alreadyCommentedMonthlyKeys}
+              currentEmployeeId={currentEmployeeId}
+              monthName={data.monthName}
+            />
           )}
         </Card>
 
-        {canAcessos && (
+        {data.canAcessos && (
           <Card>
             <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
               <Activity size={16} className="text-stone-500" />
               Atividade recente (auditoria)
             </h2>
-            {recentAudit.length === 0 ? (
+            {data.recentAudit.length === 0 ? (
               <p className="text-sm text-stone-500 dark:text-stone-400">Sem atividade registada.</p>
             ) : (
               <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-                {recentAudit.map((log) => {
+                {data.recentAudit.map((log) => {
                   const { sentence, color } = describeAuditLog(log);
                   return (
                     <li key={log.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
@@ -469,14 +548,8 @@ async function ManagementDashboard({
   );
 }
 
-async function ColaboradorDashboard({
-  user,
-}: {
-  user: Awaited<ReturnType<typeof requireUser>>;
-}) {
-  if (!user.employeeId) {
-    return <EmptyState message="Não existe uma ficha de colaborador associada à sua conta." />;
-  }
+async function loadColaboradorDashboardData(user: Awaited<ReturnType<typeof requireUser>>) {
+  if (!user.employeeId) return null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -503,46 +576,54 @@ async function ColaboradorDashboard({
     ? feriasBalance.entitledDays - feriasBalance.usedDays - feriasBalance.plannedDays
     : null;
 
+  return { nextShift, feriasDisponiveis, pendingAbsences, unjustifiedDeviations, upcomingAbsences };
+}
+
+function ColaboradorStatCards({ data }: { data: NonNullable<Awaited<ReturnType<typeof loadColaboradorDashboardData>>> }) {
+  return (
+    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        label="Próximo turno"
+        value={
+          data.nextShift
+            ? `${data.nextShift.date.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}`
+            : "—"
+        }
+        hint={data.nextShift ? `${data.nextShift.startTime} - ${data.nextShift.endTime}` : "Sem turnos publicados"}
+        icon={CalendarClock}
+        accent="violet"
+        href="/escalas"
+      />
+      <StatCard
+        label="Dias de férias disponíveis"
+        value={data.feriasDisponiveis !== null ? data.feriasDisponiveis.toFixed(1) : "—"}
+        icon={PalmtreeIcon}
+        accent="amber"
+        href="/ferias"
+      />
+      <StatCard
+        label="Os meus pedidos pendentes"
+        value={data.pendingAbsences}
+        icon={FileSignature}
+        accent="sky"
+        href="/ausencias"
+      />
+      <StatCard
+        label="Picagens por justificar"
+        value={data.unjustifiedDeviations}
+        icon={AlertTriangle}
+        accent="rose"
+        href="/picagens"
+      />
+    </div>
+  );
+}
+
+function ColaboradorDashboardBody({ data }: { data: NonNullable<Awaited<ReturnType<typeof loadColaboradorDashboardData>>> }) {
   return (
     <>
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Próximo turno"
-          value={
-            nextShift
-              ? `${nextShift.date.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}`
-              : "—"
-          }
-          hint={nextShift ? `${nextShift.startTime} - ${nextShift.endTime}` : "Sem turnos publicados"}
-          icon={CalendarClock}
-          accent="violet"
-          href="/escalas"
-        />
-        <StatCard
-          label="Dias de férias disponíveis"
-          value={feriasDisponiveis !== null ? feriasDisponiveis.toFixed(1) : "—"}
-          icon={PalmtreeIcon}
-          accent="amber"
-          href="/ferias"
-        />
-        <StatCard
-          label="Os meus pedidos pendentes"
-          value={pendingAbsences}
-          icon={FileSignature}
-          accent="sky"
-          href="/ausencias"
-        />
-        <StatCard
-          label="Picagens por justificar"
-          value={unjustifiedDeviations}
-          icon={AlertTriangle}
-          accent="rose"
-          href="/picagens"
-        />
-      </div>
-
       <div className="mb-8">
-        <UpcomingAbsencesCard absences={upcomingAbsences} />
+        <AbsencesCard upcoming={data.upcomingAbsences} />
       </div>
 
       <Card>
