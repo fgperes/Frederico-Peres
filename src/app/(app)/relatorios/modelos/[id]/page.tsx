@@ -7,7 +7,7 @@ import { REPORT_DEFINITIONS } from "@/lib/reports";
 import { PageHeader, Card, Button } from "@/components/ui";
 import { updateDocumentTemplateMeta } from "../actions";
 import { BlockEditor } from "./block-editor";
-import { ExportPanel } from "./export-panel";
+import { TemplateExportForm } from "../template-export-form";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, LayoutTemplate } from "lucide-react";
@@ -93,7 +93,7 @@ export default async function DocumentTemplateEditorPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Gerar documento</h2>
-        <ExportPanel
+        <TemplateExportForm
           templateId={template.id}
           departments={departments}
           teams={teams}

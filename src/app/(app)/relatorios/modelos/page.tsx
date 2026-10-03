@@ -1,9 +1,12 @@
 import { requireUser } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { canRead, canWrite } from "@/lib/roles";
+import { employeeScopeWhere } from "@/lib/scope";
 import { getDocumentTemplates } from "@/lib/document-templates";
 import { PageHeader, Card, Button, EmptyState } from "@/components/ui";
 import { createDocumentTemplate } from "./actions";
 import { DeleteTemplateButton } from "./delete-template-button";
+import { ExportModalButton } from "./export-modal-button";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LayoutTemplate } from "lucide-react";
@@ -13,7 +16,17 @@ export default async function DocumentTemplatesPage() {
   if (!canRead(user.roles, "relatorios")) redirect("/dashboard");
   const canManage = canWrite(user.roles, "relatorios");
 
-  const templates = await getDocumentTemplates();
+  const scope = await employeeScopeWhere(user);
+  const [templates, departments, teams, employees] = await Promise.all([
+    getDocumentTemplates(),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
+    prisma.employee.findMany({
+      where: { AND: [scope, { status: "ACTIVE" }] },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: { id: true, firstName: true, lastName: true, departmentId: true, teamId: true },
+    }),
+  ]);
 
   return (
     <div>
@@ -55,8 +68,17 @@ export default async function DocumentTemplatesPage() {
                     <td className="px-4 py-3 text-stone-600 dark:text-stone-400">
                       {t.updatedAt.toLocaleDateString("pt-PT")}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {canManage && <DeleteTemplateButton templateId={t.id} templateName={t.name} />}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-3">
+                        <ExportModalButton
+                          templateId={t.id}
+                          templateName={t.name}
+                          departments={departments}
+                          teams={teams}
+                          employees={employees}
+                        />
+                        {canManage && <DeleteTemplateButton templateId={t.id} templateName={t.name} />}
+                      </div>
                     </td>
                   </tr>
                 ))}
