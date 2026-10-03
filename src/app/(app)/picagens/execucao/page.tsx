@@ -50,15 +50,15 @@ type DayRow = {
   key: string;
   scheduledLabel: string;
   actualLabel: string;
-  scheduledRaw: number;
   actualRaw: number;
-  scheduledCorrected: number;
   actualCorrected: number;
-  hasScheduledCorrection: boolean;
   hasActualCorrection: boolean;
   diffMinutes: number;
 };
 
+// O previsto vem sempre e só da escala — não é editável à mão. Sem turno
+// marcado nesse dia não há nada a comparar, por isso o saldo fica a 0
+// (não entra como desvio por decidir), mesmo que haja picagens registadas.
 function buildRows(
   days: Date[],
   empShifts: (Shift & { shiftTemplate: ShiftTemplate | null })[],
@@ -76,12 +76,8 @@ function buildRows(
       : 0;
     const actualRaw = actualByDay.get(key) ?? 0;
 
-    const scheduledCorrection = empCorrections.find((c) => isoDate(c.date) === key && c.field === "SCHEDULED");
     const actualCorrection = empCorrections.find((c) => isoDate(c.date) === key && c.field === "ACTUAL");
-    const scheduledCorrMin = scheduledCorrection?.minutesDelta ?? 0;
     const actualCorrMin = actualCorrection?.minutesDelta ?? 0;
-
-    const scheduledCorrected = scheduledRaw + scheduledCorrMin / 60;
     const actualCorrected = actualRaw + actualCorrMin / 60;
 
     return {
@@ -89,13 +85,10 @@ function buildRows(
       key,
       scheduledLabel: formatScheduled(dayShift),
       actualLabel: formatActual(getDayClockTimes(dayEntries)),
-      scheduledRaw,
       actualRaw,
-      scheduledCorrected,
       actualCorrected,
-      hasScheduledCorrection: !!scheduledCorrection,
       hasActualCorrection: !!actualCorrection,
-      diffMinutes: Math.round((actualCorrected - scheduledCorrected) * 60),
+      diffMinutes: dayShift ? Math.round((actualCorrected - scheduledRaw) * 60) : 0,
     };
   });
 }
@@ -289,9 +282,7 @@ async function GestorExecucaoView({
             const empCorrections = corrections.filter((c) => c.employeeId === emp.id);
             const rows = buildRows(weekDays, empShifts, empEntries, empCorrections);
 
-            const totalScheduled = rows.reduce((sum, r) => sum + r.scheduledCorrected, 0);
-            const totalActual = rows.reduce((sum, r) => sum + r.actualCorrected, 0);
-            const balanceCorrected = totalActual - totalScheduled;
+            const balanceCorrected = rows.reduce((sum, r) => sum + r.diffMinutes, 0) / 60;
 
             return (
               <Card key={emp.id}>
@@ -323,18 +314,8 @@ async function GestorExecucaoView({
                             <td className="py-2">
                               {WEEKDAY_LABELS[i]} {r.day.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
                             </td>
-                            <td className="py-2 text-center">
-                              <div className="flex flex-col items-center gap-1">
-                                <span className="text-stone-700 dark:text-stone-300">{r.scheduledLabel}</span>
-                                <EditableHoursCell
-                                  employeeId={emp.id}
-                                  date={r.key}
-                                  field="SCHEDULED"
-                                  rawHours={r.scheduledRaw}
-                                  correctedHours={r.scheduledCorrected}
-                                  hasCorrection={r.hasScheduledCorrection}
-                                />
-                              </div>
+                            <td className="py-2 text-center text-stone-700 dark:text-stone-300">
+                              {r.scheduledLabel}
                             </td>
                             <td className="py-2 text-center">
                               <div className="flex flex-col items-center gap-1">
@@ -419,9 +400,7 @@ async function ColaboradorExecucaoView({
   for (const d of decisions) decisionByKey.set(isoDate(d.date), d);
 
   const rows = buildRows(monthDays, shifts, entries, corrections);
-  const totalScheduled = rows.reduce((sum, r) => sum + r.scheduledCorrected, 0);
-  const totalActual = rows.reduce((sum, r) => sum + r.actualCorrected, 0);
-  const balanceCorrected = totalActual - totalScheduled;
+  const balanceCorrected = rows.reduce((sum, r) => sum + r.diffMinutes, 0) / 60;
 
   const DECISION_LABELS: Record<string, string> = {
     DEDUCTION: "Desconto",

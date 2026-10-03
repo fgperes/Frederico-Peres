@@ -10,12 +10,14 @@ import { computeDayDiffMinutes } from "@/lib/time-clock";
 
 export type CorrectionState = { error?: string; success?: boolean };
 
-const VALID_FIELDS = ["ACTUAL", "SCHEDULED"];
+// Só o real (picagens) é corrigível à mão — o previsto vem sempre da
+// escala, nunca por correção manual.
+const VALID_FIELDS = ["ACTUAL"];
 
 // O utilizador indica o TOTAL de horas correto para o dia (não um delta) —
-// esta ação calcula a diferença face ao valor em bruto (picagens ou
-// escala) e grava-a como HoursCorrection. Uma correção existente para o
-// mesmo colaborador/dia/lado é substituída (upsert), nunca acumulada.
+// esta ação calcula a diferença face ao valor em bruto das picagens e
+// grava-a como HoursCorrection. Uma correção existente para o mesmo
+// colaborador/dia é substituída (upsert), nunca acumulada.
 export async function setHoursCorrectionAction(
   _prev: CorrectionState,
   formData: FormData
