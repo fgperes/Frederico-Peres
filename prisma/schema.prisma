@@ -65,6 +65,8 @@ model User {
   timeClockDayDecisionsCreated TimeClockDayDecision[] @relation("TimeClockDayDecisionCreatedBy")
   hourPoolMovementsCreated     HourPoolMovement[]     @relation("HourPoolMovementCreatedBy")
   hourPoolMovementsReversed    HourPoolMovement[]     @relation("HourPoolMovementReversedBy")
+
+  documentTemplatesCreated DocumentTemplate[]
 }
 
 // Notícias do dashboard. targetRoles vazio = visível para todos ("Todos" no
@@ -1015,4 +1017,21 @@ model DocumentBrandingSettings {
   clientCompanyLogo String? // data URI (base64), como o avatar de utilizador
   updatedAt         DateTime @updatedAt
   updatedById       String?
+}
+
+// Modelo de documento para exportação (Relatórios → Modelos de Documentos):
+// composto por blocos ordenados (cabeçalho/logótipo, texto livre, tabela de
+// um relatório existente, grelha de escala mensal, área de assinatura).
+// Cada bloco só mostra dados já existentes (relatórios/escala) — não há
+// campos calculados no modelo, tal como o editor de layout do recibo de
+// vencimento (mesma ideia: blocksJson guarda DocumentBlock[]).
+model DocumentTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  blocksJson  String   @default("[]")
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

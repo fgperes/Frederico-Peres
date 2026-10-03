@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { generateReport, REPORT_DEFINITIONS } from "@/lib/reports";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { PageHeader, Card, EmptyState, LinkButton } from "@/components/ui";
 import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
 import { DateField } from "@/components/date-field";
 import { redirect } from "next/navigation";
-import { BarChart3, Download } from "lucide-react";
+import { BarChart3, Download, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 
 function parseIdList(value: string | undefined): string[] {
@@ -93,6 +93,11 @@ export default async function RelatoriosPage({
         icon={BarChart3}
         title="Relatórios"
         description="Extraia relatórios de acessos, colaboradores, picagens, férias, ausências, payroll, escalas e horas."
+        action={
+          <LinkButton href="/relatorios/modelos" variant="secondary">
+            <LayoutTemplate size={14} /> Modelos de Documentos
+          </LinkButton>
+        }
       />
 
       <Card className="mb-6">
