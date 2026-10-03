@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 import { VacationCalendar, VacationLegend, type DayMark } from "./calendar";
-import { toggleVacationDay } from "./actions";
-import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
+import { VacationRequestModal } from "./vacation-request-modal";
+import { Button } from "@/components/ui";
+import { isoDate } from "@/lib/dates";
+import type { VacationHeadcount } from "@/lib/vacation";
 
 type ViewMode = "month" | "quarter" | "year";
 
@@ -14,20 +16,25 @@ export function CalendarPanel({
   marks,
   interactive,
   employeeId,
+  employeeName,
   isSelf = true,
+  headcount,
+  planned,
 }: {
   year: number;
   marks: Record<string, DayMark>;
   interactive: boolean;
   employeeId: string;
+  employeeName: string;
   isSelf?: boolean;
+  headcount: VacationHeadcount;
+  planned: number;
 }) {
   const [view, setView] = useState<ViewMode>("month");
   const [monthIndex, setMonthIndex] = useState(
     new Date().getFullYear() === year ? new Date().getMonth() : 0
   );
-  const [pending, startTransition] = useTransition();
-  const { status, message, run } = useSaveFeedback();
+  const [modalOpen, setModalOpen] = useState(false);
   const router = useRouter();
 
   const step = view === "month" ? 1 : view === "quarter" ? 3 : 12;
@@ -45,32 +52,19 @@ export function CalendarPanel({
     setMonthIndex(next);
   }
 
-  function handleDayClick(dateKey: string) {
-    if (!interactive) return;
-    startTransition(() => {
-      run(async () => {
-        const formData = new FormData();
-        formData.set("date", dateKey);
-        formData.set("employeeId", employeeId);
-        const result = await toggleVacationDay(formData);
-        if (result.error) throw new Error(result.error);
-        router.refresh();
-      }, "Calendário atualizado.");
-    });
-  }
-
   const referenceDate = new Date(year, monthIndex, 1);
+  const today = new Date();
+  const initialModalMonthIso =
+    year === today.getFullYear() ? isoDate(new Date(today.getFullYear(), today.getMonth(), 1)) : `${year}-01-01`;
 
   return (
     <div>
-      <SaveBanner status={status} message={message} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => shift(-1)}
-            disabled={pending}
-            className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-700 dark:hover:bg-stone-800"
+            className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
           >
             <ChevronLeft size={16} />
           </button>
@@ -80,51 +74,53 @@ export function CalendarPanel({
           <button
             type="button"
             onClick={() => shift(1)}
-            disabled={pending}
-            className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-700 dark:hover:bg-stone-800"
+            className="rounded-md border border-stone-300 p-1.5 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
           >
             <ChevronRight size={16} />
           </button>
         </div>
-        <div className="flex rounded-md border border-stone-300 p-0.5 text-xs dark:border-stone-700">
-          {(["month", "quarter", "year"] as ViewMode[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              className={`rounded px-2.5 py-1 font-medium ${
-                view === v
-                  ? "bg-violet-600 text-white"
-                  : "text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
-              }`}
-            >
-              {v === "month" ? "Mensal" : v === "quarter" ? "Trimestral" : "Anual"}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-md border border-stone-300 p-0.5 text-xs dark:border-stone-700">
+            {(["month", "quarter", "year"] as ViewMode[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={`rounded px-2.5 py-1 font-medium ${
+                  view === v
+                    ? "bg-violet-600 text-white"
+                    : "text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+                }`}
+              >
+                {v === "month" ? "Mensal" : v === "quarter" ? "Trimestral" : "Anual"}
+              </button>
+            ))}
+          </div>
+          {interactive && (
+            <Button onClick={() => setModalOpen(true)}>
+              <CalendarPlus size={14} /> Marcar férias
+            </Button>
+          )}
         </div>
       </div>
 
-      {interactive && isSelf && (
-        <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
-          Clique num dia útil para pedir férias. Clique novamente para cancelar um pedido
-          pendente; num dia já aprovado, gera um pedido de cancelamento até ser confirmado.
-        </p>
-      )}
-      {interactive && !isSelf && (
-        <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
-          Clique num dia útil para marcar férias já aprovadas para este colaborador. Clique
-          novamente para cancelar.
-        </p>
-      )}
-
       <VacationLegend />
 
-      <VacationCalendar
-        view={view}
-        referenceDate={referenceDate}
-        marks={marks}
-        onDayClick={interactive ? handleDayClick : undefined}
-      />
+      <VacationCalendar view={view} referenceDate={referenceDate} marks={marks} />
+
+      {interactive && (
+        <VacationRequestModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          employeeId={employeeId}
+          employeeName={employeeName}
+          isSelf={isSelf}
+          initialMonthIso={initialModalMonthIso}
+          marks={marks}
+          headcount={headcount}
+          planned={planned}
+        />
+      )}
     </div>
   );
 }
