@@ -10,49 +10,68 @@ import { computeDayDiffMinutes } from "@/lib/time-clock";
 
 export type CorrectionState = { error?: string; success?: boolean };
 
-// Só o real (picagens) é corrigível à mão — o previsto vem sempre da
-// escala, nunca por correção manual.
-const VALID_FIELDS = ["ACTUAL"];
+// Quem pode corrigir o horário real de um dia: quem gere Picagens, ou o
+// próprio colaborador a corrigir o seu próprio dia — fica sempre registada
+// como alteração manual (motivo opcional, autor e auditoria).
+function canCorrectOwnOrManaged(
+  user: Awaited<ReturnType<typeof requireUser>>,
+  employeeId: string
+): boolean {
+  return canWrite(user.roles, "picagens") || user.employeeId === employeeId;
+}
 
-// O utilizador indica o TOTAL de horas correto para o dia (não um delta) —
-// esta ação calcula a diferença face ao valor em bruto das picagens e
-// grava-a como HoursCorrection. Uma correção existente para o mesmo
-// colaborador/dia é substituída (upsert), nunca acumulada.
-export async function setHoursCorrectionAction(
+const TIME_RE = /^\d{2}:\d{2}$/;
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Só o real (picagens) é corrigível, e por horário (início/fim), não por
+// número de horas — o previsto vem sempre da escala. Uma correção
+// existente para o mesmo colaborador/dia é substituída (upsert), nunca
+// acumulada.
+export async function setActualTimesCorrectionAction(
   _prev: CorrectionState,
   formData: FormData
 ): Promise<CorrectionState> {
   const user = await requireUser();
-  if (!canWrite(user.roles, "picagens")) {
-    return { error: "Sem permissão para corrigir horas." };
-  }
 
   const employeeId = String(formData.get("employeeId") ?? "");
+  if (!canCorrectOwnOrManaged(user, employeeId)) {
+    return { error: "Sem permissão para corrigir este horário." };
+  }
+
   const date = String(formData.get("date") ?? "");
-  const field = String(formData.get("field") ?? "");
   const rawHours = Number(formData.get("rawHours"));
-  const newTotalHours = Number(formData.get("newTotalHours"));
+  const startTime = String(formData.get("startTime") ?? "");
+  const endTime = String(formData.get("endTime") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
 
   if (!employeeId || !date) return { error: "Dados em falta." };
-  if (!VALID_FIELDS.includes(field)) return { error: "Campo inválido." };
-  if (!Number.isFinite(newTotalHours) || newTotalHours < 0) {
-    return { error: "Indique um número de horas válido." };
+  if (!TIME_RE.test(startTime) || !TIME_RE.test(endTime)) {
+    return { error: "Indique a hora de início e de fim." };
   }
 
-  const minutesDelta = Math.round((newTotalHours - rawHours) * 60);
+  let totalMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
+  if (totalMinutes <= 0) totalMinutes += 24 * 60; // turno que passa a meia-noite
+  const minutesDelta = Math.round(totalMinutes - rawHours * 60);
 
   const correction = await prisma.hoursCorrection.upsert({
-    where: { employeeId_date_field: { employeeId, date: new Date(date), field } },
+    where: { employeeId_date_field: { employeeId, date: new Date(date), field: "ACTUAL" } },
     create: {
       employeeId,
       date: new Date(date),
-      field,
+      field: "ACTUAL",
+      startTime,
+      endTime,
       minutesDelta,
       reason: reason || null,
       createdById: user.id,
     },
     update: {
+      startTime,
+      endTime,
       minutesDelta,
       reason: reason || null,
       createdById: user.id,
@@ -64,24 +83,26 @@ export async function setHoursCorrectionAction(
     action: "UPDATE",
     entity: "HoursCorrection",
     entityId: correction.id,
-    details: `${employeeId} · ${date} · ${field === "ACTUAL" ? "real" : "previsto"} corrigido para ${newTotalHours}h${reason ? ` · ${reason}` : ""}`,
+    details: `${employeeId} · ${date} · horário real alterado manualmente para ${startTime}–${endTime}${reason ? ` · ${reason}` : ""}`,
   });
 
   revalidatePath("/picagens/execucao");
   return { success: true };
 }
 
-export async function deleteHoursCorrectionAction(employeeId: string, date: string, field: string) {
+export async function deleteHoursCorrectionAction(employeeId: string, date: string) {
   const user = await requireUser();
-  if (!canWrite(user.roles, "picagens")) throw new Error("Sem permissão para corrigir horas.");
+  if (!canCorrectOwnOrManaged(user, employeeId)) {
+    throw new Error("Sem permissão para corrigir este horário.");
+  }
 
-  await prisma.hoursCorrection.deleteMany({ where: { employeeId, date: new Date(date), field } });
+  await prisma.hoursCorrection.deleteMany({ where: { employeeId, date: new Date(date), field: "ACTUAL" } });
 
   await logAudit({
     userId: user.id,
     action: "DELETE",
     entity: "HoursCorrection",
-    details: `${employeeId} · ${date} · ${field === "ACTUAL" ? "real" : "previsto"} · correção removida`,
+    details: `${employeeId} · ${date} · correção do horário real removida`,
   });
 
   revalidatePath("/picagens/execucao");

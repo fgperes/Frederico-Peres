@@ -19,7 +19,7 @@ import { getModuleSubscription } from "@/lib/subscriptions";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { EmployeeTreeFilter, type TreeEmployee } from "@/components/employee-tree-filter";
 import { PicagensTabs } from "../tabs";
-import { EditableHoursCell } from "./editable-hours-cell";
+import { EditActualTimesCell } from "./edit-actual-times-cell";
 import { TimeClockDecisionCell } from "./time-clock-decision-cell";
 import { ToleranceControl } from "./tolerance-control";
 import { Fingerprint, ChevronLeft, ChevronRight } from "lucide-react";
@@ -53,12 +53,17 @@ type DayRow = {
   actualRaw: number;
   actualCorrected: number;
   hasActualCorrection: boolean;
+  currentStart: string | null;
+  currentEnd: string | null;
   diffMinutes: number;
 };
 
 // O previsto vem sempre e só da escala — não é editável à mão. Sem turno
 // marcado nesse dia não há nada a comparar, por isso o saldo fica a 0
 // (não entra como desvio por decidir), mesmo que haja picagens registadas.
+// O real só é corrigível por horário (entrada/saída) — nunca por um
+// número de horas — e, quando corrigido, esse horário passa a ser o que
+// se mostra, assinalado como alteração manual.
 function buildRows(
   days: Date[],
   empShifts: (Shift & { shiftTemplate: ShiftTemplate | null })[],
@@ -75,19 +80,27 @@ function buildRows(
       ? shiftDurationHours(dayShift.startTime, dayShift.endTime, dayShift.shiftTemplate?.breakMins ?? 0)
       : 0;
     const actualRaw = actualByDay.get(key) ?? 0;
+    const clockTimes = getDayClockTimes(dayEntries);
 
     const actualCorrection = empCorrections.find((c) => isoDate(c.date) === key && c.field === "ACTUAL");
     const actualCorrMin = actualCorrection?.minutesDelta ?? 0;
     const actualCorrected = actualRaw + actualCorrMin / 60;
 
+    const actualLabel =
+      actualCorrection?.startTime && actualCorrection?.endTime
+        ? `${actualCorrection.startTime} → ${actualCorrection.endTime} (alteração manual)`
+        : formatActual(clockTimes);
+
     return {
       day,
       key,
       scheduledLabel: formatScheduled(dayShift),
-      actualLabel: formatActual(getDayClockTimes(dayEntries)),
+      actualLabel,
       actualRaw,
       actualCorrected,
       hasActualCorrection: !!actualCorrection,
+      currentStart: actualCorrection?.startTime ?? clockTimes.clockIn,
+      currentEnd: actualCorrection?.endTime ?? clockTimes.clockOut,
       diffMinutes: dayShift ? Math.round((actualCorrected - scheduledRaw) * 60) : 0,
     };
   });
@@ -319,13 +332,15 @@ async function GestorExecucaoView({
                             </td>
                             <td className="py-2 text-center">
                               <div className="flex flex-col items-center gap-1">
-                                <span className="text-stone-700 dark:text-stone-300">{r.actualLabel}</span>
-                                <EditableHoursCell
+                                <span className={r.hasActualCorrection ? "font-medium text-violet-700 dark:text-violet-400" : "text-stone-700 dark:text-stone-300"}>
+                                  {r.actualLabel}
+                                </span>
+                                <EditActualTimesCell
                                   employeeId={emp.id}
                                   date={r.key}
-                                  field="ACTUAL"
                                   rawHours={r.actualRaw}
-                                  correctedHours={r.actualCorrected}
+                                  currentStart={r.currentStart}
+                                  currentEnd={r.currentEnd}
                                   hasCorrection={r.hasActualCorrection}
                                 />
                               </div>
@@ -371,6 +386,7 @@ async function ColaboradorExecucaoView({
   if (!user.employeeId) {
     return <EmptyState message="Não existe uma ficha de colaborador associada à sua conta." />;
   }
+  const employeeId = user.employeeId;
 
   const now = new Date();
   const month = params.month ? Number(params.month) : now.getMonth() + 1;
@@ -382,17 +398,17 @@ async function ColaboradorExecucaoView({
 
   const [shifts, entries, corrections, decisions] = await Promise.all([
     prisma.shift.findMany({
-      where: { employeeId: user.employeeId, date: { gte: monthStart, lte: monthEnd }, status: "PUBLISHED" },
+      where: { employeeId, date: { gte: monthStart, lte: monthEnd }, status: "PUBLISHED" },
       include: { shiftTemplate: true },
     }),
     prisma.timeClockEntry.findMany({
-      where: { employeeId: user.employeeId, timestamp: { gte: monthStart, lte: monthEnd } },
+      where: { employeeId, timestamp: { gte: monthStart, lte: monthEnd } },
     }),
     prisma.hoursCorrection.findMany({
-      where: { employeeId: user.employeeId, date: { gte: monthStart, lte: monthEnd } },
+      where: { employeeId, date: { gte: monthStart, lte: monthEnd } },
     }),
     prisma.timeClockDayDecision.findMany({
-      where: { employeeId: user.employeeId, date: { gte: monthStart, lte: monthEnd } },
+      where: { employeeId, date: { gte: monthStart, lte: monthEnd } },
     }),
   ]);
 
@@ -473,7 +489,21 @@ async function ColaboradorExecucaoView({
                 <tr key={r.key}>
                   <td className="px-4 py-3">{r.day.toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "2-digit" })}</td>
                   <td className="px-4 py-3 text-center text-stone-700 dark:text-stone-300">{r.scheduledLabel}</td>
-                  <td className="px-4 py-3 text-center text-stone-700 dark:text-stone-300">{r.actualLabel}</td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={r.hasActualCorrection ? "font-medium text-violet-700 dark:text-violet-400" : "text-stone-700 dark:text-stone-300"}>
+                        {r.actualLabel}
+                      </span>
+                      <EditActualTimesCell
+                        employeeId={employeeId}
+                        date={r.key}
+                        rawHours={r.actualRaw}
+                        currentStart={r.currentStart}
+                        currentEnd={r.currentEnd}
+                        hasCorrection={r.hasActualCorrection}
+                      />
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <Badge color={r.diffMinutes >= 0 ? "green" : "red"}>

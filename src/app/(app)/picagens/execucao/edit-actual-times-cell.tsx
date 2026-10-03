@@ -1,37 +1,40 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, RotateCcw } from "lucide-react";
-import { setHoursCorrectionAction, deleteHoursCorrectionAction, type CorrectionState } from "./actions";
+import { setActualTimesCorrectionAction, deleteHoursCorrectionAction, type CorrectionState } from "./actions";
 
-export function EditableHoursCell({
+// Corrige o horário real de um dia (entrada/saída) — nunca um número de
+// horas. Disponível para quem gere Picagens e para o próprio colaborador
+// no seu próprio dia; fica sempre registada como alteração manual
+// (visível a quem vê a grelha, com motivo opcional e autor em auditoria).
+export function EditActualTimesCell({
   employeeId,
   date,
-  field,
   rawHours,
-  correctedHours,
+  currentStart,
+  currentEnd,
   hasCorrection,
 }: {
   employeeId: string;
   date: string;
-  field: "ACTUAL" | "SCHEDULED";
   rawHours: number;
-  correctedHours: number;
+  currentStart: string | null;
+  currentEnd: string | null;
   hasCorrection: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(correctedHours.toString());
+  const [start, setStart] = useState(currentStart ?? "");
+  const [end, setEnd] = useState(currentEnd ?? "");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
 
   function save() {
-    const newTotalHours = Number(value);
-    if (!Number.isFinite(newTotalHours) || newTotalHours < 0) {
-      setError("Valor inválido.");
+    if (!start || !end) {
+      setError("Indique a hora de início e de fim.");
       return;
     }
     setError(null);
@@ -39,11 +42,11 @@ export function EditableHoursCell({
       const formData = new FormData();
       formData.set("employeeId", employeeId);
       formData.set("date", date);
-      formData.set("field", field);
       formData.set("rawHours", rawHours.toString());
-      formData.set("newTotalHours", newTotalHours.toString());
+      formData.set("startTime", start);
+      formData.set("endTime", end);
       formData.set("reason", reason);
-      const result: CorrectionState = await setHoursCorrectionAction({}, formData);
+      const result: CorrectionState = await setActualTimesCorrectionAction({}, formData);
       if (result.error) {
         setError(result.error);
         return;
@@ -55,7 +58,7 @@ export function EditableHoursCell({
 
   function revert() {
     startTransition(async () => {
-      await deleteHoursCorrectionAction(employeeId, date, field);
+      await deleteHoursCorrectionAction(employeeId, date);
       router.refresh();
     });
   }
@@ -63,22 +66,28 @@ export function EditableHoursCell({
   if (editing) {
     return (
       <div className="flex flex-col items-center gap-1 rounded-md border border-violet-300 bg-violet-50/50 p-1.5 dark:border-violet-700 dark:bg-violet-500/10">
-        <input
-          ref={inputRef}
-          type="number"
-          step="0.1"
-          min="0"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="w-16 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
-          autoFocus
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type="time"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className="w-[5.5rem] rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
+            autoFocus
+          />
+          <span className="text-xs text-stone-400">→</span>
+          <input
+            type="time"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            className="w-[5.5rem] rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
+          />
+        </div>
         <input
           type="text"
           placeholder="motivo (opcional)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-24 rounded border border-stone-300 px-1 py-0.5 text-[11px] dark:border-stone-700 dark:bg-stone-800"
+          className="w-36 rounded border border-stone-300 px-1 py-0.5 text-[11px] dark:border-stone-700 dark:bg-stone-800"
         />
         {error && <p className="text-[10px] text-rose-600 dark:text-rose-400">{error}</p>}
         <div className="flex gap-1">
@@ -103,18 +112,16 @@ export function EditableHoursCell({
   }
 
   return (
-    <div className="group flex items-center justify-center gap-1">
-      <span className={hasCorrection ? "font-medium text-violet-700 dark:text-violet-400" : ""}>
-        {correctedHours.toFixed(1)}h
-      </span>
+    <div className="flex items-center justify-center gap-1">
       <button
         type="button"
         onClick={() => {
-          setValue(correctedHours.toString());
+          setStart(currentStart ?? "");
+          setEnd(currentEnd ?? "");
           setEditing(true);
         }}
-        title="Corrigir"
-        className="text-stone-300 hover:text-violet-600 group-hover:text-stone-400 dark:hover:text-violet-400"
+        title="Corrigir horário"
+        className="text-stone-300 hover:text-violet-600 dark:hover:text-violet-400"
       >
         <Pencil size={11} />
       </button>
@@ -123,7 +130,7 @@ export function EditableHoursCell({
           type="button"
           onClick={revert}
           disabled={pending}
-          title="Repor valor original"
+          title="Repor horário original"
           className="text-stone-300 hover:text-rose-600 disabled:opacity-60 dark:hover:text-rose-400"
         >
           <RotateCcw size={11} />
