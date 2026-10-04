@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { parseExcelFile } from "@/lib/excel";
 import { HOLIDAY_SCOPES, type HolidayScope } from "@/lib/holidays";
+import { normalizeMunicipality } from "@/lib/pt-geo";
 
 async function assertAdmin() {
   const user = await requireUser();
@@ -40,6 +41,21 @@ function parseMunicipalities(raw: string): string[] {
   return Array.from(new Set(raw.split(",").map((s) => s.trim()).filter(Boolean)));
 }
 
+// Valida os concelhos indicados (formulário ou Excel) contra a lista
+// oficial de concelhos de Portugal e devolve a grafia canónica de cada um,
+// para que a comparação com Location.municipality seja sempre consistente.
+function resolveMunicipalities(raw: string): { valid: string[]; invalid: string[] } {
+  const names = parseMunicipalities(raw);
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  for (const name of names) {
+    const canonical = normalizeMunicipality(name);
+    if (canonical) valid.push(canonical);
+    else invalid.push(name);
+  }
+  return { valid: Array.from(new Set(valid)), invalid };
+}
+
 export type HolidayFormState = { error?: string; success?: string };
 
 export async function createHoliday(
@@ -51,12 +67,18 @@ export async function createHoliday(
   const dateRaw = String(formData.get("date") ?? "");
   const description = String(formData.get("description") ?? "").trim();
   const scope = String(formData.get("scope") ?? "NATIONAL") as HolidayScope;
-  const municipalities = parseMunicipalities(String(formData.get("municipalities") ?? ""));
 
   if (!dateRaw || !description) return { error: "Data e descrição são obrigatórias." };
   if (!HOLIDAY_SCOPES.includes(scope)) return { error: "Âmbito inválido." };
-  if (scope === "REGIONAL" && municipalities.length === 0) {
-    return { error: "Indique pelo menos um concelho para um feriado regional." };
+
+  let municipalities: string[] = [];
+  if (scope === "REGIONAL") {
+    const { valid, invalid } = resolveMunicipalities(String(formData.get("municipalities") ?? ""));
+    if (valid.length === 0) return { error: "Indique pelo menos um concelho para um feriado regional." };
+    if (invalid.length > 0) {
+      return { error: `Concelho(s) desconhecido(s): ${invalid.join(", ")}.` };
+    }
+    municipalities = valid;
   }
 
   const date = new Date(`${dateRaw}T00:00:00`);
@@ -156,10 +178,18 @@ export async function importHolidaysAction(
       continue;
     }
 
-    const municipalities = scope === "REGIONAL" ? parseMunicipalities(municipalitiesRaw) : [];
-    if (scope === "REGIONAL" && municipalities.length === 0) {
-      errorReport.push(`Linha ${rowNum}: feriado regional precisa de pelo menos um concelho (coluna municipalities).`);
-      continue;
+    let municipalities: string[] = [];
+    if (scope === "REGIONAL") {
+      const { valid, invalid } = resolveMunicipalities(municipalitiesRaw);
+      if (valid.length === 0) {
+        errorReport.push(`Linha ${rowNum}: feriado regional precisa de pelo menos um concelho (coluna municipalities).`);
+        continue;
+      }
+      if (invalid.length > 0) {
+        errorReport.push(`Linha ${rowNum}: concelho(s) desconhecido(s) — ${invalid.join(", ")} (ver folha "Concelhos" do template).`);
+        continue;
+      }
+      municipalities = valid;
     }
 
     const conflict = await findOverlappingHoliday(date, scope as HolidayScope, municipalities);
