@@ -34,12 +34,19 @@ export default async function ContractProfileDetailPage({
   const current = assignments.filter((a) => a.status === "ACTIVE");
   const history = assignments.filter((a) => a.status !== "ACTIVE");
 
+  const restrictions = [
+    !profile.worksWeekends && "não trabalha fins de semana",
+    !profile.worksHolidays && "não trabalha feriados",
+  ].filter(Boolean);
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
         icon={FileSignature}
         title={profile.name}
-        description={`${contractTypeLabels[profile.contractType] ?? profile.contractType} · ${profile.weeklyHours}h/semana · ${profile.weeklyRestDays} folga(s)/semana`}
+        description={`${contractTypeLabels[profile.contractType] ?? profile.contractType} · ${profile.weeklyHours}h/semana · ${profile.weeklyRestDays} folga(s)/semana${
+          restrictions.length > 0 ? ` · ${restrictions.join(" · ")}` : ""
+        }`}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Badge color={profile.active ? "green" : "slate"}>{profile.active ? "Ativo" : "Inativo"}</Badge>
@@ -53,7 +60,8 @@ export default async function ContractProfileDetailPage({
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Renomear</h2>
           <RenameProfileForm profileId={profile.id} name={profile.name} />
           <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
-            O tipo de contrato, as horas semanais e as folgas semanais não podem ser alterados depois de criado.
+            O tipo de contrato, as horas semanais, as folgas semanais e os fins de semana/feriados não podem ser
+            alterados depois de criado.
           </p>
         </Card>
       )}

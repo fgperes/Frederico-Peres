@@ -112,12 +112,14 @@ export function ShiftModal({
         setError(result.error);
         return;
       }
-      const { created, skippedExisting } = result.data;
+      const { created, skippedExisting, skippedDueToRestriction } = result.data;
       if (created === 0) {
         setError(
           skippedExisting > 0
             ? "Já existe turno nesse(s) dia(s) — edite o turno existente em vez de criar outro."
-            : "Nenhum turno criado (dia(s) com ausência aprovada)."
+            : skippedDueToRestriction > 0
+              ? "Nenhum turno criado — este colaborador não trabalha a fins de semana/feriados (ver perfil de contrato)."
+              : "Nenhum turno criado (dia(s) com ausência aprovada)."
         );
         return;
       }

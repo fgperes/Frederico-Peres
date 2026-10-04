@@ -186,7 +186,10 @@ export function GenerateToolbar({
           <div className="mt-3 space-y-2 rounded-md bg-emerald-50 p-3 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400">
             <p>
               {genResult.created} turno(s) criado(s)
-              {genResult.skippedDueToAbsence > 0 && `, ${genResult.skippedDueToAbsence} ignorado(s) por ausência`}.
+              {genResult.skippedDueToAbsence > 0 && `, ${genResult.skippedDueToAbsence} ignorado(s) por ausência`}
+              {genResult.skippedDueToRestriction > 0 &&
+                `, ${genResult.skippedDueToRestriction} ignorado(s) por fim de semana/feriado não permitido`}
+              .
             </p>
             {genResult.issues.length > 0 && (
               <div className="rounded-md bg-amber-50 p-2 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">

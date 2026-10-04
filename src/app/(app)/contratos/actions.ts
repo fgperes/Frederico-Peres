@@ -17,10 +17,10 @@ async function assertCanWrite() {
 }
 
 // Perfis de contrato são partilhados e, depois de criados, imutáveis nos
-// termos (tipo, horas, folgas semanais) — só o nome e o estado
-// ativo/inativo podem mudar. As condições que um colaborador teve em cada
-// período ficam sempre fiéis ao histórico (EmployeeContract), mesmo que o
-// perfil seja renomeado mais tarde.
+// termos (tipo, horas, folgas semanais, fins de semana/feriados) — só o
+// nome e o estado ativo/inativo podem mudar. As condições que um
+// colaborador teve em cada período ficam sempre fiéis ao histórico
+// (EmployeeContract), mesmo que o perfil seja renomeado mais tarde.
 export type ContractProfileFormState = { error?: string };
 
 export async function createContractProfile(
@@ -63,12 +63,14 @@ export async function createContractProfile(
     if (!name) throw new Error("Indique o nome do contrato.");
     const weeklyHours = Number(formData.get("weeklyHours") ?? 40);
     const weeklyRestDays = Number(formData.get("weeklyRestDays") ?? 1);
+    const worksWeekends = formData.get("worksWeekends") === "on";
+    const worksHolidays = formData.get("worksHolidays") === "on";
 
     const existing = await prisma.contractProfile.findUnique({ where: { name } });
     if (existing) throw new Error("Já existe um contrato com este nome.");
 
     const profile = await prisma.contractProfile.create({
-      data: { name, contractType, weeklyHours, weeklyRestDays },
+      data: { name, contractType, weeklyHours, weeklyRestDays, worksWeekends, worksHolidays },
     });
     profileId = profile.id;
 
@@ -77,7 +79,7 @@ export async function createContractProfile(
       action: "CREATE",
       entity: "ContractProfile",
       entityId: profile.id,
-      details: `${name} — ${contractType} — ${weeklyHours}h/semana`,
+      details: `${name} — ${contractType} — ${weeklyHours}h/semana${worksWeekends ? "" : " — não trabalha fins de semana"}${worksHolidays ? "" : " — não trabalha feriados"}`,
     });
 
     revalidatePath("/contratos");
