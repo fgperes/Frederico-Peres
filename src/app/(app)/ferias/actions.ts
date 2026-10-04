@@ -14,6 +14,7 @@ import {
   ensureVacationTask,
   resolveVacationTasksIfClear,
   isWeekday,
+  toDateKey,
   CANCEL_REQUEST_MARKER,
   type VacationHistoryRow,
 } from "@/lib/vacation";
@@ -167,7 +168,22 @@ async function toggleOneVacationDay(targetEmployeeId: string, dateStr: string): 
   }
 
   // Não existe pedido, ou existia mas foi rejeitado/cancelado — cria um novo.
-  const available = balance.entitledDays + balance.carryOverDays - balance.usedDays - balance.plannedDays;
+  // Dias com pedido de cancelamento pendente contam a favor do saldo
+  // disponível (ainda não foram de facto cancelados — `usedDays` só desce
+  // quando a aprovação acontece — mas vão libertar saldo em breve), para
+  // permitir remarcar logo um dia equivalente no mesmo pedido: ex. desmarcar
+  // dois dias aprovados e escolher dois novos, tudo junto para aprovação.
+  const cancelPendingCount = await prisma.absence.count({
+    where: {
+      employeeId: targetEmployeeId,
+      absenceTypeId: type.id,
+      status: "APPROVED",
+      reason: CANCEL_REQUEST_MARKER,
+      startDate: { gte: new Date(date.getFullYear(), 0, 1), lte: new Date(date.getFullYear(), 11, 31) },
+    },
+  });
+  const available =
+    balance.entitledDays + balance.carryOverDays - balance.usedDays - balance.plannedDays + cancelPendingCount;
   if (available < 1) throw new Error("Sem dias de férias disponíveis para marcar.");
 
   if (existing) {
@@ -252,6 +268,13 @@ export type ToggleVacationDaysState = {
 // dias anteriores do mesmo pedido; dias que falhem (ex.: fim de semana,
 // saldo esgotado a meio da seleção) não interrompem os restantes — ficam
 // reportados em `failed` para a modal mostrar um resumo.
+//
+// Dias que já têm um registo (desmarcar/pedir cancelamento) são sempre
+// processados antes dos dias novos (criar pedido), independentemente da
+// ordem em que foram clicados — assim, remarcar logo dois dias aprovados
+// por dois novos (no mesmo pedido) já vê o crédito de saldo dos
+// cancelamentos recém-criados (ver `cancelPendingCount` em
+// toggleOneVacationDay), em vez de depender da ordem de seleção.
 export async function toggleVacationDays(
   targetEmployeeId: string,
   dateIsos: string[]
@@ -260,9 +283,25 @@ export async function toggleVacationDays(
     if (!targetEmployeeId) throw new Error("Colaborador não identificado.");
     if (dateIsos.length === 0) throw new Error("Selecione pelo menos um dia.");
 
+    const type = await getVacationType();
+    const existingRows = await prisma.absence.findMany({
+      where: {
+        employeeId: targetEmployeeId,
+        absenceTypeId: type.id,
+        startDate: { in: dateIsos.map((d) => new Date(`${d}T00:00:00`)) },
+      },
+      select: { startDate: true },
+    });
+    const existingKeys = new Set(existingRows.map((a) => toDateKey(a.startDate)));
+    const orderedDateIsos = [...dateIsos].sort((a, b) => {
+      const aHasExisting = existingKeys.has(a) ? 0 : 1;
+      const bHasExisting = existingKeys.has(b) ? 0 : 1;
+      return aHasExisting - bHasExisting;
+    });
+
     let updated = 0;
     const failed: { date: string; error: string }[] = [];
-    for (const dateStr of dateIsos) {
+    for (const dateStr of orderedDateIsos) {
       try {
         await toggleOneVacationDay(targetEmployeeId, dateStr);
         updated++;
@@ -306,8 +345,27 @@ export async function decideVacationPeriod(
         byYear.set(year, (byYear.get(year) ?? 0) + 1);
       }
       for (const [year, count] of byYear) {
-        const { balance } = await getOrCreateVacationBalance(employeeId, year);
+        const { type, balance } = await getOrCreateVacationBalance(employeeId, year);
         if (decision === "APPROVED") {
+          const projectedUsed = balance.usedDays + count;
+          const totalAllowed = balance.entitledDays + balance.carryOverDays;
+          if (projectedUsed > totalAllowed) {
+            const cancelPendingCount = await prisma.absence.count({
+              where: {
+                employeeId,
+                absenceTypeId: type.id,
+                status: "APPROVED",
+                reason: CANCEL_REQUEST_MARKER,
+                startDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) },
+              },
+            });
+            if (cancelPendingCount > 0) {
+              throw new Error(
+                `Sem saldo para aprovar — aprove primeiro o(s) ${cancelPendingCount} pedido(s) de cancelamento pendente(s) deste colaborador para libertar saldo.`
+              );
+            }
+            throw new Error("Sem saldo de férias suficiente para aprovar este pedido.");
+          }
           await prisma.absenceBalance.update({
             where: { id: balance.id },
             data: { plannedDays: { decrement: count }, usedDays: { increment: count } },
