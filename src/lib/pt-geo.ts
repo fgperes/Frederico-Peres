@@ -37,3 +37,14 @@ export function municipalitiesForDistrict(district: string | null | undefined): 
 export const ALL_MUNICIPALITIES: string[] = Array.from(
   new Set(Object.values(DISTRICTS_MUNICIPALITIES).flat())
 ).sort((a, b) => a.localeCompare(b, "pt"));
+
+const MUNICIPALITY_LOOKUP: Map<string, string> = new Map(
+  ALL_MUNICIPALITIES.map((m) => [m.toLowerCase(), m])
+);
+
+// Resolve um nome de concelho (pode vir com capitalização ou espaços
+// diferentes, ex. de uma importação Excel) para a grafia oficial, ou
+// devolve null se não corresponder a nenhum concelho de Portugal.
+export function normalizeMunicipality(name: string): string | null {
+  return MUNICIPALITY_LOOKUP.get(name.trim().toLowerCase()) ?? null;
+}

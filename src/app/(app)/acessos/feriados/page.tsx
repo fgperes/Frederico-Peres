@@ -1,7 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { isSystemAdmin } from "@/lib/roles";
 import { getHolidays } from "@/lib/holidays";
-import { ALL_MUNICIPALITIES } from "@/lib/pt-geo";
 import { PageHeader, Card, Badge, Button, EmptyState } from "@/components/ui";
 import { AcessosTabs } from "../tabs";
 import { HolidayForm } from "./holiday-form";
@@ -89,7 +88,7 @@ export default async function FeriadosPage() {
         <div className="space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Feriado</h2>
-            <HolidayForm municipalitySuggestions={ALL_MUNICIPALITIES} />
+            <HolidayForm />
           </Card>
           <Card>
             <div className="mb-3 flex items-center justify-between">
@@ -101,6 +100,10 @@ export default async function FeriadosPage() {
                 <Download size={12} /> Descarregar template
               </a>
             </div>
+            <p className="mb-3 text-xs text-stone-500">
+              A coluna <code>municipalities</code> aceita vários concelhos separados por vírgula (só para
+              feriados REGIONAL) — a folha &quot;Concelhos&quot; do template lista os nomes válidos por distrito.
+            </p>
             <HolidayImportForm />
           </Card>
         </div>
