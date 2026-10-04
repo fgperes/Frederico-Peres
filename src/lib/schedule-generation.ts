@@ -3,6 +3,7 @@ import { addDays, differenceInCalendarDays } from "date-fns";
 import { getWeekStart, isoDate } from "@/lib/dates";
 import { shiftDurationHours, minutesFromMidnight, shiftEndOffsetMinutes } from "@/lib/schedule";
 import { getModuleSubscription } from "@/lib/subscriptions";
+import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
 
 export const MIN_GENERATION_RANGE_DAYS = 7;
 const MIN_REST_MINUTES = 11 * 60; // Código do Trabalho, art.º 214.º
@@ -24,6 +25,7 @@ export type GenerationIssue = { employeeId: string; employeeName: string; messag
 export type GenerationResult = {
   created: number;
   skippedDueToAbsence: number;
+  skippedDueToRestriction: number;
   issues: GenerationIssue[];
 };
 
@@ -75,11 +77,12 @@ export async function generateSchedulesForEmployees(
   const issues: GenerationIssue[] = [];
   let created = 0;
   let skippedDueToAbsence = 0;
+  let skippedDueToRestriction = 0;
 
   const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds } } });
   const employeeById = new Map(employees.map((e) => [e.id, e]));
 
-  const [cycleAssignments, contracts, absences, existingShiftsInDept, moduleSub, templates] =
+  const [cycleAssignments, contracts, absences, existingShiftsInDept, moduleSub, templates, holidays] =
     await Promise.all([
       prisma.scheduleCycleAssignment.findMany({
         where: { employeeId: { in: employeeIds }, cycle: { isTemplate: false } },
@@ -96,7 +99,15 @@ export async function generateSchedulesForEmployees(
       prisma.shift.findMany({ where: { date: { gte: from, lte: to } } }),
       getModuleSubscription(),
       prisma.shiftTemplate.findMany(),
+      getHolidaysInRange(from, to),
     ]);
+
+  const holidaysByDateKey = new Map<string, typeof holidays>();
+  for (const h of holidays) {
+    const key = isoDate(h.date);
+    if (!holidaysByDateKey.has(key)) holidaysByDateKey.set(key, []);
+    holidaysByDateKey.get(key)!.push(h);
+  }
 
   const cycleAssignmentByEmployee = new Map(cycleAssignments.map((a) => [a.employeeId, a]));
   const contractByEmployee = new Map<string, (typeof contracts)[number]>();
@@ -104,6 +115,22 @@ export async function generateSchedulesForEmployees(
 
   function isAbsent(employeeId: string, day: Date): boolean {
     return absences.some((a) => a.employeeId === employeeId && a.startDate <= day && a.endDate >= day);
+  }
+
+  // Se o colaborador não pode ser escalado neste dia por não trabalhar a
+  // fins de semana/feriados (ver ContractProfile.worksWeekends/worksHolidays)
+  // — sem contrato ativo, não há restrição.
+  function isRestrictedDay(employeeId: string, day: Date): boolean {
+    const profile = contractByEmployee.get(employeeId)?.contractProfile;
+    if (!profile) return false;
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    if (isWeekend && !profile.worksWeekends) return true;
+    if (!profile.worksHolidays) {
+      const employee = employeeById.get(employeeId);
+      const dayHolidays = holidaysByDateKey.get(isoDate(day));
+      if (dayHolidays?.some((h) => isHolidayForLocation(h, employee?.locationId ?? null))) return true;
+    }
+    return false;
   }
 
   // Turnos ocupados por colaborador — pré-existentes + os que vamos criando
@@ -164,6 +191,10 @@ export async function generateSchedulesForEmployees(
         continue;
       }
       if (hasShiftOn(employeeId, day)) continue;
+      if (isRestrictedDay(employeeId, day)) {
+        skippedDueToRestriction++;
+        continue;
+      }
 
       const daysSinceStart = differenceInCalendarDays(day, cycle.startDate);
       if (daysSinceStart < 0) continue; // dia anterior ao início do ciclo
@@ -256,6 +287,10 @@ export async function generateSchedulesForEmployees(
           continue;
         }
         if (hasShiftOn(employeeId, day)) continue;
+        if (isRestrictedDay(employeeId, day)) {
+          skippedDueToRestriction++;
+          continue;
+        }
 
         const week = weekKeyOf(day);
         const maxWorkingDays = 7 - contract.contractProfile.weeklyRestDays;
@@ -317,5 +352,5 @@ export async function generateSchedulesForEmployees(
     }
   }
 
-  return { created, skippedDueToAbsence, issues };
+  return { created, skippedDueToAbsence, skippedDueToRestriction, issues };
 }

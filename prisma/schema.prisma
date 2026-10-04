@@ -741,9 +741,10 @@ model ContractTypeDefinition {
 }
 
 // Perfil de contrato partilhado e nomeado — os termos (tipo, horas/semana,
-// descanso semanal) não são editáveis depois de criado; só o nome e o
-// estado ativo/inativo. Um perfil só pode ser inativado se não tiver
-// nenhum colaborador atualmente atribuído (ver EmployeeContract).
+// descanso semanal, fins de semana/feriados) não são editáveis depois de
+// criado; só o nome e o estado ativo/inativo. Um perfil só pode ser
+// inativado se não tiver nenhum colaborador atualmente atribuído (ver
+// EmployeeContract).
 model ContractProfile {
   id             String   @id @default(cuid())
   name           String   @unique
@@ -753,6 +754,11 @@ model ContractProfile {
   // validar o padrão de ciclos de horário contra o art.º 205.º do Código do
   // Trabalho (mínimo legal: 1).
   weeklyRestDays Int      @default(1)
+  // Se o colaborador pode ser escalado a trabalhar aos fins de semana /
+  // feriados (nacionais e regionais, consoante o local de trabalho) — tanto
+  // na criação manual de turnos como na geração automática de escalas.
+  worksWeekends  Boolean  @default(true)
+  worksHolidays  Boolean  @default(true)
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

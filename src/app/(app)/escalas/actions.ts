@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { differenceInCalendarDays } from "date-fns";
 import { isoDate } from "@/lib/dates";
 import { generateSchedulesForEmployees, MIN_GENERATION_RANGE_DAYS, type GenerationIssue } from "@/lib/schedule-generation";
+import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
 
 type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -27,6 +28,47 @@ async function assertCanWrite() {
   return user;
 }
 
+// Se o colaborador pode trabalhar a fins de semana/feriados, segundo o
+// perfil de contrato ativo (ver ContractProfile.worksWeekends/worksHolidays)
+// — sem contrato ativo, não há restrição (comportamento de sempre).
+async function getEmployeeWorkRestrictions(
+  employeeId: string
+): Promise<{ worksWeekends: boolean; worksHolidays: boolean; locationId: string | null }> {
+  const [contract, employee] = await Promise.all([
+    prisma.employeeContract.findFirst({
+      where: { employeeId, status: "ACTIVE" },
+      orderBy: { startDate: "desc" },
+      include: { contractProfile: { select: { worksWeekends: true, worksHolidays: true } } },
+    }),
+    prisma.employee.findUnique({ where: { id: employeeId }, select: { locationId: true } }),
+  ]);
+  return {
+    worksWeekends: contract?.contractProfile.worksWeekends ?? true,
+    worksHolidays: contract?.contractProfile.worksHolidays ?? true,
+    locationId: employee?.locationId ?? null,
+  };
+}
+
+function isWeekendDate(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+// Usado por mover/copiar turno (um único dia) — lança erro em vez de
+// devolver um resultado parcial, consistente com assertTargetCellFree.
+async function assertDayAllowedForEmployee(employeeId: string, date: Date): Promise<void> {
+  const restrictions = await getEmployeeWorkRestrictions(employeeId);
+  if (isWeekendDate(date) && !restrictions.worksWeekends) {
+    throw new Error("Este colaborador não trabalha a fins de semana (ver perfil de contrato).");
+  }
+  if (!restrictions.worksHolidays) {
+    const holidays = await getHolidaysInRange(date, date);
+    if (holidays.some((h) => isHolidayForLocation(h, restrictions.locationId))) {
+      throw new Error("Este colaborador não trabalha em feriados (ver perfil de contrato).");
+    }
+  }
+}
+
 function parseRange(fromIso: string, toIso: string): { from: Date; to: Date } {
   const from = new Date(fromIso);
   const to = new Date(toIso);
@@ -41,7 +83,12 @@ function parseRange(fromIso: string, toIso: string): { from: Date; to: Date } {
   return { from, to };
 }
 
-export type GenerateSchedulesResult = { created: number; skippedDueToAbsence: number; issues: GenerationIssue[] };
+export type GenerateSchedulesResult = {
+  created: number;
+  skippedDueToAbsence: number;
+  skippedDueToRestriction: number;
+  issues: GenerationIssue[];
+};
 
 export async function generateSchedulesAction(
   fromIso: string,
@@ -59,7 +106,7 @@ export async function generateSchedulesAction(
       userId: user.id,
       action: "GENERATE",
       entity: "Shift",
-      details: `Escalas geradas ${fromIso} a ${toIso} para ${employeeIds.length} colaborador(es): ${result.created} turnos criados, ${result.skippedDueToAbsence} ignorados por ausência, ${result.issues.length} com incidências`,
+      details: `Escalas geradas ${fromIso} a ${toIso} para ${employeeIds.length} colaborador(es): ${result.created} turnos criados, ${result.skippedDueToAbsence} ignorados por ausência, ${result.skippedDueToRestriction} ignorados por fim de semana/feriado não permitido, ${result.issues.length} com incidências`,
     });
 
     revalidatePath("/escalas");
@@ -158,7 +205,12 @@ function assertTimeFormat(value: string, label: string) {
   }
 }
 
-export type CreateShiftResult = { created: number; skippedExisting: number; skippedDueToAbsence: number };
+export type CreateShiftResult = {
+  created: number;
+  skippedExisting: number;
+  skippedDueToAbsence: number;
+  skippedDueToRestriction: number;
+};
 
 // Cria o mesmo turno (horário + modelo) para um ou vários dias de uma só
 // vez. Nunca substitui um turno já existente nesse dia — fica assinalado
@@ -181,17 +233,29 @@ export async function createShiftAction(
 
     const days = dateIsos.map(parseDay);
 
-    const [existingShifts, absences] = await Promise.all([
+    const [existingShifts, absences, restrictions] = await Promise.all([
       prisma.shift.findMany({ where: { employeeId, date: { in: days } }, select: { date: true } }),
       prisma.absence.findMany({
         where: { employeeId, status: "APPROVED", startDate: { lte: days[days.length - 1] }, endDate: { gte: days[0] } },
       }),
+      getEmployeeWorkRestrictions(employeeId),
     ]);
     const existingDates = new Set(existingShifts.map((s) => isoDate(s.date)));
+
+    // Só vai buscar os feriados do intervalo se o perfil de contrato
+    // restringir feriados — evita a consulta quando não é preciso.
+    let restrictedHolidayDates: Set<string> | null = null;
+    if (!restrictions.worksHolidays) {
+      const holidays = await getHolidaysInRange(days[0], days[days.length - 1]);
+      restrictedHolidayDates = new Set(
+        holidays.filter((h) => isHolidayForLocation(h, restrictions.locationId)).map((h) => isoDate(h.date))
+      );
+    }
 
     let created = 0;
     let skippedExisting = 0;
     let skippedDueToAbsence = 0;
+    let skippedDueToRestriction = 0;
 
     for (const day of days) {
       const dayIso = isoDate(day);
@@ -202,6 +266,14 @@ export async function createShiftAction(
       const absent = absences.some((a) => a.startDate <= day && a.endDate >= day);
       if (absent) {
         skippedDueToAbsence++;
+        continue;
+      }
+      if (isWeekendDate(day) && !restrictions.worksWeekends) {
+        skippedDueToRestriction++;
+        continue;
+      }
+      if (restrictedHolidayDates?.has(dayIso)) {
+        skippedDueToRestriction++;
         continue;
       }
       await prisma.shift.create({
@@ -223,11 +295,11 @@ export async function createShiftAction(
       userId: user.id,
       action: "CREATE",
       entity: "Shift",
-      details: `Turno manual criado para ${dateIsos.length} dia(s) (colaborador ${employeeId}): ${created} criado(s), ${skippedExisting} já tinham turno, ${skippedDueToAbsence} ignorado(s) por ausência`,
+      details: `Turno manual criado para ${dateIsos.length} dia(s) (colaborador ${employeeId}): ${created} criado(s), ${skippedExisting} já tinham turno, ${skippedDueToAbsence} ignorado(s) por ausência, ${skippedDueToRestriction} ignorado(s) por fim de semana/feriado não permitido`,
     });
 
     revalidatePath("/escalas");
-    return { created, skippedExisting, skippedDueToAbsence };
+    return { created, skippedExisting, skippedDueToAbsence, skippedDueToRestriction };
   });
 }
 
@@ -293,6 +365,7 @@ export async function moveShiftAction(
     const newDate = parseDay(newDateIso);
 
     await assertTargetCellFree(newEmployeeId, newDate, shiftId);
+    await assertDayAllowedForEmployee(newEmployeeId, newDate);
 
     await prisma.shift.update({
       where: { id: shiftId },
@@ -329,6 +402,7 @@ export async function copyShiftAction(
     const newDate = parseDay(newDateIso);
 
     await assertTargetCellFree(newEmployeeId, newDate);
+    await assertDayAllowedForEmployee(newEmployeeId, newDate);
 
     const created = await prisma.shift.create({
       data: {

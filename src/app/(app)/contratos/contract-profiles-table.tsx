@@ -7,6 +7,8 @@ export type ContractProfileRow = {
   contractTypeLabel: string;
   weeklyHours: number;
   weeklyRestDays: number;
+  worksWeekends: boolean;
+  worksHolidays: boolean;
   active: boolean;
   employeeCount: number;
 };
@@ -24,6 +26,7 @@ export function ContractProfilesTable({ profiles }: { profiles: ContractProfileR
             <th className="px-4 py-3">Tipo</th>
             <th className="px-4 py-3">Horas/semana</th>
             <th className="px-4 py-3">Folgas/semana</th>
+            <th className="px-4 py-3">Fins de semana / Feriados</th>
             <th className="px-4 py-3">Colaboradores</th>
             <th className="px-4 py-3">Estado</th>
           </tr>
@@ -39,6 +42,16 @@ export function ContractProfilesTable({ profiles }: { profiles: ContractProfileR
               <td className="px-4 py-3">{p.contractTypeLabel}</td>
               <td className="px-4 py-3">{p.weeklyHours}h</td>
               <td className="px-4 py-3">{p.weeklyRestDays}</td>
+              <td className="px-4 py-3">
+                {p.worksWeekends && p.worksHolidays ? (
+                  <span className="text-stone-400 dark:text-stone-600">Sim</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {!p.worksWeekends && <Badge color="amber">não fins de semana</Badge>}
+                    {!p.worksHolidays && <Badge color="amber">não feriados</Badge>}
+                  </div>
+                )}
+              </td>
               <td className="px-4 py-3">{p.employeeCount}</td>
               <td className="px-4 py-3">
                 <Badge color={p.active ? "green" : "slate"}>{p.active ? "Ativo" : "Inativo"}</Badge>

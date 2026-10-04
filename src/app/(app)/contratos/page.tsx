@@ -46,6 +46,8 @@ export default async function ContratosPage({
     contractTypeLabel: contractTypeLabels[p.contractType] ?? p.contractType,
     weeklyHours: p.weeklyHours,
     weeklyRestDays: p.weeklyRestDays,
+    worksWeekends: p.worksWeekends,
+    worksHolidays: p.worksHolidays,
     active: p.active,
     employeeCount: p._count.assignments,
   }));

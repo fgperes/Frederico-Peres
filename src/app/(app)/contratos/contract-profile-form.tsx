@@ -43,6 +43,17 @@ export function ContractProfileForm({
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-6">
+        <label className="flex items-center gap-2 text-sm text-stone-700">
+          <input name="worksWeekends" type="checkbox" defaultChecked className="h-4 w-4 rounded border-stone-300 text-violet-600 focus:ring-violet-500" />
+          Pode trabalhar aos fins de semana
+        </label>
+        <label className="flex items-center gap-2 text-sm text-stone-700">
+          <input name="worksHolidays" type="checkbox" defaultChecked className="h-4 w-4 rounded border-stone-300 text-violet-600 focus:ring-violet-500" />
+          Pode trabalhar em feriados
+        </label>
+      </div>
+
       <p className="text-xs text-stone-500">
         Depois de criado, só o nome e o estado ativo/inativo podem ser alterados. Para atribuir este contrato a um
         colaborador, faça-o a partir da ficha do colaborador.
