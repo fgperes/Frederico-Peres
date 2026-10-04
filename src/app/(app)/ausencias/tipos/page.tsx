@@ -2,11 +2,11 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
-import { createAbsenceType } from "../actions";
 import { LoadCommonTypesButton } from "./load-common-types-button";
 import { SsCodeCell } from "./ss-code-cell";
+import { AbsenceTypeModal } from "./absence-type-modal";
 import { redirect } from "next/navigation";
-import { Settings2 } from "lucide-react";
+import { Settings2, Plus, Pencil } from "lucide-react";
 
 export default async function TiposAusenciaPage() {
   const user = await requireUser();
@@ -47,6 +47,7 @@ export default async function TiposAusenciaPage() {
                     <th className="px-4 py-3">Unidade</th>
                     <th className="px-4 py-3">Limite anual</th>
                     <th className="px-4 py-3">Bolsa de horas</th>
+                    <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
@@ -83,6 +84,21 @@ export default async function TiposAusenciaPage() {
                           {t.countsAgainstHourPool ? "Desconta" : "Não desconta"}
                         </Badge>
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <AbsenceTypeModal
+                          absenceType={t}
+                          trigger={(open) => (
+                            <button
+                              type="button"
+                              onClick={open}
+                              title="Editar"
+                              className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -92,65 +108,22 @@ export default async function TiposAusenciaPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Tipo</h2>
-          <form action={createAbsenceType} className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
-              <input name="name" required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">Unidade</label>
-              <select name="unitType" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
-                <option value="WORKING_DAYS">Dias úteis</option>
-                <option value="CALENDAR_DAYS">Dias corridos</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">Limite anual (dias)</label>
-              <input name="annualLimitDays" type="number" step="0.5" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">
-                Impacto salarial (% mantido pela entidade empregadora)
-              </label>
-              <input
-                name="salaryImpactPercent"
-                type="number"
-                min={0}
-                max={100}
-                step="5"
-                defaultValue={100}
-                required
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-[11px] text-stone-500">
-                100 = totalmente pago pela empresa; 0 = sem remuneração da empresa (ex.: subsídio
-                pago diretamente pela Segurança Social); um valor intermédio para pagamento parcial.
-              </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">
-                Código Segurança Social (opcional)
-              </label>
-              <input
-                name="socialSecurityCode"
-                placeholder="ex.: F01"
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="requiresDocument" /> Exige documento comprovativo
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="affectsBalance" defaultChecked /> Afeta saldo de dias
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="countsAgainstHourPool" /> Desconta da bolsa de horas quando aprovada
-            </label>
-            <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-              Criar tipo
-            </button>
-          </form>
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">Tipo de Ausência</h2>
+          <p className="mb-3 text-xs text-stone-500">
+            Crie um novo tipo ou clique no lápis numa linha da tabela para configurar um já existente —
+            incluindo se exige documento comprovativo obrigatório.
+          </p>
+          <AbsenceTypeModal
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700"
+              >
+                <Plus size={14} /> Novo Tipo
+              </button>
+            )}
+          />
         </Card>
       </div>
     </div>

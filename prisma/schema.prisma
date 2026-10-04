@@ -547,6 +547,9 @@ model Absence {
   status        String      @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
   reason        String?
   documentName  String?
+  // Conteúdo do comprovativo anexado, em data URI (base64) — mesmo padrão
+  // de EmployeeDocument.fileData, sem depender de armazenamento externo.
+  documentData  String?
   requestedById String
   requestedBy   User        @relation("AbsenceRequester", fields: [requestedById], references: [id])
   approvedById  String?
