@@ -214,6 +214,11 @@ export function ScheduleGrid({
                     >
                       {d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
                     </div>
+                    {holidayLabel && (
+                      <div className="mt-0.5 truncate text-[9px] font-medium normal-case text-amber-700 dark:text-amber-400">
+                        {holidayLabel}
+                      </div>
+                    )}
                   </th>
                   );
                 })}
@@ -315,31 +320,36 @@ export function ScheduleGrid({
                               <Badge color={absenceBadgeColor(absence.label, absence.isVacation, absence.isHoliday)}>
                                 {absence.label}
                               </Badge>
+                            ) : holidayLabel ? (
+                              <button
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={
+                                  canEdit
+                                    ? () => setModalState({ mode: "create", employeeId: e.id, employeeName, dateIso })
+                                    : undefined
+                                }
+                                className={`flex h-7 w-full items-center justify-center rounded-md px-1 text-[10px] font-medium leading-tight text-amber-700 dark:text-amber-400 ${
+                                  canEdit
+                                    ? "cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-500/10"
+                                    : "cursor-default"
+                                }`}
+                                title={canEdit ? `Feriado — ${holidayLabel} — clique para criar turno` : holidayLabel}
+                              >
+                                <span className="truncate">{holidayLabel}</span>
+                              </button>
                             ) : canEdit ? (
                               <button
                                 type="button"
                                 onClick={() => setModalState({ mode: "create", employeeId: e.id, employeeName, dateIso })}
-                                className={`group flex h-7 w-full items-center justify-center rounded-md ${
-                                  holidayLabel
-                                    ? "text-amber-400 hover:bg-amber-50 hover:text-amber-600 dark:text-amber-700 dark:hover:bg-amber-500/10 dark:hover:text-amber-400"
-                                    : "text-stone-300 hover:bg-violet-50 hover:text-violet-500 dark:text-stone-700 dark:hover:bg-violet-500/10 dark:hover:text-violet-400"
-                                }`}
-                                title={holidayLabel ? `Feriado — ${holidayLabel} — clique para criar turno` : "Criar turno"}
+                                className="group flex h-7 w-full items-center justify-center rounded-md text-stone-300 hover:bg-violet-50 hover:text-violet-500 dark:text-stone-700 dark:hover:bg-violet-500/10 dark:hover:text-violet-400"
+                                title="Criar turno"
                               >
                                 <Plus size={13} className="opacity-0 transition-opacity group-hover:opacity-100" />
-                                <span className="sr-only">
-                                  {holidayLabel ? `Feriado — ${holidayLabel} — criar turno` : "Folga — criar turno"}
-                                </span>
+                                <span className="sr-only">Folga — criar turno</span>
                               </button>
                             ) : (
-                              <span
-                                className={`text-xs font-medium italic ${
-                                  holidayLabel ? "text-amber-600 dark:text-amber-400" : "text-stone-400 dark:text-stone-600"
-                                }`}
-                                title={holidayLabel}
-                              >
-                                {holidayLabel ? "Feriado" : "Folga"}
-                              </span>
+                              <span className="text-xs font-medium italic text-stone-400 dark:text-stone-600">Folga</span>
                             )}
                           </div>
                         </td>

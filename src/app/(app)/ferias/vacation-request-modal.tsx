@@ -222,6 +222,7 @@ export function VacationRequestModal({
                   />
                   {d.toLocaleDateString("pt-PT", { weekday: "short" }).replace(".", "")}
                   <span className="font-semibold">{d.toLocaleDateString("pt-PT", { day: "2-digit" })}</span>
+                  {isHoliday && <span className="w-full truncate text-[9px] leading-tight">{holidayLabel}</span>}
                 </label>
               );
             })}
