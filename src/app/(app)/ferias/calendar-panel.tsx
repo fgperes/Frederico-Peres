@@ -135,6 +135,20 @@ export function CalendarPanel({
 
       <VacationLegend />
 
+      {holidayDates && holidayDates.size > 0 && (
+        <p className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+          <span className="font-medium text-stone-600 dark:text-stone-300">Feriados em {year}:</span>
+          {Array.from(holidayDates.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([dateKey, label]) => (
+              <span key={dateKey}>
+                {new Date(`${dateKey}T00:00:00`).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })} —{" "}
+                {label}
+              </span>
+            ))}
+        </p>
+      )}
+
       <VacationCalendar
         view={view}
         referenceDate={referenceDate}
