@@ -37,6 +37,7 @@ export type GridAbsence = {
   date: Date;
   label: string;
   isVacation: boolean;
+  isHoliday?: boolean;
 };
 
 export type CoverageDay = { dateIso: string; scheduled: number; recommended: number | null };
@@ -67,8 +68,9 @@ function chipTint(hex: string | null | undefined, editedAfterPublish: boolean): 
 // (módulo dedicado); para as restantes, deriva-se uma cor do nome do tipo
 // para distinguir rapidamente baixas/formações de outras ausências, sem
 // precisar de um campo novo no schema.
-function absenceBadgeColor(label: string, isVacation: boolean): "blue" | "red" | "amber" | "slate" {
+function absenceBadgeColor(label: string, isVacation: boolean, isHoliday?: boolean): "blue" | "red" | "amber" | "slate" {
   if (isVacation) return "blue";
+  if (isHoliday) return "amber";
   const l = label.toLowerCase();
   if (l.includes("baixa")) return "red";
   if (l.includes("forma")) return "amber";
@@ -98,6 +100,8 @@ export function ScheduleGrid({
   days,
   shifts,
   absences = [],
+  holidayEntries = [],
+  holidayDates,
   shiftTemplates = [],
   alertCells = new Set(),
   coverage,
@@ -107,6 +111,13 @@ export function ScheduleGrid({
   days: Date[];
   shifts: GridShift[];
   absences?: GridAbsence[];
+  // Feriados por colaborador (nacionais para todos, regionais consoante o
+  // local de trabalho) — mantidos à parte de `absences` para não bloquear
+  // o botão de criar turno num feriado (muitos setores trabalham nesse
+  // dia); só mudam o rótulo de "Folga" para "Feriado" e o cabeçalho da
+  // coluna, nunca impedem marcar um turno.
+  holidayEntries?: { employeeId: string; date: Date; label: string }[];
+  holidayDates?: Map<string, string>;
   shiftTemplates?: ShiftTemplateOption[];
   alertCells?: Set<string>;
   coverage?: CoverageDay[];
@@ -123,6 +134,9 @@ export function ScheduleGrid({
 
   const absenceMap = new Map<string, GridAbsence>();
   for (const a of absences) absenceMap.set(`${a.employeeId}_${isoDate(a.date)}`, a);
+
+  const holidayCellMap = new Map<string, string>();
+  for (const h of holidayEntries) holidayCellMap.set(`${h.employeeId}_${isoDate(h.date)}`, h.label);
 
   const plannedHoursByEmployee = new Map<string, number>();
   for (const s of shifts) {
@@ -180,17 +194,29 @@ export function ScheduleGrid({
                 <th className="sticky left-0 z-20 min-w-[240px] border-b border-r border-stone-200 bg-stone-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
                   Colaborador
                 </th>
-                {days.map((d, i) => (
+                {days.map((d, i) => {
+                  const holidayLabel = holidayDates?.get(isoDate(d));
+                  return (
                   <th
                     key={i}
-                    className="min-w-[84px] border-b border-stone-200 bg-stone-50 px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400"
+                    title={holidayLabel}
+                    className={`min-w-[84px] border-b px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide ${
+                      holidayLabel
+                        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
+                        : "border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400"
+                    }`}
                   >
                     {d.toLocaleDateString("pt-PT", { weekday: "short" }).replace(".", "")}
-                    <div className="mt-0.5 text-[13px] font-semibold normal-case text-stone-700 dark:text-stone-300">
+                    <div
+                      className={`mt-0.5 text-[13px] font-semibold normal-case ${
+                        holidayLabel ? "text-amber-800 dark:text-amber-300" : "text-stone-700 dark:text-stone-300"
+                      }`}
+                    >
                       {d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
                     </div>
                   </th>
-                ))}
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -225,6 +251,7 @@ export function ScheduleGrid({
                       const key = `${e.id}_${dateIso}`;
                       const shift = shiftMap.get(key);
                       const absence = absenceMap.get(key);
+                      const holidayLabel = holidayCellMap.get(key);
                       const hasAlert = alertCells.has(key);
                       const isDragOver = dragOverKey === key;
                       return (
@@ -285,19 +312,34 @@ export function ScheduleGrid({
                                 }
                               />
                             ) : absence ? (
-                              <Badge color={absenceBadgeColor(absence.label, absence.isVacation)}>{absence.label}</Badge>
+                              <Badge color={absenceBadgeColor(absence.label, absence.isVacation, absence.isHoliday)}>
+                                {absence.label}
+                              </Badge>
                             ) : canEdit ? (
                               <button
                                 type="button"
                                 onClick={() => setModalState({ mode: "create", employeeId: e.id, employeeName, dateIso })}
-                                className="group flex h-7 w-full items-center justify-center rounded-md text-stone-300 hover:bg-violet-50 hover:text-violet-500 dark:text-stone-700 dark:hover:bg-violet-500/10 dark:hover:text-violet-400"
-                                title="Criar turno"
+                                className={`group flex h-7 w-full items-center justify-center rounded-md ${
+                                  holidayLabel
+                                    ? "text-amber-400 hover:bg-amber-50 hover:text-amber-600 dark:text-amber-700 dark:hover:bg-amber-500/10 dark:hover:text-amber-400"
+                                    : "text-stone-300 hover:bg-violet-50 hover:text-violet-500 dark:text-stone-700 dark:hover:bg-violet-500/10 dark:hover:text-violet-400"
+                                }`}
+                                title={holidayLabel ? `Feriado — ${holidayLabel} — clique para criar turno` : "Criar turno"}
                               >
                                 <Plus size={13} className="opacity-0 transition-opacity group-hover:opacity-100" />
-                                <span className="sr-only">Folga — criar turno</span>
+                                <span className="sr-only">
+                                  {holidayLabel ? `Feriado — ${holidayLabel} — criar turno` : "Folga — criar turno"}
+                                </span>
                               </button>
                             ) : (
-                              <span className="text-xs font-medium italic text-stone-400 dark:text-stone-600">Folga</span>
+                              <span
+                                className={`text-xs font-medium italic ${
+                                  holidayLabel ? "text-amber-600 dark:text-amber-400" : "text-stone-400 dark:text-stone-600"
+                                }`}
+                                title={holidayLabel}
+                              >
+                                {holidayLabel ? "Feriado" : "Folga"}
+                              </span>
                             )}
                           </div>
                         </td>

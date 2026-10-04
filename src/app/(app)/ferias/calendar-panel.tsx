@@ -14,6 +14,7 @@ type ViewMode = "month" | "quarter" | "year";
 export function CalendarPanel({
   year,
   marks,
+  holidayDates,
   interactive,
   employeeId,
   employeeName,
@@ -23,6 +24,7 @@ export function CalendarPanel({
 }: {
   year: number;
   marks: Record<string, DayMark>;
+  holidayDates?: Map<string, string>;
   interactive: boolean;
   employeeId: string;
   employeeName: string;
@@ -137,6 +139,7 @@ export function CalendarPanel({
         view={view}
         referenceDate={referenceDate}
         marks={marks}
+        holidayDates={holidayDates}
         onDayClick={interactive ? handleDayClick : undefined}
       />
 
@@ -150,6 +153,7 @@ export function CalendarPanel({
           initialMonthIso={modalMonthIso}
           initialSelectedIso={anchorIso}
           marks={marks}
+          holidayDates={holidayDates}
           headcount={headcount}
           planned={planned}
         />

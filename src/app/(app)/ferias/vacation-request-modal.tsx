@@ -25,6 +25,7 @@ export function VacationRequestModal({
   initialMonthIso,
   initialSelectedIso,
   marks,
+  holidayDates,
   headcount,
   planned,
 }: {
@@ -36,6 +37,7 @@ export function VacationRequestModal({
   initialMonthIso: string;
   initialSelectedIso?: string;
   marks: Record<string, DayMark>;
+  holidayDates?: Map<string, string>;
   headcount: VacationHeadcount;
   planned: number;
 }) {
@@ -51,7 +53,8 @@ export function VacationRequestModal({
     const d = new Date(`${initialSelectedIso}T00:00:00`);
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
     const isPast = isSelf && d < today;
-    return isWeekend || isPast ? new Set() : new Set([initialSelectedIso]);
+    const isHoliday = holidayDates?.has(initialSelectedIso) && !marks[initialSelectedIso];
+    return isWeekend || isPast || isHoliday ? new Set() : new Set([initialSelectedIso]);
   }
 
   const [monthIso, setMonthIso] = useState(initialMonthIso);
@@ -171,13 +174,21 @@ export function VacationRequestModal({
             {days.map((d) => {
               const iso = isoDate(d);
               const mark = marks[iso];
+              const holidayLabel = holidayDates?.get(iso);
               const isWeekend = d.getDay() === 0 || d.getDay() === 6;
               const isPast = isSelf && d < today;
-              const disabled = isWeekend || isPast;
+              // Um feriado só bloqueia pedir um dia novo — se já existir uma
+              // marcação nesse dia (dados antigos, antes desta regra), continua
+              // a poder ser desmarcada/alterada normalmente.
+              const isHoliday = Boolean(holidayLabel) && !mark;
+              const disabled = isWeekend || isPast || isHoliday;
               const checked = selected.has(iso);
 
               let chipClass: string;
-              if (disabled) {
+              if (isHoliday) {
+                chipClass =
+                  "cursor-not-allowed border-amber-200 bg-amber-50 text-amber-500 dark:border-amber-700 dark:bg-amber-500/5 dark:text-amber-700";
+              } else if (disabled) {
                 chipClass = "cursor-not-allowed border-stone-100 text-stone-300 dark:border-stone-800 dark:text-stone-700";
               } else if (checked) {
                 chipClass =
@@ -199,7 +210,7 @@ export function VacationRequestModal({
               return (
                 <label
                   key={iso}
-                  title={mark?.title}
+                  title={mark?.title ?? holidayLabel}
                   className={`flex flex-col items-center rounded-md border px-1 py-1.5 text-center text-xs ${chipClass}`}
                 >
                   <input

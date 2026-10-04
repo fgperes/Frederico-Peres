@@ -25,6 +25,7 @@ import { findScheduleAlerts } from "@/lib/schedule-alerts";
 import { computeCoverage } from "@/lib/schedule-coverage";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
+import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
@@ -265,7 +266,7 @@ function StatusLegend() {
       </span>
       <span className="flex items-center gap-1">
         <Badge color="blue">férias</Badge> / <Badge color="red">baixa</Badge> / <Badge color="amber">formação</Badge> /{" "}
-        <Badge color="slate">outra ausência</Badge>
+        <Badge color="slate">outra ausência</Badge> / <Badge color="amber">feriado</Badge>
       </span>
       <span className="flex items-center gap-1 italic text-stone-400 dark:text-stone-600">Folga — sem turno nem ausência</span>
     </p>
@@ -306,6 +307,51 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
     }
   }
   return entries;
+}
+
+// Feriados (nacionais para todos; regionais só para quem trabalha num local
+// associado) para os dias mostrados — devolvidos no mesmo formato de
+// `loadAbsencesForDays` para serem fundidos com ausências reais e
+// reaproveitarem a mesma grelha/PDF. Devolve também o conjunto de datas com
+// feriado nacional (aplicam-se a todos, por isso dá para realçar o
+// cabeçalho da coluna inteira).
+async function loadHolidaysForDays(
+  employees: { id: string; locationId: string | null }[],
+  days: Date[]
+): Promise<{
+  entries: { employeeId: string; date: Date; label: string; isVacation: boolean; isHoliday: boolean }[];
+  nationalDates: Map<string, string>;
+}> {
+  if (employees.length === 0 || days.length === 0) return { entries: [], nationalDates: new Map() };
+
+  const holidays = await getHolidaysInRange(days[0], days[days.length - 1]);
+  if (holidays.length === 0) return { entries: [], nationalDates: new Map() };
+
+  const byDateKey = new Map<string, typeof holidays>();
+  for (const h of holidays) {
+    const key = isoDate(h.date);
+    if (!byDateKey.has(key)) byDateKey.set(key, []);
+    byDateKey.get(key)!.push(h);
+  }
+
+  const nationalDates = new Map<string, string>();
+  for (const h of holidays) {
+    if (h.scope === "NATIONAL") nationalDates.set(isoDate(h.date), h.description);
+  }
+
+  const entries: { employeeId: string; date: Date; label: string; isVacation: boolean; isHoliday: boolean }[] = [];
+  for (const day of days) {
+    const dayHolidays = byDateKey.get(isoDate(day));
+    if (!dayHolidays) continue;
+    for (const employee of employees) {
+      const match = dayHolidays.find((h) => isHolidayForLocation(h, employee.locationId));
+      if (match) {
+        entries.push({ employeeId: employee.id, date: day, label: match.description, isVacation: false, isHoliday: true });
+      }
+    }
+  }
+
+  return { entries, nationalDates };
 }
 
 // Alertas (descanso/sobreposição/excesso de horas/dias seguidos) e
@@ -392,7 +438,14 @@ async function WeekView({
 }: {
   params: { week?: string; departmentId?: string | string[]; teamId?: string | string[] };
   filterQuery: string;
-  employees: { id: string; firstName: string; lastName: string; employeeNumber: string | null; weeklyHours: number }[];
+  employees: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    employeeNumber: string | null;
+    weeklyHours: number;
+    locationId: string | null;
+  }[];
   employeeIds: string[];
   departments: { id: string; name: string }[];
   teams: { id: string; name: string }[];
@@ -409,13 +462,15 @@ async function WeekView({
   const nextWeek = addWeeksIso(weekStartIso, 1);
   const weekLabel = `${weekStart.toLocaleDateString("pt-PT")} a ${days[6].toLocaleDateString("pt-PT")}`;
 
-  const [shifts, absences] = await Promise.all([
+  const [shifts, absences, holidays] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { in: days } },
       include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
+    loadHolidaysForDays(employees, days),
   ]);
+  const mergedAbsences = [...holidays.entries, ...absences];
   const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
     employeeIds,
     employees,
@@ -427,7 +482,7 @@ async function WeekView({
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNumber: e.employeeNumber,
-    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences)),
+    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, mergedAbsences)),
   }));
 
   return (
@@ -463,6 +518,8 @@ async function WeekView({
           days={days}
           shifts={shifts}
           absences={absences}
+          holidayEntries={holidays.entries}
+          holidayDates={holidays.nationalDates}
           shiftTemplates={shiftTemplates}
           alertCells={alertCells}
           coverage={coverage ?? undefined}
@@ -487,7 +544,14 @@ async function MonthView({
 }: {
   params: { month?: string; departmentId?: string | string[]; teamId?: string | string[] };
   filterQuery: string;
-  employees: { id: string; firstName: string; lastName: string; employeeNumber: string | null; weeklyHours: number }[];
+  employees: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    employeeNumber: string | null;
+    weeklyHours: number;
+    locationId: string | null;
+  }[];
   employeeIds: string[];
   departments: { id: string; name: string }[];
   teams: { id: string; name: string }[];
@@ -504,13 +568,15 @@ async function MonthView({
   const nextMonth = addMonthsIso(monthStartIso, 1);
   const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
-  const [shifts, absences] = await Promise.all([
+  const [shifts, absences, holidays] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
       include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
+    loadHolidaysForDays(employees, days),
   ]);
+  const mergedAbsences = [...holidays.entries, ...absences];
   const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
     employeeIds,
     employees,
@@ -525,7 +591,7 @@ async function MonthView({
   const pdfRows: SchedulePdfRow[] = employees.map((e) => ({
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNumber: e.employeeNumber,
-    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, absences)),
+    cells: days.map((d) => pdfCellLabel(e.id, d, shifts, mergedAbsences)),
   }));
 
   return (
@@ -562,6 +628,8 @@ async function MonthView({
           days={days}
           shifts={shifts}
           absences={absences}
+          holidayEntries={holidays.entries}
+          holidayDates={holidays.nationalDates}
           shiftTemplates={shiftTemplates}
           alertCells={alertCells}
           coverage={coverage ?? undefined}

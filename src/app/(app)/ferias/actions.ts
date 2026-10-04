@@ -14,6 +14,7 @@ import {
   ensureVacationTask,
   resolveVacationTasksIfClear,
   isWeekday,
+  isHolidayOnDate,
   toDateKey,
   CANCEL_REQUEST_MARKER,
   type VacationHistoryRow,
@@ -168,6 +169,10 @@ async function toggleOneVacationDay(targetEmployeeId: string, dateStr: string): 
   }
 
   // Não existe pedido, ou existia mas foi rejeitado/cancelado — cria um novo.
+  if (await isHolidayOnDate(date, employee.locationId)) {
+    throw new Error("Esse dia é feriado — não é possível marcar férias.");
+  }
+
   // Dias com pedido de cancelamento pendente contam a favor do saldo
   // disponível (ainda não foram de facto cancelados — `usedDays` só desce
   // quando a aprovação acontece — mas vão libertar saldo em breve), para
