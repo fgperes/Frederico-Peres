@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   FileSignature,
   Banknote,
+  LineChart,
   Check,
 } from "lucide-react";
 
@@ -46,6 +47,19 @@ const SERVICES: Service[] = [
       "Horário manual, por ciclos ou previsão automática",
       "Deteção de conflitos e descanso mínimo legal",
       "Publicação e partilha instantânea com a equipa",
+    ],
+  },
+  {
+    key: "preditivo",
+    icon: LineChart,
+    label: "Previsão",
+    title: "Horário Preditivo",
+    description:
+      "Antecipa as necessidades de pessoal com base no histórico, antes de a procura acontecer — propostas de escala em rascunho, prontas para revisão.",
+    bullets: [
+      "Modelo estatístico baseado no histórico de procura (médias móveis)",
+      "Propostas em rascunho — nunca publicadas sem revisão humana",
+      "Ajuda a antecipar picos e a evitar falhas de cobertura",
     ],
   },
   {
