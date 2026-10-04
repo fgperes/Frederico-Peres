@@ -4,8 +4,6 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration } from "@/components/illustrations";
 
-const SGRH_URL = "https://sgrh.people4people.pt";
-
 const PRINCIPIOS = [
   {
     icon: Sparkles,
@@ -113,21 +111,21 @@ export default function Sobre() {
             Quer conhecer o SGRH por dentro?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-stone-600">
-            Veja os módulos em detalhe ou peça uma demonstração à nossa equipa.
+            Veja os nossos serviços em detalhe ou peça uma demonstração à nossa equipa.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/#modulos"
               className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
             >
-              Ver os módulos
+              Ver os serviços
               <ArrowRight size={16} />
             </Link>
             <Link
-              href={SGRH_URL}
+              href="/#contacto"
               className="inline-flex items-center gap-2 rounded-md border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50"
             >
-              Aceder ao SGRH
+              Pedir uma demonstração
             </Link>
           </div>
         </div>

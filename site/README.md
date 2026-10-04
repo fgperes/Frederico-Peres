@@ -24,7 +24,26 @@ mesmo repositório da aplicação SGRH. Para a publicar:
    principal, não subdomínio) e siga a configuração DNS indicada
    (normalmente um registo `A` para `76.76.21.21` no cPanel do domínio).
 
+## Formulário de contacto
+
+O formulário de pedido de demonstração (secção "Contacto" da Home) envia
+por email via a [Resend](https://resend.com) — **sem isto configurado, os
+pedidos não chegam a lado nenhum** (ficam só no log do servidor). Antes de
+publicar a sério:
+
+1. Criar conta em resend.com (tem plano gratuito, 100 emails/dia) e
+   verificar o domínio `people4people.pt` lá.
+2. Em **Vercel → Settings → Environment Variables** deste projeto, definir:
+   - `RESEND_API_KEY` — a chave de API gerada na Resend.
+   - `CONTACT_EMAIL_TO` (opcional) — para onde os pedidos são enviados;
+     por omissão vai para `geral@people4people.pt`.
+3. Redeploy para a variável ter efeito.
+
 ## Conteúdo a rever
 
 - O email de contacto (`geral@people4people.pt`) é um valor provisório —
-  confirme/corrija em `app/page.tsx`.
+  confirme/corrija em `app/actions.ts`.
+- A Política de Privacidade (`app/privacidade/page.tsx`) e os Termos de
+  Utilização (`app/termos/page.tsx`) têm campos por preencher, assinalados
+  com `[ ]`: nome legal da empresa, NIPC, morada da sede e comarca
+  competente.

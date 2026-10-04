@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { LogoMark } from "./logo";
 
-const SGRH_URL = "https://sgrh.people4people.pt";
-
 export function Footer() {
   return (
     <footer className="border-t border-stone-200">
@@ -24,9 +22,8 @@ export function Footer() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Empresa</h3>
             <ul className="mt-3 space-y-2 text-sm text-stone-600">
               <li><Link href="/sobre" className="hover:text-stone-900">Sobre nós</Link></li>
-              <li><Link href="/#modulos" className="hover:text-stone-900">Produto</Link></li>
+              <li><Link href="/#modulos" className="hover:text-stone-900">Serviços</Link></li>
               <li><Link href="/#contacto" className="hover:text-stone-900">Contacto</Link></li>
-              <li><Link href={SGRH_URL} className="hover:text-stone-900">Aceder ao SGRH</Link></li>
             </ul>
           </div>
           <div>

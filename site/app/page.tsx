@@ -10,15 +10,12 @@ import {
   MapPin,
   Headset,
   TrendingUp,
-  Mail,
   ArrowRight,
 } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration, LinkedRingsIllustration } from "@/components/illustrations";
-
-const SGRH_URL = "https://sgrh.people4people.pt";
-const CONTACT_EMAIL = "geral@people4people.pt";
+import { ContactForm } from "@/components/contact-form";
 
 const MODULES = [
   {
@@ -102,18 +99,12 @@ function Hero() {
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <a
-              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Pedido de demonstração — SGRH")}`}
+              href="#contacto"
               className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
             >
               Pedir uma demonstração
               <ArrowRight size={16} />
             </a>
-            <Link
-              href={SGRH_URL}
-              className="inline-flex items-center gap-2 rounded-md border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50"
-            >
-              Aceder ao SGRH
-            </Link>
           </div>
         </div>
         <TeamIllustration className="w-full max-w-md justify-self-center lg:justify-self-end" />
@@ -158,7 +149,7 @@ function Modulos() {
     <section id="modulos" className="py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">O produto</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Serviços</h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Os módulos do SGRH
           </p>
@@ -211,20 +202,14 @@ function Porque() {
 function Contacto() {
   return (
     <section id="contacto" className="py-20 sm:py-28">
-      <div className="mx-auto max-w-3xl rounded-3xl bg-violet-900 px-8 py-16 text-center sm:px-16">
+      <div className="mx-auto max-w-2xl rounded-3xl bg-violet-900 px-8 py-16 text-center sm:px-16">
         <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           Vamos simplificar a gestão de pessoas da sua empresa.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-violet-100">
-          Fale connosco para conhecer o SGRH e perceber como pode encaixar na sua empresa.
+          Preencha os seus dados e a nossa equipa entra em contacto para marcar uma demonstração.
         </p>
-        <a
-          href={`mailto:${CONTACT_EMAIL}`}
-          className="mt-8 inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-medium text-violet-900 shadow-sm hover:bg-violet-50"
-        >
-          <Mail size={16} />
-          {CONTACT_EMAIL}
-        </a>
+        <ContactForm />
       </div>
     </section>
   );
