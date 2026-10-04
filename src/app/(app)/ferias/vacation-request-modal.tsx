@@ -23,6 +23,7 @@ export function VacationRequestModal({
   employeeName,
   isSelf,
   initialMonthIso,
+  initialSelectedIso,
   marks,
   headcount,
   planned,
@@ -33,6 +34,7 @@ export function VacationRequestModal({
   employeeName: string;
   isSelf: boolean;
   initialMonthIso: string;
+  initialSelectedIso?: string;
   marks: Record<string, DayMark>;
   headcount: VacationHeadcount;
   planned: number;
@@ -41,16 +43,38 @@ export function VacationRequestModal({
   // a esse ano para nunca mostrar um mês sem o estado real marcado.
   const boundYear = getMonthStart(initialMonthIso).getFullYear();
   const router = useRouter();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  function initialSelection(): Set<string> {
+    if (!initialSelectedIso) return new Set();
+    const d = new Date(`${initialSelectedIso}T00:00:00`);
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const isPast = isSelf && d < today;
+    return isWeekend || isPast ? new Set() : new Set([initialSelectedIso]);
+  }
+
   const [monthIso, setMonthIso] = useState(initialMonthIso);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(initialSelection());
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // A modal não é desmontada entre aberturas (fica sempre no DOM, só o
+  // `open` do componente Modal interno muda) — ao reabrir com um dia ou mês
+  // diferente (ex.: clicar noutro dia do calendário), sincroniza o estado
+  // para esse novo ponto de partida, em vez de manter a seleção anterior.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setMonthIso(initialMonthIso);
+      setSelected(initialSelection());
+      setError(null);
+    }
+  }
+
   const monthStart = getMonthStart(monthIso);
   const days = getMonthDays(monthStart);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   function toggleDay(iso: string, disabled: boolean) {
     if (disabled) return;
@@ -108,6 +132,12 @@ export function VacationRequestModal({
         <p className="text-sm text-stone-600 dark:text-stone-400">
           Colaborador: <span className="font-medium text-stone-900 dark:text-stone-100">{employeeName}</span>
         </p>
+
+        {initialSelectedIso && (
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Pode desmarcar este dia ou escolher outro dia livre em alternativa antes de guardar.
+          </p>
+        )}
 
         <div>
           <div className="mb-2 flex items-center justify-between">
