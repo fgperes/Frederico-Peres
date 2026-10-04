@@ -25,7 +25,7 @@ import { findScheduleAlerts } from "@/lib/schedule-alerts";
 import { computeCoverage } from "@/lib/schedule-coverage";
 import { SchedulePdfButton, type SchedulePdfRow } from "@/components/schedule-pdf-button";
 import { getDocumentBranding } from "@/lib/document-branding";
-import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
+import { getHolidaysInRange, isHolidayForMunicipality } from "@/lib/holidays";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
@@ -78,10 +78,13 @@ export default async function EscalasPage({
     ],
   };
 
-  const [employees, allEmployees, departments, teams, branding, shiftTemplates] = await Promise.all([
+  const [employeesRaw, allEmployees, departments, teams, branding, shiftTemplates] = await Promise.all([
     prisma.employee.findMany({
       where: employeeWhere,
-      include: { user: { select: { avatarKey: true, avatarImage: true } } },
+      include: {
+        user: { select: { avatarKey: true, avatarImage: true } },
+        location: { select: { municipality: true } },
+      },
       orderBy: [{ lastName: "asc" }],
     }),
     // Lista completa (só com o âmbito de acesso, sem os filtros aplicados)
@@ -100,6 +103,7 @@ export default async function EscalasPage({
       orderBy: { name: "asc" },
     }),
   ]);
+  const employees = employeesRaw.map((e) => ({ ...e, municipality: e.location?.municipality ?? null }));
   const employeeIds = employees.map((e) => e.id);
 
   const filterQuery = buildFilterQuery(filterDepartmentIds, filterTeamIds, filterEmployeeIds);
@@ -310,13 +314,13 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
 }
 
 // Feriados (nacionais para todos; regionais só para quem trabalha num local
-// associado) para os dias mostrados — devolvidos no mesmo formato de
-// `loadAbsencesForDays` para serem fundidos com ausências reais e
-// reaproveitarem a mesma grelha/PDF. Devolve também o conjunto de datas com
-// feriado nacional (aplicam-se a todos, por isso dá para realçar o
+// do concelho abrangido) para os dias mostrados — devolvidos no mesmo
+// formato de `loadAbsencesForDays` para serem fundidos com ausências reais
+// e reaproveitarem a mesma grelha/PDF. Devolve também o conjunto de datas
+// com feriado nacional (aplicam-se a todos, por isso dá para realçar o
 // cabeçalho da coluna inteira).
 async function loadHolidaysForDays(
-  employees: { id: string; locationId: string | null }[],
+  employees: { id: string; municipality: string | null }[],
   days: Date[]
 ): Promise<{
   entries: { employeeId: string; date: Date; label: string; isVacation: boolean; isHoliday: boolean }[];
@@ -344,7 +348,7 @@ async function loadHolidaysForDays(
     const dayHolidays = byDateKey.get(isoDate(day));
     if (!dayHolidays) continue;
     for (const employee of employees) {
-      const match = dayHolidays.find((h) => isHolidayForLocation(h, employee.locationId));
+      const match = dayHolidays.find((h) => isHolidayForMunicipality(h, employee.municipality));
       if (match) {
         entries.push({ employeeId: employee.id, date: day, label: match.description, isVacation: false, isHoliday: true });
       }
@@ -444,7 +448,7 @@ async function WeekView({
     lastName: string;
     employeeNumber: string | null;
     weeklyHours: number;
-    locationId: string | null;
+    municipality: string | null;
   }[];
   employeeIds: string[];
   departments: { id: string; name: string }[];
@@ -550,7 +554,7 @@ async function MonthView({
     lastName: string;
     employeeNumber: string | null;
     weeklyHours: number;
-    locationId: string | null;
+    municipality: string | null;
   }[];
   employeeIds: string[];
   departments: { id: string; name: string }[];

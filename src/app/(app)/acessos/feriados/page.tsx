@@ -16,8 +16,11 @@ export default async function FeriadosPage() {
 
   const [holidays, locations] = await Promise.all([
     getHolidays(),
-    prisma.location.findMany({ orderBy: { name: "asc" } }),
+    prisma.location.findMany({ orderBy: { name: "asc" }, select: { municipality: true } }),
   ]);
+  const municipalitySuggestions = Array.from(
+    new Set(locations.map((l) => l.municipality).filter((m): m is string => Boolean(m)))
+  ).sort((a, b) => a.localeCompare(b, "pt"));
 
   const byYear = new Map<number, typeof holidays>();
   for (const h of holidays) {
@@ -68,10 +71,8 @@ export default async function FeriadosPage() {
                             <Badge color={h.scope === "NATIONAL" ? "slate" : "blue"}>
                               {h.scope === "NATIONAL" ? "Nacional" : "Regional"}
                             </Badge>
-                            {h.scope === "REGIONAL" && h.locations.length > 0 && (
-                              <span className="ml-2 text-xs text-stone-500">
-                                {h.locations.map((l) => l.name).join(", ")}
-                              </span>
+                            {h.scope === "REGIONAL" && h.municipalities.length > 0 && (
+                              <span className="ml-2 text-xs text-stone-500">{h.municipalities.join(", ")}</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -94,7 +95,7 @@ export default async function FeriadosPage() {
         <div className="space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Feriado</h2>
-            <HolidayForm locations={locations} />
+            <HolidayForm municipalitySuggestions={municipalitySuggestions} />
           </Card>
           <Card>
             <div className="mb-3 flex items-center justify-between">

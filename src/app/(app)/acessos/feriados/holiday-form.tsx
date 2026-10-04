@@ -6,7 +6,7 @@ import { DateField } from "@/components/date-field";
 
 const initialState: HolidayFormState = {};
 
-export function HolidayForm({ locations }: { locations: { id: string; name: string }[] }) {
+export function HolidayForm({ municipalitySuggestions }: { municipalitySuggestions: string[] }) {
   const [scope, setScope] = useState<"NATIONAL" | "REGIONAL">("NATIONAL");
   const [state, formAction, pending] = useActionState(createHoliday, initialState);
 
@@ -53,25 +53,23 @@ export function HolidayForm({ locations }: { locations: { id: string; name: stri
       </div>
       {scope === "REGIONAL" && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">
-            Locais de trabalho onde é válido
-          </label>
-          {locations.length === 0 ? (
-            <p className="text-xs text-stone-500">Sem locais de trabalho configurados.</p>
-          ) : (
-            <select
-              name="locationIds"
-              multiple
-              required
-              className="h-28 w-full rounded-md border border-stone-300 px-2 py-1 text-sm"
-            >
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          )}
+          <label className="mb-1 block text-xs font-medium text-stone-600">Concelhos onde é válido</label>
+          <input
+            name="municipalities"
+            required
+            placeholder="ex.: Lisboa, Cascais, Sintra"
+            list="municipality-suggestions"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          />
+          <datalist id="municipality-suggestions">
+            {municipalitySuggestions.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          <p className="mt-1 text-xs text-stone-500">
+            Nomes de concelhos separados por vírgula. Aplica-se a qualquer colaborador cujo local de trabalho
+            tenha um destes concelhos definido (Estrutura → Locais de Trabalho).
+          </p>
         </div>
       )}
       <button

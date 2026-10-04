@@ -5,7 +5,7 @@ import { buildRowsWorkbook } from "@/lib/excel";
 export async function GET() {
   await requireUser();
 
-  const headers = ["date", "description", "scope", "locations"];
+  const headers = ["date", "description", "scope", "municipalities"];
   const buffer = buildRowsWorkbook(headers, [], "Template");
 
   return new NextResponse(new Blob([buffer]), {

@@ -112,9 +112,14 @@ export async function createLocation(formData: FormData) {
   const user = await assertCanWrite();
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
+  const district = String(formData.get("district") ?? "").trim() || null;
+  const municipality = String(formData.get("municipality") ?? "").trim() || null;
+  const postalCode = String(formData.get("postalCode") ?? "").trim() || null;
   if (!name) throw new Error("Nome obrigatório.");
 
-  const location = await prisma.location.create({ data: { name, address } });
+  const location = await prisma.location.create({
+    data: { name, address, district, municipality, postalCode },
+  });
   await logAudit({ userId: user.id, action: "CREATE", entity: "Location", entityId: location.id, details: name });
   refreshEstrutura();
 }
@@ -123,9 +128,15 @@ export async function updateLocation(locationId: string, formData: FormData) {
   const user = await assertCanWrite();
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
+  const district = String(formData.get("district") ?? "").trim() || null;
+  const municipality = String(formData.get("municipality") ?? "").trim() || null;
+  const postalCode = String(formData.get("postalCode") ?? "").trim() || null;
   if (!name) throw new Error("Nome obrigatório.");
 
-  await prisma.location.update({ where: { id: locationId }, data: { name, address } });
+  await prisma.location.update({
+    where: { id: locationId },
+    data: { name, address, district, municipality, postalCode },
+  });
   await logAudit({ userId: user.id, action: "UPDATE", entity: "Location", entityId: locationId, details: name });
   refreshEstrutura();
   revalidatePath(`/estrutura/locais/${locationId}`);

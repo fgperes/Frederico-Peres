@@ -3,7 +3,7 @@ import { addDays, differenceInCalendarDays } from "date-fns";
 import { getWeekStart, isoDate } from "@/lib/dates";
 import { shiftDurationHours, minutesFromMidnight, shiftEndOffsetMinutes } from "@/lib/schedule";
 import { getModuleSubscription } from "@/lib/subscriptions";
-import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
+import { getHolidaysInRange, isHolidayForMunicipality } from "@/lib/holidays";
 
 export const MIN_GENERATION_RANGE_DAYS = 7;
 const MIN_REST_MINUTES = 11 * 60; // Código do Trabalho, art.º 214.º
@@ -79,7 +79,10 @@ export async function generateSchedulesForEmployees(
   let skippedDueToAbsence = 0;
   let skippedDueToRestriction = 0;
 
-  const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds } } });
+  const employees = await prisma.employee.findMany({
+    where: { id: { in: employeeIds } },
+    include: { location: { select: { municipality: true } } },
+  });
   const employeeById = new Map(employees.map((e) => [e.id, e]));
 
   const [cycleAssignments, contracts, absences, existingShiftsInDept, moduleSub, templates, holidays] =
@@ -128,7 +131,7 @@ export async function generateSchedulesForEmployees(
     if (!profile.worksHolidays) {
       const employee = employeeById.get(employeeId);
       const dayHolidays = holidaysByDateKey.get(isoDate(day));
-      if (dayHolidays?.some((h) => isHolidayForLocation(h, employee?.locationId ?? null))) return true;
+      if (dayHolidays?.some((h) => isHolidayForMunicipality(h, employee?.location?.municipality ?? null))) return true;
     }
     return false;
   }

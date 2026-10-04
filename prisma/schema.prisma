@@ -187,24 +187,32 @@ model Team {
 }
 
 model Location {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  address   String?
-  employees Employee[]
-  holidays  Holiday[]  @relation("HolidayLocations")
-  createdAt DateTime   @default(now())
+  id           String     @id @default(cuid())
+  name         String     @unique
+  // Morada (rua/número) em linha livre; distrito, concelho e código postal
+  // ficam em campos próprios — o concelho é o que liga este local aos
+  // feriados regionais (ver Holiday.municipalities).
+  address      String?
+  postalCode   String?
+  municipality String?
+  district     String?
+  employees    Employee[]
+  createdAt    DateTime   @default(now())
 }
 
 // Feriados configuráveis em Perfis e Acessos → Feriados. Nacionais aplicam-se
-// a todos; regionais só aos locais de trabalho associados em `locations`.
+// a todos; regionais aplicam-se aos concelhos indicados em `municipalities`
+// — um colaborador fica abrangido se o concelho do seu local de trabalho
+// (Location.municipality) estiver nessa lista (comparação sem distinguir
+// maiúsculas/minúsculas ou espaços, ver isHolidayForMunicipality).
 model Holiday {
-  id          String     @id @default(cuid())
-  date        DateTime
-  description String
-  scope       String     @default("NATIONAL") // NATIONAL | REGIONAL
-  locations   Location[] @relation("HolidayLocations")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id             String   @id @default(cuid())
+  date           DateTime
+  description    String
+  scope          String   @default("NATIONAL") // NATIONAL | REGIONAL
+  municipalities String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([date, description])
 }

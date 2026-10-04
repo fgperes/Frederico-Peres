@@ -79,7 +79,10 @@ async function toggleOneVacationDay(targetEmployeeId: string, dateStr: string): 
   }
   if (!isWeekday(date)) throw new Error("Só é possível marcar férias em dias úteis.");
 
-  const employee = await prisma.employee.findUniqueOrThrow({ where: { id: targetEmployeeId } });
+  const employee = await prisma.employee.findUniqueOrThrow({
+    where: { id: targetEmployeeId },
+    include: { location: { select: { municipality: true } } },
+  });
   const employeeName = `${employee.firstName} ${employee.lastName}`;
   const { type, balance } = await getOrCreateVacationBalance(targetEmployeeId, date.getFullYear());
 
@@ -169,7 +172,7 @@ async function toggleOneVacationDay(targetEmployeeId: string, dateStr: string): 
   }
 
   // Não existe pedido, ou existia mas foi rejeitado/cancelado — cria um novo.
-  if (await isHolidayOnDate(date, employee.locationId)) {
+  if (await isHolidayOnDate(date, employee.location?.municipality ?? null)) {
     throw new Error("Esse dia é feriado — não é possível marcar férias.");
   }
 
