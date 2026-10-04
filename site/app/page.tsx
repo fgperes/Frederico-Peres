@@ -1,60 +1,10 @@
 import Link from "next/link";
-import {
-  Users,
-  CalendarClock,
-  Fingerprint,
-  CalendarCheck,
-  FileSignature,
-  Banknote,
-  ShieldCheck,
-  MapPin,
-  Headset,
-  TrendingUp,
-  ArrowRight,
-} from "lucide-react";
+import { ShieldCheck, MapPin, Headset, TrendingUp, ArrowRight } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration, LinkedRingsIllustration } from "@/components/illustrations";
 import { ContactForm } from "@/components/contact-form";
-
-const MODULES = [
-  {
-    icon: Users,
-    title: "Gestão de Colaboradores",
-    description:
-      "Fichas completas, estrutura organizacional, departamentos, equipas e locais de trabalho — tudo num só sítio.",
-  },
-  {
-    icon: CalendarClock,
-    title: "Horários e Escalas",
-    description:
-      "Horário manual, por ciclos rotativos ou com previsão automática de necessidades, sempre dentro da lei.",
-  },
-  {
-    icon: Fingerprint,
-    title: "Picagens",
-    description:
-      "Registo de entradas e saídas com deteção automática de desvios e fluxo de justificação integrado.",
-  },
-  {
-    icon: CalendarCheck,
-    title: "Ausências e Férias",
-    description:
-      "Pedidos, aprovações e saldos sempre atualizados — sem mais contas feitas à mão em folhas de cálculo.",
-  },
-  {
-    icon: FileSignature,
-    title: "Contratos de Trabalho",
-    description:
-      "Perfis de contrato, histórico completo por colaborador e alertas de prazos (período experimental, termo).",
-  },
-  {
-    icon: Banknote,
-    title: "Processamento Salarial",
-    description:
-      "Recibos de vencimento calculados automaticamente, com tabelas de IRS e pressupostos sempre atualizáveis.",
-  },
-];
+import { ServicesTabs } from "@/components/services-tabs";
 
 const VALUE_PROPS = [
   {
@@ -154,19 +104,8 @@ function Modulos() {
             Os módulos do SGRH
           </p>
         </div>
-        <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="rounded-2xl border border-stone-200 bg-white p-6 shadow-[0_1px_3px_rgba(28,25,23,0.06)]"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700">
-                <Icon size={20} strokeWidth={2} />
-              </span>
-              <h3 className="mt-4 text-base font-semibold text-stone-900">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-stone-600">{description}</p>
-            </div>
-          ))}
+        <div className="mt-14">
+          <ServicesTabs />
         </div>
       </div>
     </section>
