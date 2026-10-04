@@ -60,30 +60,31 @@ export async function getHolidays() {
   await ensureHolidaysSeeded();
   return prisma.holiday.findMany({
     orderBy: { date: "asc" },
-    include: { locations: true },
   });
 }
 
-// Feriados num intervalo de datas (inclusive), com os locais associados —
-// usado por Escalas e Férias para saber quais os dias não-úteis a mostrar
-// (garante a sementeira, tal como getHolidays, para funcionar mesmo que
-// ninguém tenha ainda aberto a página de Feriados).
+// Feriados num intervalo de datas (inclusive) — usado por Escalas e Férias
+// para saber quais os dias não-úteis a mostrar (garante a sementeira, tal
+// como getHolidays, para funcionar mesmo que ninguém tenha ainda aberto a
+// página de Feriados).
 export async function getHolidaysInRange(from: Date, to: Date) {
   await ensureHolidaysSeeded();
   return prisma.holiday.findMany({
     where: { date: { gte: from, lte: to } },
-    include: { locations: { select: { id: true } } },
     orderBy: { date: "asc" },
   });
 }
 
-// Nacionais aplicam-se a todos; regionais só a colaboradores cujo local de
-// trabalho está associado ao feriado.
-export function isHolidayForLocation(
-  holiday: { scope: string; locations: { id: string }[] },
-  locationId: string | null
+// Nacionais aplicam-se a todos; regionais aplicam-se aos concelhos
+// indicados em `municipalities` — comparação sem distinguir
+// maiúsculas/minúsculas nem espaços à volta, já que tanto o concelho do
+// local de trabalho como a lista do feriado são escritos livremente.
+export function isHolidayForMunicipality(
+  holiday: { scope: string; municipalities: string[] },
+  municipality: string | null
 ): boolean {
   if (holiday.scope === "NATIONAL") return true;
-  if (!locationId) return false;
-  return holiday.locations.some((l) => l.id === locationId);
+  if (!municipality) return false;
+  const target = municipality.trim().toLowerCase();
+  return holiday.municipalities.some((m) => m.trim().toLowerCase() === target);
 }

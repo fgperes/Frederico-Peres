@@ -41,7 +41,11 @@ export default async function LocalDetailPage({
       <PageHeader
         icon={MapPin}
         title={location.name}
-        description={location.address ?? "Local de trabalho"}
+        description={
+          [location.address, location.postalCode, location.municipality, location.district]
+            .filter(Boolean)
+            .join(", ") || "Local de trabalho"
+        }
         action={
           <Link
             href="/estrutura"
@@ -75,6 +79,36 @@ export default async function LocalDetailPage({
                 name="address"
                 defaultValue={location.address ?? ""}
                 className="w-64 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                Código postal
+              </label>
+              <input
+                name="postalCode"
+                defaultValue={location.postalCode ?? ""}
+                className="w-32 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                Concelho
+              </label>
+              <input
+                name="municipality"
+                defaultValue={location.municipality ?? ""}
+                className="w-44 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                Distrito
+              </label>
+              <input
+                name="district"
+                defaultValue={location.district ?? ""}
+                className="w-44 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
               />
             </div>
             <button

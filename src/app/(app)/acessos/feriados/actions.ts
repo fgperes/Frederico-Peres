@@ -17,9 +17,10 @@ async function assertAdmin() {
 // Um feriado nacional novo entra em conflito com qualquer feriado já
 // existente nesse dia (nacional ou regional); um regional novo só entra em
 // conflito com um nacional existente nesse dia, ou com outro regional que
-// partilhe pelo menos um local de trabalho.
-async function findOverlappingHoliday(date: Date, scope: HolidayScope, locationIds: string[]) {
-  const sameDay = await prisma.holiday.findMany({ where: { date }, include: { locations: true } });
+// partilhe pelo menos um concelho (comparação sem distinguir
+// maiúsculas/minúsculas nem espaços).
+async function findOverlappingHoliday(date: Date, scope: HolidayScope, municipalities: string[]) {
+  const sameDay = await prisma.holiday.findMany({ where: { date } });
   if (sameDay.length === 0) return null;
 
   if (scope === "NATIONAL") return sameDay[0];
@@ -27,9 +28,16 @@ async function findOverlappingHoliday(date: Date, scope: HolidayScope, locationI
   const nationalConflict = sameDay.find((h) => h.scope === "NATIONAL");
   if (nationalConflict) return nationalConflict;
 
+  const normalized = municipalities.map((m) => m.trim().toLowerCase());
   return (
-    sameDay.find((h) => h.scope === "REGIONAL" && h.locations.some((l) => locationIds.includes(l.id))) ?? null
+    sameDay.find(
+      (h) => h.scope === "REGIONAL" && h.municipalities.some((m) => normalized.includes(m.trim().toLowerCase()))
+    ) ?? null
   );
+}
+
+function parseMunicipalities(raw: string): string[] {
+  return Array.from(new Set(raw.split(",").map((s) => s.trim()).filter(Boolean)));
 }
 
 export type HolidayFormState = { error?: string; success?: string };
@@ -43,18 +51,18 @@ export async function createHoliday(
   const dateRaw = String(formData.get("date") ?? "");
   const description = String(formData.get("description") ?? "").trim();
   const scope = String(formData.get("scope") ?? "NATIONAL") as HolidayScope;
-  const locationIds = formData.getAll("locationIds").map(String).filter(Boolean);
+  const municipalities = parseMunicipalities(String(formData.get("municipalities") ?? ""));
 
   if (!dateRaw || !description) return { error: "Data e descrição são obrigatórias." };
   if (!HOLIDAY_SCOPES.includes(scope)) return { error: "Âmbito inválido." };
-  if (scope === "REGIONAL" && locationIds.length === 0) {
-    return { error: "Selecione pelo menos um local de trabalho para um feriado regional." };
+  if (scope === "REGIONAL" && municipalities.length === 0) {
+    return { error: "Indique pelo menos um concelho para um feriado regional." };
   }
 
   const date = new Date(`${dateRaw}T00:00:00`);
   if (Number.isNaN(date.getTime())) return { error: "Data inválida." };
 
-  const conflict = await findOverlappingHoliday(date, scope, locationIds);
+  const conflict = await findOverlappingHoliday(date, scope, municipalities);
   if (conflict) {
     return {
       error: `Já existe um feriado nesta data que se sobrepõe: "${conflict.description}" (${
@@ -68,7 +76,7 @@ export async function createHoliday(
       date,
       description,
       scope,
-      locations: scope === "REGIONAL" ? { connect: locationIds.map((id) => ({ id })) } : undefined,
+      municipalities: scope === "REGIONAL" ? municipalities : [],
     },
   });
 
@@ -103,8 +111,9 @@ export type HolidayImportState = {
 };
 
 // Importador Excel de feriados — colunas: date (AAAA-MM-DD), description,
-// scope (NATIONAL|REGIONAL), locations (nomes separados por vírgula, só
-// relevante para REGIONAL). Ver /api/templates/feriados para o modelo.
+// scope (NATIONAL|REGIONAL), municipalities (concelhos separados por
+// vírgula, só relevante para REGIONAL). Ver /api/templates/feriados para o
+// modelo.
 export async function importHolidaysAction(
   _prev: HolidayImportState,
   formData: FormData
@@ -122,9 +131,6 @@ export async function importHolidaysAction(
   }
   if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
 
-  const locations = await prisma.location.findMany();
-  const locByName = new Map(locations.map((l) => [l.name.toLowerCase(), l.id]));
-
   const errorReport: string[] = [];
   let created = 0;
 
@@ -134,7 +140,7 @@ export async function importHolidaysAction(
     const dateRaw = String(row.date ?? "").trim();
     const description = String(row.description ?? "").trim();
     const scope = String(row.scope ?? "NATIONAL").trim().toUpperCase();
-    const locationsRaw = String(row.locations ?? "").trim();
+    const municipalitiesRaw = String(row.municipalities ?? "").trim();
 
     if (!dateRaw || !description) {
       errorReport.push(`Linha ${rowNum}: data e descrição são obrigatórias.`);
@@ -150,22 +156,13 @@ export async function importHolidaysAction(
       continue;
     }
 
-    let locationIds: string[] = [];
-    if (scope === "REGIONAL") {
-      const names = locationsRaw.split(",").map((s) => s.trim()).filter(Boolean);
-      if (names.length === 0) {
-        errorReport.push(`Linha ${rowNum}: feriado regional precisa de pelo menos um local (coluna locations).`);
-        continue;
-      }
-      const resolved = names.map((n) => locByName.get(n.toLowerCase()));
-      if (resolved.some((id) => !id)) {
-        errorReport.push(`Linha ${rowNum}: algum local em "${locationsRaw}" não foi encontrado.`);
-        continue;
-      }
-      locationIds = resolved as string[];
+    const municipalities = scope === "REGIONAL" ? parseMunicipalities(municipalitiesRaw) : [];
+    if (scope === "REGIONAL" && municipalities.length === 0) {
+      errorReport.push(`Linha ${rowNum}: feriado regional precisa de pelo menos um concelho (coluna municipalities).`);
+      continue;
     }
 
-    const conflict = await findOverlappingHoliday(date, scope as HolidayScope, locationIds);
+    const conflict = await findOverlappingHoliday(date, scope as HolidayScope, municipalities);
     if (conflict) {
       errorReport.push(`Linha ${rowNum}: sobrepõe-se ao feriado já existente "${conflict.description}".`);
       continue;
@@ -173,12 +170,7 @@ export async function importHolidaysAction(
 
     try {
       await prisma.holiday.create({
-        data: {
-          date,
-          description,
-          scope,
-          locations: locationIds.length > 0 ? { connect: locationIds.map((id) => ({ id })) } : undefined,
-        },
+        data: { date, description, scope, municipalities },
       });
       created++;
     } catch (e) {

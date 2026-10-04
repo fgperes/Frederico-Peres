@@ -190,7 +190,24 @@ export default async function EstruturaPage() {
               />
               <input
                 name="address"
-                placeholder="Morada (opcional)"
+                placeholder="Morada (rua, nº, opcional)"
+                className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  name="postalCode"
+                  placeholder="Código postal"
+                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+                />
+                <input
+                  name="municipality"
+                  placeholder="Concelho"
+                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+                />
+              </div>
+              <input
+                name="district"
+                placeholder="Distrito"
                 className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
               />
               <button

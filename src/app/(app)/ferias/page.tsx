@@ -8,7 +8,7 @@ import {
   effectiveStatus,
   toDateKey,
   getVacationHistory,
-  getHolidayDatesForLocation,
+  getHolidayDatesForMunicipality,
 } from "@/lib/vacation";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "./tabs";
@@ -108,7 +108,7 @@ async function FeriasCalendar({
   const history = await getVacationHistory(employeeId);
   const employee = await prisma.employee.findUniqueOrThrow({
     where: { id: employeeId },
-    select: { firstName: true, lastName: true, locationId: true },
+    select: { firstName: true, lastName: true, location: { select: { municipality: true } } },
   });
   const employeeName = `${employee.firstName} ${employee.lastName}`;
 
@@ -123,7 +123,7 @@ async function FeriasCalendar({
         startDate: { gte: yearStart, lte: yearEnd },
       },
     }),
-    getHolidayDatesForLocation(yearStart, yearEnd, employee.locationId),
+    getHolidayDatesForMunicipality(yearStart, yearEnd, employee.location?.municipality ?? null),
   ]);
 
   const marks: Record<string, DayMark> = {};

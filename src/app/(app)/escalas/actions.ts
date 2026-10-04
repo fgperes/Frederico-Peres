@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { differenceInCalendarDays } from "date-fns";
 import { isoDate } from "@/lib/dates";
 import { generateSchedulesForEmployees, MIN_GENERATION_RANGE_DAYS, type GenerationIssue } from "@/lib/schedule-generation";
-import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
+import { getHolidaysInRange, isHolidayForMunicipality } from "@/lib/holidays";
 
 type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -33,19 +33,22 @@ async function assertCanWrite() {
 // — sem contrato ativo, não há restrição (comportamento de sempre).
 async function getEmployeeWorkRestrictions(
   employeeId: string
-): Promise<{ worksWeekends: boolean; worksHolidays: boolean; locationId: string | null }> {
+): Promise<{ worksWeekends: boolean; worksHolidays: boolean; municipality: string | null }> {
   const [contract, employee] = await Promise.all([
     prisma.employeeContract.findFirst({
       where: { employeeId, status: "ACTIVE" },
       orderBy: { startDate: "desc" },
       include: { contractProfile: { select: { worksWeekends: true, worksHolidays: true } } },
     }),
-    prisma.employee.findUnique({ where: { id: employeeId }, select: { locationId: true } }),
+    prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { location: { select: { municipality: true } } },
+    }),
   ]);
   return {
     worksWeekends: contract?.contractProfile.worksWeekends ?? true,
     worksHolidays: contract?.contractProfile.worksHolidays ?? true,
-    locationId: employee?.locationId ?? null,
+    municipality: employee?.location?.municipality ?? null,
   };
 }
 
@@ -63,7 +66,7 @@ async function assertDayAllowedForEmployee(employeeId: string, date: Date): Prom
   }
   if (!restrictions.worksHolidays) {
     const holidays = await getHolidaysInRange(date, date);
-    if (holidays.some((h) => isHolidayForLocation(h, restrictions.locationId))) {
+    if (holidays.some((h) => isHolidayForMunicipality(h, restrictions.municipality))) {
       throw new Error("Este colaborador não trabalha em feriados (ver perfil de contrato).");
     }
   }
@@ -248,7 +251,7 @@ export async function createShiftAction(
     if (!restrictions.worksHolidays) {
       const holidays = await getHolidaysInRange(days[0], days[days.length - 1]);
       restrictedHolidayDates = new Set(
-        holidays.filter((h) => isHolidayForLocation(h, restrictions.locationId)).map((h) => isoDate(h.date))
+        holidays.filter((h) => isHolidayForMunicipality(h, restrictions.municipality)).map((h) => isoDate(h.date))
       );
     }
 
