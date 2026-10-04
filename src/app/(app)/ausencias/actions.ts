@@ -2,7 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { canRead, canWrite } from "@/lib/roles";
+import { employeeScopeWhere } from "@/lib/scope";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { countDays } from "@/lib/business-days";
@@ -15,6 +16,28 @@ async function assertCanManage() {
     throw new Error("Sem permissão para gerir ausências.");
   }
   return user;
+}
+
+// Confirma que o utilizador atual pode pedir/gerir ausências na ficha de
+// `targetEmployeeId`: a própria ficha (self-service) ou, tendo perfil de
+// gestão (canWrite em "ausencias"), qualquer colaborador dentro do seu
+// âmbito — mesma regra do módulo de Férias.
+async function assertCanActOn(targetEmployeeId: string) {
+  const user = await requireUser();
+  if (!canRead(user.roles, "ausencias")) throw new Error("Sem permissão para o módulo de ausências.");
+
+  if (user.employeeId === targetEmployeeId) {
+    return { user, isSelf: true };
+  }
+
+  if (!canWrite(user.roles, "ausencias")) {
+    throw new Error("Sem permissão para gerir ausências de outro colaborador.");
+  }
+  const scope = await employeeScopeWhere(user);
+  const target = await prisma.employee.findFirst({ where: { AND: [{ id: targetEmployeeId }, scope] } });
+  if (!target) throw new Error("Colaborador fora do seu âmbito de gestão.");
+
+  return { user, isSelf: false };
 }
 
 async function getOrCreateBalance(employeeId: string, absenceTypeId: string, year: number) {
@@ -36,36 +59,57 @@ async function getOrCreateBalance(employeeId: string, absenceTypeId: string, yea
 
 export type RequestAbsenceState = { error?: string };
 
-// AU-02/AU-04: submissão de pedido de ausência, com validação de saldo disponível.
-export async function requestAbsence(
-  _prev: RequestAbsenceState,
-  formData: FormData
+// AU-02/AU-04: submissão de um pedido de ausência — mesmo processo de
+// marcação de Férias (escolher o tipo, clicar os dias num calendário
+// mensal e guardar tudo junto), com as diferenças de exigir a escolha do
+// tipo de ausência e permitir anexar um comprovativo real. Os dias
+// escolhidos têm de formar um período contínuo (sem falhas) segundo a
+// unidade do tipo — dias úteis ou corridos.
+export async function requestAbsenceDays(
+  targetEmployeeId: string,
+  absenceTypeId: string,
+  dates: string[],
+  details: { reason?: string; documentName?: string; documentData?: string }
 ): Promise<RequestAbsenceState> {
   try {
-    const user = await requireUser();
-    if (!user.employeeId) throw new Error("Sem ficha de colaborador associada.");
+    const { user } = await assertCanActOn(targetEmployeeId);
 
-    const absenceTypeId = String(formData.get("absenceTypeId"));
-    const startDate = new Date(String(formData.get("startDate")));
-    const endDate = new Date(String(formData.get("endDate")));
-    const reason = String(formData.get("reason") ?? "").trim() || null;
-    const documentName = String(formData.get("documentName") ?? "").trim() || null;
-
-    if (endDate < startDate) throw new Error("Data de fim anterior à data de início.");
+    if (dates.length === 0) return { error: "Selecione pelo menos um dia." };
 
     const type = await prisma.absenceType.findUniqueOrThrow({ where: { id: absenceTypeId } });
     if (type.isVacation) {
       throw new Error("Férias têm um módulo próprio — use Férias no menu para marcar dias no calendário.");
     }
-    if (type.requiresDocument && !documentName) {
+    if (type.requiresDocument && !details.documentData) {
       throw new Error(`O tipo de ausência "${type.name}" exige documento comprovativo.`);
     }
 
-    const days = countDays(startDate, endDate, type.unitType);
+    const sorted = Array.from(new Set(dates)).sort();
+    const startDate = new Date(`${sorted[0]}T00:00:00`);
+    const endDate = new Date(`${sorted[sorted.length - 1]}T00:00:00`);
+
+    const expectedDays = countDays(startDate, endDate, type.unitType);
+    if (sorted.length !== expectedDays) {
+      throw new Error("Os dias selecionados têm de formar um período contínuo, sem falhas.");
+    }
+
+    const overlapping = await prisma.absence.findFirst({
+      where: {
+        employeeId: targetEmployeeId,
+        status: { in: ["PENDING", "APPROVED"] },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+    });
+    if (overlapping) {
+      throw new Error("Já existe um pedido de ausência que se sobrepõe a estas datas.");
+    }
+
+    const days = sorted.length;
     const year = startDate.getFullYear();
 
     if (type.affectsBalance) {
-      const balance = await getOrCreateBalance(user.employeeId, absenceTypeId, year);
+      const balance = await getOrCreateBalance(targetEmployeeId, absenceTypeId, year);
       const available = balance.entitledDays - balance.usedDays - balance.plannedDays;
       if (available < days) {
         throw new Error(
@@ -80,13 +124,14 @@ export async function requestAbsence(
 
     const absence = await prisma.absence.create({
       data: {
-        employeeId: user.employeeId,
+        employeeId: targetEmployeeId,
         absenceTypeId,
         startDate,
         endDate,
         days,
-        reason,
-        documentName,
+        reason: details.reason?.trim() || null,
+        documentName: details.documentName?.trim() || null,
+        documentData: details.documentData || null,
         requestedById: user.id,
         status: "PENDING",
       },
@@ -232,11 +277,11 @@ export async function cancelAbsence(absenceId: string): Promise<{ error?: string
   }
 }
 
-// AU-01: configuração de tipos de ausência.
-export async function createAbsenceType(formData: FormData) {
-  const user = await assertCanManage();
+export type AbsenceTypeState = { error?: string };
+
+function parseAbsenceTypeFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const requiresDocument = formData.get("requiresDocument") === "on";
+  const requiresDocument = String(formData.get("requiresDocument") ?? "false") === "true";
   const unitType = String(formData.get("unitType") ?? "WORKING_DAYS");
   const annualLimitDaysRaw = String(formData.get("annualLimitDays") ?? "");
   const affectsBalance = formData.get("affectsBalance") === "on";
@@ -247,22 +292,63 @@ export async function createAbsenceType(formData: FormData) {
 
   if (!name) throw new Error("Nome obrigatório.");
 
-  const type = await prisma.absenceType.create({
-    data: {
-      name,
-      paid: salaryImpactPercent > 0,
-      requiresDocument,
-      unitType,
-      annualLimitDays: annualLimitDaysRaw ? Number(annualLimitDaysRaw) : null,
-      affectsBalance,
-      countsAgainstHourPool,
-      socialSecurityCode,
-      salaryImpactPercent,
-    },
-  });
+  return {
+    name,
+    paid: salaryImpactPercent > 0,
+    requiresDocument,
+    unitType,
+    annualLimitDays: annualLimitDaysRaw ? Number(annualLimitDaysRaw) : null,
+    affectsBalance,
+    countsAgainstHourPool,
+    socialSecurityCode,
+    salaryImpactPercent,
+  };
+}
 
-  await logAudit({ userId: user.id, action: "CREATE", entity: "AbsenceType", entityId: type.id, details: name });
-  revalidatePath("/ausencias/tipos");
+// AU-01: configuração de tipos de ausência.
+export async function createAbsenceType(
+  _prev: AbsenceTypeState,
+  formData: FormData
+): Promise<AbsenceTypeState> {
+  try {
+    const user = await assertCanManage();
+    const data = parseAbsenceTypeFields(formData);
+
+    const type = await prisma.absenceType.create({ data });
+
+    await logAudit({ userId: user.id, action: "CREATE", entity: "AbsenceType", entityId: type.id, details: data.name });
+    revalidatePath("/ausencias/tipos");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível criar o tipo de ausência." };
+  }
+}
+
+// Edição completa de um tipo de ausência já existente — usada pela mesma
+// modal de criação, aberta a partir de uma linha da tabela.
+export async function updateAbsenceType(
+  absenceTypeId: string,
+  _prev: AbsenceTypeState,
+  formData: FormData
+): Promise<AbsenceTypeState> {
+  try {
+    const user = await assertCanManage();
+    const data = parseAbsenceTypeFields(formData);
+
+    await prisma.absenceType.update({ where: { id: absenceTypeId }, data });
+
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "AbsenceType",
+      entityId: absenceTypeId,
+      details: data.name,
+    });
+    revalidatePath("/ausencias/tipos");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível atualizar o tipo de ausência." };
+  }
 }
 
 export async function updateAbsenceTypeCode(absenceTypeId: string, socialSecurityCode: string) {

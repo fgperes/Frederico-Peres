@@ -6,9 +6,11 @@ import { SearchableSelect } from "@/components/searchable-select";
 export function EmployeePicker({
   employees,
   selectedId,
+  basePath = "/ferias",
 }: {
   employees: { id: string; name: string }[];
   selectedId: string;
+  basePath?: string;
 }) {
   const router = useRouter();
 
@@ -23,7 +25,7 @@ export function EmployeePicker({
         placeholder="Escreva para procurar um colaborador..."
         options={employees.map((e) => ({ value: e.id, label: e.name }))}
         onChange={(value) => {
-          if (value) router.push(`/ferias?employeeId=${value}`);
+          if (value) router.push(`${basePath}?employeeId=${value}`);
         }}
       />
     </div>
