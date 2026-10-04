@@ -73,7 +73,6 @@ export default async function AusenciasPage({
   }));
 
   let employeeName = "";
-  let myBalances: Prisma.AbsenceBalanceGetPayload<{ include: { absenceType: true } }>[] = [];
   let absenceSummaries: AbsenceSummary[] = [];
   const marks: Record<string, AbsenceDayMark> = {};
 
@@ -84,33 +83,24 @@ export default async function AusenciasPage({
     });
     employeeName = `${employee.firstName} ${employee.lastName}`;
 
-    [myBalances, absenceSummaries] = await Promise.all([
-      prisma.absenceBalance.findMany({
-        where: { employeeId: targetEmployeeId, year, absenceType: { isVacation: false } },
-        include: { absenceType: true },
-      }),
-      prisma.absence
-        .findMany({
-          where: { employeeId: targetEmployeeId, absenceType: { isVacation: false } },
-          include: { absenceType: true },
-          orderBy: { startDate: "desc" },
-        })
-        .then((rows) =>
-          rows.map((a) => ({
-            id: a.id,
-            absenceTypeId: a.absenceTypeId,
-            typeName: a.absenceType.name,
-            startDate: isoDate(a.startDate),
-            endDate: isoDate(a.endDate),
-            days: a.days,
-            status: a.status as AbsenceSummary["status"],
-            reason: a.reason,
-            documentName: a.documentName,
-            documentData: a.documentData,
-            decisionNote: a.decisionNote,
-          }))
-        ),
-    ]);
+    const rows = await prisma.absence.findMany({
+      where: { employeeId: targetEmployeeId, absenceType: { isVacation: false } },
+      include: { absenceType: true },
+      orderBy: { startDate: "desc" },
+    });
+    absenceSummaries = rows.map((a) => ({
+      id: a.id,
+      absenceTypeId: a.absenceTypeId,
+      typeName: a.absenceType.name,
+      startDate: isoDate(a.startDate),
+      endDate: isoDate(a.endDate),
+      days: a.days,
+      status: a.status as AbsenceSummary["status"],
+      reason: a.reason,
+      documentName: a.documentName,
+      documentData: a.documentData,
+      decisionNote: a.decisionNote,
+    }));
 
     for (const a of absenceSummaries) {
       if (a.status === "CANCELLED") continue;
@@ -331,24 +321,6 @@ export default async function AusenciasPage({
 
         {targetEmployeeId && (
           <div className="space-y-6 lg:col-span-1">
-            <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900">Saldos ({year})</h2>
-              {myBalances.length === 0 ? (
-                <p className="text-xs text-stone-500">Sem saldos calculados ainda.</p>
-              ) : (
-                <ul className="space-y-2 text-sm">
-                  {myBalances.map((b) => (
-                    <li key={b.id} className="flex justify-between">
-                      <span>{b.absenceType.name}</span>
-                      <span className="text-stone-500">
-                        {(b.entitledDays - b.usedDays - b.plannedDays).toFixed(1)} / {b.entitledDays} dias
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-
             <Card>
               <h2 className="mb-3 text-sm font-semibold text-stone-900">
                 {isSelf ? "Meus Pedidos" : `Pedidos de ${employeeName}`}
