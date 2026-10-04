@@ -12,6 +12,7 @@
     "db:seed-demo": "tsx prisma/seed-demo.ts",
     "db:seed-vacation-2026": "tsx prisma/seed-vacation-2026.ts",
     "db:reset-admin-password": "tsx prisma/reset-admin-password.ts",
+    "db:reset-and-seed-demo-data": "tsx scripts/reset-and-seed-demo-data.ts",
     "db:list-users": "tsx prisma/list-users.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
