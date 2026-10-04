@@ -25,7 +25,7 @@ import {
   PanelLeftOpen,
   type LucideIcon,
 } from "lucide-react";
-import { canRead, ROLE_LABELS, type Module, type Role } from "@/lib/roles";
+import { accessFor, canRead, ROLE_LABELS, type Module, type Role } from "@/lib/roles";
 import { AvatarImage } from "@/lib/avatars";
 import { LogoMark, PeopleWordmark } from "@/components/brand/logo";
 import { useMobileNav } from "@/components/mobile-nav-context";
@@ -76,6 +76,11 @@ export function Nav({
 
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.href === "/dashboard") return true;
+    // "Contratos" é a lista/gestão de todos os perfis de contrato da
+    // empresa — nunca scoped a "own" (ver /contratos). Um colaborador vê o
+    // seu próprio contrato no separador "Contratos" da sua ficha, dentro de
+    // Colaboradores, não aqui.
+    if (item.href === "/contratos") return accessFor(roles, item.module) === "rw" || accessFor(roles, item.module) === "ro";
     return canRead(roles, item.module);
   });
 

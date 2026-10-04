@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite } from "@/lib/roles";
+import { accessFor, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, LinkButton, EmptyState } from "@/components/ui";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { addDays } from "date-fns";
 import { FileSignature } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
 import { ContractProfilesTable } from "./contract-profiles-table";
+import { redirect } from "next/navigation";
 
 export default async function ContratosPage({
   searchParams,
@@ -15,6 +16,13 @@ export default async function ContratosPage({
   searchParams: Promise<{ horizon?: string }>;
 }) {
   const user = await requireUser();
+  const contratosAccess = accessFor(user.roles, "contratos");
+  // Esta página lista todos os perfis de contrato da empresa — nunca para
+  // quem só tem acesso "own" (vê o seu próprio contrato na ficha de
+  // Colaboradores) nem para quem não tem acesso nenhum.
+  if (contratosAccess !== "rw" && contratosAccess !== "ro") {
+    redirect(user.employeeId ? `/colaboradores/${user.employeeId}/contratos` : "/dashboard");
+  }
   const canEdit = canWrite(user.roles, "contratos");
   const scope = await employeeScopeWhere(user);
   const params = await searchParams;

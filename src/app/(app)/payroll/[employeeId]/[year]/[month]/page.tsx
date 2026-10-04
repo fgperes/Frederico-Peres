@@ -32,11 +32,14 @@ export default async function PayslipDetailPage({
   });
   if (!employee || month < 1 || month > 12) notFound();
 
-  const [savedPayslip, layout] = await Promise.all([
-    prisma.payslip.findUnique({ where: { employeeId_year_month: { employeeId, year, month } } }),
-    getPayslipLayoutSettings(),
-  ]);
+  const savedPayslip = await prisma.payslip.findUnique({
+    where: { employeeId_year_month: { employeeId, year, month } },
+  });
+  // Quem não pode gerar recibos só vê o que já foi gerado — nunca a
+  // pré-visualização calculada na hora de um mês ainda por processar.
+  if (!canEdit && !savedPayslip) notFound();
 
+  const layout = await getPayslipLayoutSettings();
   const breakdown = savedPayslip ?? toPayslipRecord(await computePayslipBreakdown(employeeId, year, month));
   const isSaved = !!savedPayslip;
   const lines = buildPayslipLines(breakdown, layout.lineItems);

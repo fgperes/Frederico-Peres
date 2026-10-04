@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite, canRead } from "@/lib/roles";
+import { accessFor, canWrite, canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { ColaboradorTabs } from "../tabs";
@@ -25,6 +25,10 @@ export default async function ColaboradorContratosPage({
   if (!employee) notFound();
 
   const canEdit = canWrite(user.roles, "contratos");
+  // A página de detalhe do perfil (/contratos/[id]) lista todos os
+  // colaboradores atribuídos — só visível a quem tem acesso rw/ro ao
+  // módulo, nunca a quem só vê o seu próprio contrato (own).
+  const canViewProfilePage = ["rw", "ro"].includes(accessFor(user.roles, "contratos"));
   const [assignments, activeProfiles, contractTypeLabels] = await Promise.all([
     prisma.employeeContract.findMany({
       where: { employeeId: employee.id },
@@ -54,7 +58,7 @@ export default async function ColaboradorContratosPage({
           <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
             Contrato Atual
           </h2>
-          {active && (
+          {active && canViewProfilePage && (
             <Link
               href={`/contratos/${active.contractProfileId}`}
               className="text-xs font-medium text-violet-700 hover:underline dark:text-violet-400"
@@ -133,9 +137,15 @@ export default async function ColaboradorContratosPage({
           <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
             {history.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2.5">
-                <Link href={`/contratos/${a.contractProfileId}`} className="text-violet-700 hover:underline dark:text-violet-400">
-                  {a.contractProfile.name} — {contractTypeLabels[a.contractProfile.contractType] ?? a.contractProfile.contractType}
-                </Link>
+                {canViewProfilePage ? (
+                  <Link href={`/contratos/${a.contractProfileId}`} className="text-violet-700 hover:underline dark:text-violet-400">
+                    {a.contractProfile.name} — {contractTypeLabels[a.contractProfile.contractType] ?? a.contractProfile.contractType}
+                  </Link>
+                ) : (
+                  <span>
+                    {a.contractProfile.name} — {contractTypeLabels[a.contractProfile.contractType] ?? a.contractProfile.contractType}
+                  </span>
+                )}
                 <span className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
                   {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate ? a.endDate.toLocaleDateString("pt-PT") : "—"}
                   <Badge color="slate">Encerrado</Badge>
