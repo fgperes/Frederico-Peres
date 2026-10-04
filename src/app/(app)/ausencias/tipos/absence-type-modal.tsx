@@ -7,12 +7,16 @@ import type { AbsenceType } from "@prisma/client";
 
 const initialState: AbsenceTypeState = {};
 
+// O gatilho (`children`) vem do Server Component que usa esta modal, por
+// isso tem de ser um elemento já pronto (JSX, serializável) — nunca uma
+// função como prop, que não pode atravessar a fronteira servidor/cliente.
+// É este componente, já no cliente, que lhe liga o clique.
 export function AbsenceTypeModal({
   absenceType,
-  trigger,
+  children,
 }: {
   absenceType?: AbsenceType;
-  trigger: (open: () => void) => ReactNode;
+  children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(absenceType);
@@ -30,7 +34,9 @@ export function AbsenceTypeModal({
 
   return (
     <>
-      {trigger(() => setOpen(true))}
+      <span onClick={() => setOpen(true)} className="contents">
+        {children}
+      </span>
       <Modal
         open={open}
         onClose={() => setOpen(false)}

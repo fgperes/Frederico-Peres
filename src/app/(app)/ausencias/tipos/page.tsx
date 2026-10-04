@@ -85,19 +85,15 @@ export default async function TiposAusenciaPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <AbsenceTypeModal
-                          absenceType={t}
-                          trigger={(open) => (
-                            <button
-                              type="button"
-                              onClick={open}
-                              title="Editar"
-                              className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                        />
+                        <AbsenceTypeModal absenceType={t}>
+                          <button
+                            type="button"
+                            title="Editar"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        </AbsenceTypeModal>
                       </td>
                     </tr>
                   ))}
@@ -113,17 +109,14 @@ export default async function TiposAusenciaPage() {
             Crie um novo tipo ou clique no lápis numa linha da tabela para configurar um já existente —
             incluindo se exige documento comprovativo obrigatório.
           </p>
-          <AbsenceTypeModal
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className="flex w-full items-center justify-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700"
-              >
-                <Plus size={14} /> Novo Tipo
-              </button>
-            )}
-          />
+          <AbsenceTypeModal>
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700"
+            >
+              <Plus size={14} /> Novo Tipo
+            </button>
+          </AbsenceTypeModal>
         </Card>
       </div>
     </div>
