@@ -5,6 +5,7 @@ import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { updateLocation, deleteLocation } from "../../actions";
 import { DeleteSectionButton } from "../../delete-section-button";
 import { MigrateEmployeeForm } from "../../migrate-employee-form";
+import { LocationAddressFields } from "../../location-address-fields";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
@@ -91,26 +92,11 @@ export default async function LocalDetailPage({
                 className="w-32 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Concelho
-              </label>
-              <input
-                name="municipality"
-                defaultValue={location.municipality ?? ""}
-                className="w-44 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-                Distrito
-              </label>
-              <input
-                name="district"
-                defaultValue={location.district ?? ""}
-                className="w-44 rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-              />
-            </div>
+            <LocationAddressFields
+              variant="labeled"
+              defaultDistrict={location.district}
+              defaultMunicipality={location.municipality}
+            />
             <button
               type="submit"
               className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"

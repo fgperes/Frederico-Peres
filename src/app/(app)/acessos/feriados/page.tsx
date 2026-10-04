@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
 import { isSystemAdmin } from "@/lib/roles";
 import { getHolidays } from "@/lib/holidays";
+import { ALL_MUNICIPALITIES } from "@/lib/pt-geo";
 import { PageHeader, Card, Badge, Button, EmptyState } from "@/components/ui";
 import { AcessosTabs } from "../tabs";
 import { HolidayForm } from "./holiday-form";
@@ -14,13 +14,7 @@ export default async function FeriadosPage() {
   const user = await requireUser();
   if (!isSystemAdmin(user.roles)) redirect("/acessos");
 
-  const [holidays, locations] = await Promise.all([
-    getHolidays(),
-    prisma.location.findMany({ orderBy: { name: "asc" }, select: { municipality: true } }),
-  ]);
-  const municipalitySuggestions = Array.from(
-    new Set(locations.map((l) => l.municipality).filter((m): m is string => Boolean(m)))
-  ).sort((a, b) => a.localeCompare(b, "pt"));
+  const holidays = await getHolidays();
 
   const byYear = new Map<number, typeof holidays>();
   for (const h of holidays) {
@@ -95,7 +89,7 @@ export default async function FeriadosPage() {
         <div className="space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Feriado</h2>
-            <HolidayForm municipalitySuggestions={municipalitySuggestions} />
+            <HolidayForm municipalitySuggestions={ALL_MUNICIPALITIES} />
           </Card>
           <Card>
             <div className="mb-3 flex items-center justify-between">
