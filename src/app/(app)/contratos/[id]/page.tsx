@@ -1,9 +1,9 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canWrite } from "@/lib/roles";
+import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, Button } from "@/components/ui";
 import { endEmployeeContract } from "../actions";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FileSignature, User } from "lucide-react";
 import { getContractTypeLabels } from "@/lib/contract-types";
 import Link from "next/link";
@@ -17,6 +17,13 @@ export default async function ContractProfileDetailPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
+  const contratosAccess = accessFor(user.roles, "contratos");
+  // Esta página lista todos os colaboradores atribuídos a este perfil de
+  // contrato — nunca para quem só tem acesso "own" nem para quem não tem
+  // acesso nenhum.
+  if (contratosAccess !== "rw" && contratosAccess !== "ro") {
+    redirect(user.employeeId ? `/colaboradores/${user.employeeId}/contratos` : "/dashboard");
+  }
   const canEdit = canWrite(user.roles, "contratos");
 
   const profile = await prisma.contractProfile.findUnique({ where: { id } });

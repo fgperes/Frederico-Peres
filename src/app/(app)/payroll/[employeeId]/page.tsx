@@ -99,33 +99,35 @@ export default async function EmployeePayrollPage({
               </div>
             )}
 
-            <div className="mt-4 border-t border-stone-100 pt-4">
-              <form action={async (formData: FormData) => {
-                "use server";
-                const year = formData.get("year");
-                const month = formData.get("month");
-                const { redirect } = await import("next/navigation");
-                redirect(`/payroll/${employeeId}/${year}/${month}`);
-              }} className="flex items-end gap-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Mês</label>
-                  <select name="month" defaultValue={now.getMonth() + 1} className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                      <option key={m} value={m}>
-                        {new Date(2000, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">Ano</label>
-                  <input name="year" type="number" defaultValue={now.getFullYear()} className="w-24 rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-                </div>
-                <button type="submit" className="rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700">
-                  Ver / Gerar recibo
-                </button>
-              </form>
-            </div>
+            {canEdit && (
+              <div className="mt-4 border-t border-stone-100 pt-4">
+                <form action={async (formData: FormData) => {
+                  "use server";
+                  const year = formData.get("year");
+                  const month = formData.get("month");
+                  const { redirect } = await import("next/navigation");
+                  redirect(`/payroll/${employeeId}/${year}/${month}`);
+                }} className="flex items-end gap-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone-600">Mês</label>
+                    <select name="month" defaultValue={now.getMonth() + 1} className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                        <option key={m} value={m}>
+                          {new Date(2000, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-stone-600">Ano</label>
+                    <input name="year" type="number" defaultValue={now.getFullYear()} className="w-24 rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
+                  </div>
+                  <button type="submit" className="rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700">
+                    Ver / Gerar recibo
+                  </button>
+                </form>
+              </div>
+            )}
           </Card>
 
           <Card>
