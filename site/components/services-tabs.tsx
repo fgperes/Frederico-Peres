@@ -12,6 +12,7 @@ import {
   LineChart,
   Check,
 } from "lucide-react";
+import { AbsenceCalendarDemo } from "./absence-calendar-demo";
 
 type Service = {
   key: string;
@@ -162,7 +163,7 @@ export function ServicesTabs() {
             ))}
           </ul>
         </div>
-        <ServicePreview icon={active.icon} />
+        {active.key === "ausencias" ? <AbsenceCalendarDemo /> : <ServicePreview icon={active.icon} />}
       </div>
     </div>
   );
