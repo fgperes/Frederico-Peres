@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { EstruturaTabs } from "./tabs";
 import { TeamDistributionBar } from "./team-distribution-bar";
 import { createDepartment, createTeam, createLocation } from "./actions";
+import { LocationAddressFields } from "./location-address-fields";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Building2, Users2, MapPin, ChevronRight } from "lucide-react";
@@ -193,23 +194,12 @@ export default async function EstruturaPage() {
                 placeholder="Morada (rua, nº, opcional)"
                 className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
               />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  name="postalCode"
-                  placeholder="Código postal"
-                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-                />
-                <input
-                  name="municipality"
-                  placeholder="Concelho"
-                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-                />
-              </div>
               <input
-                name="district"
-                placeholder="Distrito"
+                name="postalCode"
+                placeholder="Código postal"
                 className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
               />
+              <LocationAddressFields />
               <button
                 type="submit"
                 className="w-full rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900 dark:bg-violet-600 dark:hover:bg-violet-700"
