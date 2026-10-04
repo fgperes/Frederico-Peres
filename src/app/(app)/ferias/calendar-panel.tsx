@@ -35,9 +35,21 @@ export function CalendarPanel({
     new Date().getFullYear() === year ? new Date().getMonth() : 0
   );
   const [modalOpen, setModalOpen] = useState(false);
+  const [anchorIso, setAnchorIso] = useState<string | undefined>(undefined);
   const router = useRouter();
 
   const step = view === "month" ? 1 : view === "quarter" ? 3 : 12;
+
+  function handleDayClick(dateKey: string) {
+    if (!interactive) return;
+    setAnchorIso(dateKey);
+    setModalOpen(true);
+  }
+
+  function openBlankModal() {
+    setAnchorIso(undefined);
+    setModalOpen(true);
+  }
 
   function shift(dir: 1 | -1) {
     const next = monthIndex + dir * step;
@@ -54,8 +66,9 @@ export function CalendarPanel({
 
   const referenceDate = new Date(year, monthIndex, 1);
   const today = new Date();
-  const initialModalMonthIso =
+  const defaultModalMonthIso =
     year === today.getFullYear() ? isoDate(new Date(today.getFullYear(), today.getMonth(), 1)) : `${year}-01-01`;
+  const modalMonthIso = anchorIso ? `${anchorIso.slice(0, 7)}-01` : defaultModalMonthIso;
 
   return (
     <div>
@@ -97,16 +110,35 @@ export function CalendarPanel({
             ))}
           </div>
           {interactive && (
-            <Button onClick={() => setModalOpen(true)}>
+            <Button onClick={openBlankModal}>
               <CalendarPlus size={14} /> Marcar férias
             </Button>
           )}
         </div>
       </div>
 
+      {interactive && isSelf && (
+        <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+          Clique em &quot;Marcar férias&quot; ou diretamente num dia do calendário para abrir a
+          modal — pode pedir vários dias de uma vez, desmarcar um pedido pendente, ou pedir o
+          cancelamento de um dia já aprovado (fica a aguardar confirmação).
+        </p>
+      )}
+      {interactive && !isSelf && (
+        <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+          Clique em &quot;Marcar férias&quot; ou diretamente num dia do calendário para abrir a
+          modal e marcar/desmarcar férias deste colaborador.
+        </p>
+      )}
+
       <VacationLegend />
 
-      <VacationCalendar view={view} referenceDate={referenceDate} marks={marks} />
+      <VacationCalendar
+        view={view}
+        referenceDate={referenceDate}
+        marks={marks}
+        onDayClick={interactive ? handleDayClick : undefined}
+      />
 
       {interactive && (
         <VacationRequestModal
@@ -115,7 +147,8 @@ export function CalendarPanel({
           employeeId={employeeId}
           employeeName={employeeName}
           isSelf={isSelf}
-          initialMonthIso={initialModalMonthIso}
+          initialMonthIso={modalMonthIso}
+          initialSelectedIso={anchorIso}
           marks={marks}
           headcount={headcount}
           planned={planned}
