@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getHolidaysInRange, isHolidayForLocation } from "@/lib/holidays";
 
 // O módulo de Férias reaproveita o modelo Absence/AbsenceType/AbsenceBalance
 // já existente das Ausências — só filtrando sempre pelo AbsenceType marcado
@@ -177,6 +178,31 @@ export async function getVacationHistory(employeeId: string): Promise<VacationHi
 export function isWeekday(date: Date): boolean {
   const day = date.getDay();
   return day !== 0 && day !== 6;
+}
+
+// Verifica se uma data é feriado para um dado local de trabalho (nacional
+// aplica-se a todos; regional só a quem trabalha num local associado) —
+// garante também a sementeira dos feriados obrigatórios (ver getHolidaysInRange),
+// para funcionar mesmo que ninguém tenha ainda aberto Acessos → Feriados.
+export async function isHolidayOnDate(date: Date, locationId: string | null): Promise<boolean> {
+  const holidays = await getHolidaysInRange(date, date);
+  return holidays.some((h) => isHolidayForLocation(h, locationId));
+}
+
+// Feriados num intervalo, já resolvidos por data (yyyy-MM-dd) -> descrição,
+// filtrados pelo local de trabalho indicado — usado para marcar o
+// calendário de férias e a modal de marcação.
+export async function getHolidayDatesForLocation(
+  from: Date,
+  to: Date,
+  locationId: string | null
+): Promise<Map<string, string>> {
+  const holidays = await getHolidaysInRange(from, to);
+  const map = new Map<string, string>();
+  for (const h of holidays) {
+    if (isHolidayForLocation(h, locationId)) map.set(toDateKey(h.date), h.description);
+  }
+  return map;
 }
 
 function nextBusinessDay(date: Date): Date {

@@ -8,6 +8,7 @@ import {
   effectiveStatus,
   toDateKey,
   getVacationHistory,
+  getHolidayDatesForLocation,
 } from "@/lib/vacation";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { FeriasTabs } from "./tabs";
@@ -107,18 +108,23 @@ async function FeriasCalendar({
   const history = await getVacationHistory(employeeId);
   const employee = await prisma.employee.findUniqueOrThrow({
     where: { id: employeeId },
-    select: { firstName: true, lastName: true },
+    select: { firstName: true, lastName: true, locationId: true },
   });
   const employeeName = `${employee.firstName} ${employee.lastName}`;
 
-  const absences = await prisma.absence.findMany({
-    where: {
-      employeeId,
-      absenceTypeId: type.id,
-      status: { in: ["PENDING", "APPROVED"] },
-      startDate: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31) },
-    },
-  });
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+  const [absences, holidayDates] = await Promise.all([
+    prisma.absence.findMany({
+      where: {
+        employeeId,
+        absenceTypeId: type.id,
+        status: { in: ["PENDING", "APPROVED"] },
+        startDate: { gte: yearStart, lte: yearEnd },
+      },
+    }),
+    getHolidayDatesForLocation(yearStart, yearEnd, employee.locationId),
+  ]);
 
   const marks: Record<string, DayMark> = {};
   for (const a of absences) {
@@ -132,6 +138,7 @@ async function FeriasCalendar({
         <CalendarPanel
           year={year}
           marks={marks}
+          holidayDates={holidayDates}
           interactive
           employeeId={employeeId}
           employeeName={employeeName}

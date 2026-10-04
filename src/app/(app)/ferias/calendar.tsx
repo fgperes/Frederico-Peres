@@ -20,6 +20,7 @@ const LEGEND_ITEMS: { color: string; label: string }[] = [
   { color: "bg-amber-400", label: "Pendente de aprovação" },
   { color: "bg-emerald-500", label: "Aprovado" },
   { color: "bg-orange-500", label: "Pedido de cancelamento" },
+  { color: "border-2 border-amber-400 bg-transparent", label: "Feriado" },
 ];
 
 export function VacationLegend() {
@@ -53,12 +54,14 @@ function MonthGrid({
   year,
   month,
   marks,
+  holidayDates,
   compact,
   onDayClick,
 }: {
   year: number;
   month: number;
   marks: Record<string, DayMark>;
+  holidayDates?: Map<string, string>;
   compact?: boolean;
   onDayClick?: (dateKey: string) => void;
 }) {
@@ -90,6 +93,7 @@ function MonthGrid({
                 if (!day) return <td key={j} className={compact ? "h-6" : "h-9"} />;
                 const key = toKey(day);
                 const mark = marks[key];
+                const holidayLabel = holidayDates?.get(key);
                 const isToday = key === today;
                 const clickable = !!onDayClick;
 
@@ -104,6 +108,10 @@ function MonthGrid({
                   cellClasses += " bg-orange-500 text-white";
                 } else if (mark?.status === "PENDING") {
                   cellClasses += " bg-amber-400 text-white";
+                } else if (holidayLabel) {
+                  cellClasses += clickable
+                    ? " border-2 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10 cursor-pointer"
+                    : " border-2 border-amber-400 text-amber-700 dark:text-amber-400";
                 } else {
                   cellClasses += clickable
                     ? " text-stone-600 hover:bg-violet-50 dark:text-stone-300 dark:hover:bg-violet-500/10 cursor-pointer"
@@ -119,7 +127,7 @@ function MonthGrid({
                       type="button"
                       disabled={!clickable}
                       onClick={() => onDayClick?.(key)}
-                      title={mark?.title ?? day.toLocaleDateString("pt-PT")}
+                      title={mark?.title ?? holidayLabel ?? day.toLocaleDateString("pt-PT")}
                       className={`w-full ${cellClasses} ${!clickable ? "cursor-default" : ""}`}
                     >
                       {mark ? "F" : day.getDate()}
@@ -139,18 +147,22 @@ export function VacationCalendar({
   view,
   referenceDate,
   marks,
+  holidayDates,
   onDayClick,
 }: {
   view: "month" | "quarter" | "year";
   referenceDate: Date;
   marks: Record<string, DayMark>;
+  holidayDates?: Map<string, string>;
   onDayClick?: (dateKey: string) => void;
 }) {
   const year = referenceDate.getFullYear();
   const month = referenceDate.getMonth();
 
   if (view === "month") {
-    return <MonthGrid year={year} month={month} marks={marks} onDayClick={onDayClick} />;
+    return (
+      <MonthGrid year={year} month={month} marks={marks} holidayDates={holidayDates} onDayClick={onDayClick} />
+    );
   }
 
   if (view === "quarter") {
@@ -158,7 +170,15 @@ export function VacationCalendar({
     return (
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <MonthGrid key={i} year={year} month={quarterStart + i} marks={marks} onDayClick={onDayClick} compact />
+          <MonthGrid
+            key={i}
+            year={year}
+            month={quarterStart + i}
+            marks={marks}
+            holidayDates={holidayDates}
+            onDayClick={onDayClick}
+            compact
+          />
         ))}
       </div>
     );
@@ -167,7 +187,15 @@ export function VacationCalendar({
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: 12 }, (_, i) => (
-        <MonthGrid key={i} year={year} month={i} marks={marks} onDayClick={onDayClick} compact />
+        <MonthGrid
+          key={i}
+          year={year}
+          month={i}
+          marks={marks}
+          holidayDates={holidayDates}
+          onDayClick={onDayClick}
+          compact
+        />
       ))}
     </div>
   );
