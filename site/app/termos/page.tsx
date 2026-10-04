@@ -53,7 +53,7 @@ export default function Termos() {
 
           <h2>5. Isenção de responsabilidade</h2>
           <p>
-            Este site é disponibilizado "tal como está". A people4people envida esforços
+            Este site é disponibilizado &ldquo;tal como está&rdquo;. A people4people envida esforços
             razoáveis para manter a informação aqui publicada atualizada e correta, mas não
             garante a ausência de erros ou omissões. O funcionamento específico da aplicação SGRH
             rege-se pelas condições de serviço acordadas com cada empresa cliente.
