@@ -13,6 +13,9 @@ import {
   Mail,
   ArrowRight,
 } from "lucide-react";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+import { TeamIllustration, LinkedRingsIllustration } from "@/components/illustrations";
 
 const SGRH_URL = "https://sgrh.people4people.pt";
 const CONTACT_EMAIL = "geral@people4people.pt";
@@ -79,61 +82,41 @@ const VALUE_PROPS = [
   },
 ];
 
-function Header() {
-  return (
-    <header className="sticky top-0 z-20 border-b border-stone-200 bg-[#faf9f7]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <span className="text-lg font-semibold tracking-tight text-stone-900">
-          people4people
-        </span>
-        <nav className="hidden items-center gap-8 text-sm font-medium text-stone-600 sm:flex">
-          <a href="#sobre" className="hover:text-stone-900">Sobre</a>
-          <a href="#modulos" className="hover:text-stone-900">Módulos</a>
-          <a href="#contacto" className="hover:text-stone-900">Contacto</a>
-        </nav>
-        <Link
-          href={SGRH_URL}
-          className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
-        >
-          Aceder ao SGRH
-        </Link>
-      </div>
-    </header>
-  );
-}
-
 function Hero() {
   return (
-    <section className="mx-auto max-w-6xl px-6 pb-20 pt-16 sm:pb-28 sm:pt-24">
-      <div className="mx-auto max-w-3xl text-center">
-        <span className="inline-block rounded-full bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-700">
-          Software de Gestão de Recursos Humanos
-        </span>
-        <h1 className="mt-6 text-4xl font-semibold tracking-tight text-stone-900 sm:text-6xl">
-          Menos processos,
-          <br />
-          mais pessoas.
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-stone-600">
-          A people4people simplifica a gestão de recursos humanos das empresas portuguesas —
-          colaboradores, horários, ausências, contratos e processamento salarial, tudo numa só
-          plataforma.
-        </p>
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <a
-            href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Pedido de demonstração — SGRH")}`}
-            className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
-          >
-            Pedir uma demonstração
-            <ArrowRight size={16} />
-          </a>
-          <Link
-            href={SGRH_URL}
-            className="inline-flex items-center gap-2 rounded-md border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50"
-          >
-            Aceder ao SGRH
-          </Link>
+    <section className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:pb-24 sm:pt-20">
+      <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <span className="inline-block rounded-full bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-700">
+            Software de Gestão de Recursos Humanos
+          </span>
+          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
+            Menos processos,
+            <br />
+            mais pessoas.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-600">
+            A people4people simplifica a gestão de recursos humanos das empresas portuguesas —
+            colaboradores, horários, ausências, contratos e processamento salarial, tudo numa só
+            plataforma.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <a
+              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Pedido de demonstração — SGRH")}`}
+              className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
+            >
+              Pedir uma demonstração
+              <ArrowRight size={16} />
+            </a>
+            <Link
+              href={SGRH_URL}
+              className="inline-flex items-center gap-2 rounded-md border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50"
+            >
+              Aceder ao SGRH
+            </Link>
+          </div>
         </div>
+        <TeamIllustration className="w-full max-w-md justify-self-center lg:justify-self-end" />
       </div>
     </section>
   );
@@ -142,19 +125,29 @@ function Hero() {
 function Sobre() {
   return (
     <section id="sobre" className="border-t border-stone-200 bg-white py-20 sm:py-28">
-      <div className="mx-auto max-w-3xl px-6 text-center">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Quem somos</h2>
-        <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
-          Acabámos com as folhas de cálculo dispersas na gestão de pessoas.
-        </p>
-        <p className="mt-6 text-base leading-relaxed text-stone-600">
-          A people4people nasceu para dar resposta a um problema comum a praticamente todas as
-          empresas portuguesas: a gestão de recursos humanos espalhada por dezenas de ficheiros,
-          emails e processos manuais. Criámos o <strong className="text-stone-900">SGRH</strong>,
-          uma plataforma pensada de raiz para a realidade das empresas portuguesas e para o
-          Código do Trabalho, que junta num só sítio tudo o que é preciso para gerir pessoas —
-          da entrada ao recibo de vencimento.
-        </p>
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <LinkedRingsIllustration className="w-full max-w-md" />
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Quem somos</h2>
+          <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+            Acabámos com as folhas de cálculo dispersas na gestão de pessoas.
+          </p>
+          <p className="mt-6 text-base leading-relaxed text-stone-600">
+            A people4people nasceu para dar resposta a um problema comum a praticamente todas as
+            empresas portuguesas: a gestão de recursos humanos espalhada por dezenas de ficheiros,
+            emails e processos manuais. Criámos o <strong className="text-stone-900">SGRH</strong>,
+            uma plataforma pensada de raiz para a realidade das empresas portuguesas e para o
+            Código do Trabalho, que junta num só sítio tudo o que é preciso para gerir pessoas —
+            da entrada ao recibo de vencimento.
+          </p>
+          <Link
+            href="/sobre"
+            className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 hover:text-violet-800"
+          >
+            Conhecer a nossa história
+            <ArrowRight size={15} />
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -234,19 +227,6 @@ function Contacto() {
         </a>
       </div>
     </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-stone-200 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-stone-500 sm:flex-row">
-        <span>© {new Date().getFullYear()} people4people — Menos processos, mais pessoas.</span>
-        <Link href={SGRH_URL} className="font-medium text-violet-700 hover:text-violet-800">
-          Aceder ao SGRH →
-        </Link>
-      </div>
-    </footer>
   );
 }
 
