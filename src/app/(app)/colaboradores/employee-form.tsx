@@ -108,22 +108,14 @@ export function EmployeeForm({
           <Field label="Local de emissão" name="idDocumentIssuePlace" defaultValue={employee?.idDocumentIssuePlace ?? ""} />
           <Field label="Nacionalidade" name="nationality" defaultValue={employee?.nationality ?? ""} />
           <SelectField
-            label="Tipo de identificação 2"
-            name="idDocumentType2"
-            defaultValue={employee?.idDocumentType2 ?? ""}
-            options={ID_DOCUMENT_TYPES.map((t) => ({ value: t, label: ID_DOCUMENT_TYPE_LABELS[t] }))}
-          />
-          <Field label="Nº de identificação 2" name="idDocument2" defaultValue={employee?.idDocument2 ?? ""} />
-          <SelectField
             label="Habilitações literárias"
             name="educationLevel"
             defaultValue={employee?.educationLevel ?? ""}
             options={EDUCATION_LEVELS.map((l) => ({ value: l, label: EDUCATION_LEVEL_LABELS[l] }))}
           />
           <Field label="Código ERP" name="erpCode" defaultValue={employee?.erpCode ?? ""} />
-          <Field label="NIB suplementar" name="ibanSupplementary" defaultValue={employee?.ibanSupplementary ?? ""} />
-          <Field label="NIB do cartão de refeição" name="mealCardIban" defaultValue={employee?.mealCardIban ?? ""} />
-          <Field label="NIB de despesas" name="expensesIban" defaultValue={employee?.expensesIban ?? ""} />
+          <Field label="IBAN do cartão de refeição" name="mealCardIban" defaultValue={employee?.mealCardIban ?? ""} />
+          <Field label="IBAN de despesas" name="expensesIban" defaultValue={employee?.expensesIban ?? ""} />
           <div>
             <Field
               label="Número de filhos"
@@ -136,16 +128,6 @@ export function EmployeeForm({
               <span className="font-medium">Payroll → ficha do colaborador</span>.
             </p>
           </div>
-          <Field
-            label="Nº inscrição na O.F."
-            name="professionalOrderRegistrationNo"
-            defaultValue={employee?.professionalOrderRegistrationNo ?? ""}
-          />
-          <Field
-            label="Nº carteira profissional na O.F."
-            name="professionalOrderCardNo"
-            defaultValue={employee?.professionalOrderCardNo ?? ""}
-          />
           <Field label="Morada" name="address" defaultValue={employee?.address ?? ""} className="sm:col-span-2" />
         </div>
       </section>
