@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Users,
@@ -12,7 +13,23 @@ import {
   LineChart,
   Check,
 } from "lucide-react";
+import { ColaboradoresDemo } from "./colaboradores-demo";
+import { HorariosDemo } from "./horarios-demo";
+import { PreditivoDemo } from "./preditivo-demo";
+import { PicagensDemo } from "./picagens-demo";
 import { AbsenceCalendarDemo } from "./absence-calendar-demo";
+import { ContratosDemo } from "./contratos-demo";
+import { PayrollDemo } from "./payroll-demo";
+
+const PREVIEW_COMPONENTS: Record<string, ComponentType> = {
+  colaboradores: ColaboradoresDemo,
+  horarios: HorariosDemo,
+  preditivo: PreditivoDemo,
+  picagens: PicagensDemo,
+  ausencias: AbsenceCalendarDemo,
+  contratos: ContratosDemo,
+  payroll: PayrollDemo,
+};
 
 type Service = {
   key: string;
@@ -163,36 +180,13 @@ export function ServicesTabs() {
             ))}
           </ul>
         </div>
-        {active.key === "ausencias" ? <AbsenceCalendarDemo /> : <ServicePreview icon={active.icon} />}
+        <Preview active={active} />
       </div>
     </div>
   );
 }
 
-function ServicePreview({ icon: Icon }: { icon: LucideIcon }) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50">
-      <div className="flex items-center gap-1.5 border-b border-stone-200 bg-white px-4 py-3">
-        <span className="h-2.5 w-2.5 rounded-full bg-stone-200" />
-        <span className="h-2.5 w-2.5 rounded-full bg-stone-200" />
-        <span className="h-2.5 w-2.5 rounded-full bg-stone-200" />
-      </div>
-      <div className="space-y-3 p-6">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-600 text-white">
-            <Icon size={18} strokeWidth={2} />
-          </span>
-          <div className="h-2.5 w-28 rounded-full bg-stone-200" />
-        </div>
-        <div className="h-2 w-full rounded-full bg-stone-200" />
-        <div className="h-2 w-5/6 rounded-full bg-stone-200" />
-        <div className="h-2 w-2/3 rounded-full bg-stone-200" />
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="h-16 rounded-xl bg-violet-600/10" />
-          <div className="h-16 rounded-xl bg-stone-200" />
-          <div className="h-16 rounded-xl bg-stone-200" />
-        </div>
-      </div>
-    </div>
-  );
+function Preview({ active }: { active: Service }) {
+  const Component = PREVIEW_COMPONENTS[active.key];
+  return <Component />;
 }
