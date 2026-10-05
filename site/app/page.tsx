@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, MapPin, Headset, TrendingUp, ArrowRight, FileText, Mail, Phone } from "lucide-react";
+import { ShieldCheck, MapPin, Headset, TrendingUp, ArrowRight, Mail, Phone } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration, LinkedRingsIllustration } from "@/components/illustrations";
@@ -8,11 +8,6 @@ import { ServicesTabs } from "@/components/services-tabs";
 import { Reveal } from "@/components/reveal";
 
 const CONTACT_CHANNELS = [
-  {
-    icon: FileText,
-    title: "Formulário",
-    description: "Preencha o formulário e a nossa equipa entra em contacto consigo.",
-  },
   {
     icon: Mail,
     title: "Email",
