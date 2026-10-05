@@ -1,12 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { submitContactForm, type ContactFormState } from "@/app/actions";
+import { submitDemoForm, type LeadFormState } from "@/app/actions";
 
-const initialState: ContactFormState = {};
+const initialState: LeadFormState = {};
 
 export function ContactForm() {
-  const [state, formAction, pending] = useActionState(submitContactForm, initialState);
+  const [state, formAction, pending] = useActionState(submitDemoForm, initialState);
 
   if (state.success) {
     return (
@@ -23,6 +23,7 @@ export function ContactForm() {
       <Field label="Nome de contacto" name="contactName" required />
       <Field label="Função" name="role" />
       <Field label="Telefone" name="phone" type="tel" />
+      <EmployeeCountField className="sm:col-span-2" />
       <Field label="Email" name="email" type="email" required className="sm:col-span-2" />
       {state.error && (
         <p className="text-sm text-rose-200 sm:col-span-2">{state.error}</p>
@@ -63,6 +64,26 @@ function Field({
         required={required}
         className="w-full rounded-md border-0 bg-white/95 px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-white"
       />
+    </label>
+  );
+}
+
+export function EmployeeCountField({ className = "" }: { className?: string }) {
+  return (
+    <label className={`block text-sm ${className}`}>
+      <span className="mb-1 block font-medium text-violet-100">Número de colaboradores</span>
+      <select
+        name="employeeCount"
+        defaultValue=""
+        className="w-full rounded-md border-0 bg-white/95 px-3 py-2 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        <option value="">Selecione...</option>
+        <option value="1-10">1 a 10</option>
+        <option value="11-50">11 a 50</option>
+        <option value="51-200">51 a 200</option>
+        <option value="201-500">201 a 500</option>
+        <option value="500+">Mais de 500</option>
+      </select>
     </label>
   );
 }

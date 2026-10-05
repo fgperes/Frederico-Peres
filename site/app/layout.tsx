@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CookieConsent } from "@/components/cookie-consent";
+import { FloatingChatWidget } from "@/components/floating-chat-widget";
 
 export const metadata: Metadata = {
   title: "people4people — Menos processos, mais pessoas",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </noscript>
         {children}
         <CookieConsent />
+        <FloatingChatWidget />
       </body>
     </html>
   );
