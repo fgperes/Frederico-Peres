@@ -999,14 +999,14 @@ model PayrollComponent {
 
 // Recibo de vencimento gerado (ficam "congelados" após gerados).
 model Payslip {
-  id                     String   @id @default(cuid())
+  id                     String    @id @default(cuid())
   employeeId             String
-  employee               Employee @relation(fields: [employeeId], references: [id])
+  employee               Employee  @relation(fields: [employeeId], references: [id])
   year                   Int
   month                  Int
   baseSalary             Float
   workedHours            Float
-  workedDays             Float    @default(0)
+  workedDays             Float     @default(0)
   overtimeHours          Float
   overtimePay            Float
   mealAllowanceTotal     Float
@@ -1015,19 +1015,26 @@ model Payslip {
   absenceDeduction       Float
   otherEarnings          Float
   otherDeductions        Float
-  vacationSubsidy        Float    @default(0)
-  christmasSubsidy       Float    @default(0)
+  vacationSubsidy        Float     @default(0)
+  christmasSubsidy       Float     @default(0)
   grossTotal             Float
   socialSecurityEmployee Float
   irsWithholding         Float
-  adseDeduction          Float    @default(0)
-  judicialDeduction      Float    @default(0)
+  adseDeduction          Float     @default(0)
+  judicialDeduction      Float     @default(0)
   netTotal               Float
   socialSecurityEmployer Float
   employerCost           Float
-  belowMinimumWage       Boolean  @default(false)
-  generatedAt            DateTime @default(now())
+  belowMinimumWage       Boolean   @default(false)
+  generatedAt            DateTime  @default(now())
   generatedById          String?
+  // "Gerar novamente" (ver GeneratePayslipButton) não altera generatedAt/
+  // generatedById (a 1ª geração) — regista aqui a data/utilizador da
+  // última regeneração e quantas vezes já foi regenerado.
+  regeneratedAt          DateTime?
+  regeneratedById        String?
+  regenerationCount      Int       @default(0)
+  emailSentAt            DateTime?
 
   @@unique([employeeId, year, month])
 }

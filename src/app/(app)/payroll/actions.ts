@@ -12,10 +12,13 @@ import {
   DEFAULT_PAYSLIP_LINE_ITEMS,
   IRS_TABLE_TYPES,
   categoryToTaxFlags,
+  getPayslipLayoutSettings,
+  buildPayslipLines,
   type PayslipLineItemKey,
   type IrsTableType,
   type PayrollComponentCategory,
 } from "@/lib/payroll";
+import { getDocumentBranding } from "@/lib/document-branding";
 import { revalidatePath } from "next/cache";
 import { parseExcelFile } from "@/lib/excel";
 
@@ -432,10 +435,20 @@ export async function generatePayslipAction(
     const breakdown = await computePayslipBreakdown(employeeId, year, month);
     const record = toPayslipRecord(breakdown);
 
+    const existing = await prisma.payslip.findUnique({
+      where: { employeeId_year_month: { employeeId, year, month } },
+      select: { regenerationCount: true },
+    });
+
     await prisma.payslip.upsert({
       where: { employeeId_year_month: { employeeId, year, month } },
       create: { ...record, generatedById: user.id },
-      update: { ...record, generatedById: user.id, generatedAt: new Date() },
+      update: {
+        ...record,
+        regeneratedAt: new Date(),
+        regeneratedById: user.id,
+        regenerationCount: (existing?.regenerationCount ?? 0) + 1,
+      },
     });
 
     await logAudit({
@@ -443,7 +456,7 @@ export async function generatePayslipAction(
       action: "GENERATE",
       entity: "Payslip",
       entityId: employeeId,
-      details: `${month}/${year}`,
+      details: existing ? `${month}/${year} (regerado)` : `${month}/${year}`,
     });
 
     revalidatePath(`/payroll/${employeeId}`);
@@ -452,6 +465,140 @@ export async function generatePayslipAction(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erro ao gerar recibo." };
   }
+}
+
+// Gera (ou regenera) o recibo para vários colaboradores de uma vez, no
+// mesmo período — "gerar só para alguns colaboradores selecionados".
+export type GeneratePayslipsBulkState = { error?: string; created?: number; failed?: string[] };
+
+export async function generatePayslipsBulkAction(
+  employeeIds: string[],
+  year: number,
+  month: number
+): Promise<GeneratePayslipsBulkState> {
+  const user = await assertCanWrite();
+  if (employeeIds.length === 0) return { error: "Selecione pelo menos um colaborador." };
+
+  let created = 0;
+  const failed: string[] = [];
+
+  for (const employeeId of employeeIds) {
+    try {
+      const breakdown = await computePayslipBreakdown(employeeId, year, month);
+      const record = toPayslipRecord(breakdown);
+      const existing = await prisma.payslip.findUnique({
+        where: { employeeId_year_month: { employeeId, year, month } },
+        select: { regenerationCount: true },
+      });
+      await prisma.payslip.upsert({
+        where: { employeeId_year_month: { employeeId, year, month } },
+        create: { ...record, generatedById: user.id },
+        update: {
+          ...record,
+          regeneratedAt: new Date(),
+          regeneratedById: user.id,
+          regenerationCount: (existing?.regenerationCount ?? 0) + 1,
+        },
+      });
+      created++;
+    } catch {
+      failed.push(employeeId);
+    }
+  }
+
+  await logAudit({
+    userId: user.id,
+    action: "GENERATE",
+    entity: "Payslip",
+    details: `${created}/${employeeIds.length} recibo(s) gerado(s) para ${month}/${year}`,
+  });
+
+  revalidatePath("/payroll");
+  return { created, failed: failed.length > 0 ? failed : undefined };
+}
+
+export type SendPayslipEmailState = { error?: string; success?: boolean };
+
+// Envia o PDF do recibo já gerado por email ao colaborador (Resend — ver
+// src/lib/email.ts). Requer RESEND_API_KEY/PAYROLL_EMAIL_FROM configurados.
+export async function sendPayslipEmailAction(
+  employeeId: string,
+  year: number,
+  month: number
+): Promise<SendPayslipEmailState> {
+  const user = await assertCanWrite();
+
+  const [employee, payslip, branding, layout] = await Promise.all([
+    prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
+    prisma.payslip.findUnique({ where: { employeeId_year_month: { employeeId, year, month } } }),
+    getDocumentBranding(),
+    getPayslipLayoutSettings(),
+  ]);
+  if (!payslip) return { error: "O recibo deste período ainda não foi gerado." };
+  if (!employee.email) return { error: "O colaborador não tem email na ficha." };
+
+  const ytdPayslips = await prisma.payslip.findMany({ where: { employeeId, year, month: { lte: month } } });
+  const ytdGross = ytdPayslips.reduce((sum, p) => sum + p.grossTotal, 0);
+  const ytdIrs = ytdPayslips.reduce((sum, p) => sum + p.irsWithholding, 0);
+  const ytdSocialSecurity = ytdPayslips.reduce((sum, p) => sum + p.socialSecurityEmployee, 0);
+
+  const lines = buildPayslipLines(payslip, layout.lineItems);
+
+  const { buildPayslipPdfDoc, payslipPdfFileName } = await import("@/lib/payslip-pdf");
+  const pdfData = {
+    companyName: branding.clientCompanyName,
+    companyLogo: branding.clientCompanyLogo,
+    companyNif: branding.companyNif,
+    companyAddress: branding.companyAddress,
+    companySocialSecurityNo: branding.companySocialSecurityNo,
+    employeeName: `${employee.firstName} ${employee.lastName}`,
+    employeeNumber: employee.employeeNumber,
+    nif: employee.nif,
+    socialSecurityNo: employee.socialSecurityNo,
+    address: employee.address,
+    iban: employee.iban,
+    jobTitle: employee.jobTitle,
+    year,
+    month,
+    documentTitle: layout.documentTitle,
+    footerNote: layout.footerNote,
+    earnings: lines.filter((l) => l.section === "EARNINGS").map((l) => ({ label: l.label, value: l.value })),
+    deductions: lines.filter((l) => l.section === "DEDUCTIONS").map((l) => ({ label: l.label, value: l.value })),
+    grossTotal: payslip.grossTotal,
+    netTotal: payslip.netTotal,
+    employerCost: payslip.employerCost,
+    ytdGross,
+    ytdIrs,
+    ytdSocialSecurity,
+  };
+
+  const doc = await buildPayslipPdfDoc(pdfData);
+  const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+
+  const { sendEmailWithAttachment } = await import("@/lib/email");
+  const monthName = new Date(year, month - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
+  const result = await sendEmailWithAttachment({
+    to: employee.email,
+    subject: `Recibo de vencimento — ${monthName} de ${year}`,
+    html: `<p>Olá ${employee.firstName},</p><p>Segue em anexo o recibo de vencimento de ${monthName} de ${year}.</p>`,
+    attachment: { filename: payslipPdfFileName(pdfData), content: pdfBuffer },
+  });
+
+  if (!result.ok) return { error: result.error };
+
+  await prisma.payslip.update({
+    where: { employeeId_year_month: { employeeId, year, month } },
+    data: { emailSentAt: new Date() },
+  });
+  await logAudit({
+    userId: user.id,
+    action: "UPDATE",
+    entity: "Payslip",
+    entityId: employeeId,
+    details: `Recibo de ${month}/${year} enviado por email para ${employee.email}`,
+  });
+  revalidatePath(`/payroll/${employeeId}/${year}/${month}`);
+  return { success: true };
 }
 
 export async function ensureSettingsSeeded() {

@@ -9,6 +9,7 @@ import { ReceiptText } from "lucide-react";
 import { notFound } from "next/navigation";
 import { GeneratePayslipButton } from "@/components/payroll/generate-payslip-button";
 import { PayslipPdfButton } from "@/components/payroll/payslip-pdf-button";
+import { SendPayslipEmailButton } from "@/components/payroll/send-payslip-email-button";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -66,6 +67,14 @@ export default async function PayslipDetailPage({
             {isSaved && (
               <Badge color="green">Gerado {savedPayslip!.generatedAt.toLocaleDateString("pt-PT")}</Badge>
             )}
+            {isSaved && savedPayslip!.regenerationCount > 0 && (
+              <Badge color="amber">
+                Regerado {savedPayslip!.regenerationCount}x — última vez {savedPayslip!.regeneratedAt?.toLocaleDateString("pt-PT")}
+              </Badge>
+            )}
+            {isSaved && savedPayslip!.emailSentAt && (
+              <Badge color="blue">Enviado por email {savedPayslip!.emailSentAt.toLocaleDateString("pt-PT")}</Badge>
+            )}
             {!isSaved && <Badge color="amber">Pré-visualização — ainda não gerado</Badge>}
           </div>
         }
@@ -108,8 +117,12 @@ export default async function PayslipDetailPage({
             employeeId={employeeId}
             year={year}
             month={month}
-            label={isSaved ? "Recalcular recibo" : "Gerar recibo"}
+            label={isSaved ? "Gerar novamente" : "Gerar recibo"}
+            isRegenerate={isSaved}
           />
+        )}
+        {canEdit && isSaved && (
+          <SendPayslipEmailButton employeeId={employeeId} year={year} month={month} />
         )}
         {isSaved && (
           <PayslipPdfButton

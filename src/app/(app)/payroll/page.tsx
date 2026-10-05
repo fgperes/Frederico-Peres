@@ -2,11 +2,10 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
-import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
-import { AvatarImage } from "@/lib/avatars";
+import { PageHeader, Card, StatCard, LinkButton, EmptyState } from "@/components/ui";
 import { Banknote, Sliders, LayoutTemplate, ListPlus, Users, FileCheck2, Clock3, FileSpreadsheet } from "lucide-react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PayrollEmployeeTable } from "./payroll-employee-table";
 
 export default async function PayrollPage({
   searchParams,
@@ -120,47 +119,24 @@ export default async function PayrollPage({
             <EmptyState message="Sem colaboradores no seu âmbito." />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
-                <tr>
-                  <th className="px-4 py-3">Colaborador</th>
-                  <th className="px-4 py-3">Salário base</th>
-                  <th className="px-4 py-3">Estado do recibo</th>
-                  <th className="px-4 py-3">Líquido</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {employees.map((e) => {
-                  const payslip = payslipByEmployee.get(e.id);
-                  const baseSalary = e.employeeContracts[0]?.baseSalary;
-                  return (
-                    <tr key={e.id} className="hover:bg-stone-50">
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/payroll/${e.id}`}
-                          className="flex items-center gap-3 font-medium text-violet-700 hover:underline"
-                        >
-                          <AvatarImage
-                            avatarKey={e.user?.avatarKey}
-                            avatarImage={e.user?.avatarImage}
-                            name={`${e.firstName} ${e.lastName}`}
-                            size={28}
-                          />
-                          {e.firstName} {e.lastName}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">{baseSalary ? `${baseSalary.toFixed(2)} €` : "—"}</td>
-                      <td className="px-4 py-3">
-                        <Badge color={payslip ? "green" : "amber"}>{payslip ? "Gerado" : "Por gerar"}</Badge>
-                      </td>
-                      <td className="px-4 py-3">{payslip ? `${payslip.netTotal.toFixed(2)} €` : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <PayrollEmployeeTable
+            year={year}
+            month={month}
+            canEdit={canEdit}
+            employees={employees.map((e) => {
+              const payslip = payslipByEmployee.get(e.id);
+              return {
+                id: e.id,
+                firstName: e.firstName,
+                lastName: e.lastName,
+                baseSalary: e.employeeContracts[0]?.baseSalary ?? null,
+                hasPayslip: !!payslip,
+                netTotal: payslip?.netTotal ?? null,
+                avatarKey: e.user?.avatarKey,
+                avatarImage: e.user?.avatarImage,
+              };
+            })}
+          />
         )}
       </Card>
     </div>
