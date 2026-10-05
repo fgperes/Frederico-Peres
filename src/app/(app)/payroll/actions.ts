@@ -10,7 +10,9 @@ import {
   toPayslipRecord,
   FISCAL_REGIONS,
   DEFAULT_PAYSLIP_LINE_ITEMS,
+  IRS_TABLE_TYPES,
   type PayslipLineItemKey,
+  type IrsTableType,
 } from "@/lib/payroll";
 import { revalidatePath } from "next/cache";
 import { parseExcelFile } from "@/lib/excel";
@@ -45,6 +47,8 @@ export async function updatePayrollSettings(
   const workingDaysPerMonth = Number(formData.get("workingDaysPerMonth"));
   const vacationSubsidyMode = String(formData.get("vacationSubsidyMode"));
   const christmasSubsidyMode = String(formData.get("christmasSubsidyMode"));
+  const mealAllowancePaymentMethod = String(formData.get("mealAllowancePaymentMethod") ?? "CARD");
+  const adseEmployeeRate = Number(formData.get("adseEmployeeRate"));
 
   // Validações básicas de acordo com a legislação portuguesa (Código do
   // Trabalho): taxas têm de ser percentagens válidas, salário mínimo e
@@ -64,6 +68,9 @@ export async function updatePayrollSettings(
   if (overtimeRateWeekendHoliday < 1) errors.push("Acréscimo de fim de semana/feriado não pode ser inferior a 1x.");
   if (!(workingDaysPerMonth > 0 && workingDaysPerMonth <= 31))
     errors.push("Dias úteis por mês inválido.");
+  if (!(adseEmployeeRate >= 0 && adseEmployeeRate < 1)) errors.push("Taxa ADSE do trabalhador inválida.");
+  if (!["CARD", "CASH"].includes(mealAllowancePaymentMethod))
+    errors.push("Forma de pagamento do subsídio de alimentação inválida.");
 
   if (errors.length > 0) throw new Error(errors.join(" "));
 
@@ -81,6 +88,8 @@ export async function updatePayrollSettings(
     workingDaysPerMonth,
     vacationSubsidyMode,
     christmasSubsidyMode,
+    mealAllowancePaymentMethod,
+    adseEmployeeRate,
     updatedById: user.id,
   };
 
@@ -113,16 +122,26 @@ export async function createIrsTable(
     const user = await assertCanWrite();
     const year = Number(formData.get("year"));
     const region = String(formData.get("region") ?? "CONTINENTE");
+    const tableType = String(formData.get("tableType") ?? "I") as IrsTableType;
     const label = String(formData.get("label") ?? "").trim() || null;
 
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Ano inválido.");
     if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) throw new Error("Região inválida.");
+    if (!IRS_TABLE_TYPES.includes(tableType)) throw new Error("Tabela inválida.");
 
-    const existing = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
-    if (existing) throw new Error(`Já existe uma tabela de IRS para ${year} — ${region}.`);
+    const existing = await prisma.irsTable.findUnique({
+      where: { year_region_tableType: { year, region, tableType } },
+    });
+    if (existing) throw new Error(`Já existe uma tabela de IRS ${tableType} para ${year} — ${region}.`);
 
-    const table = await prisma.irsTable.create({ data: { year, region, label } });
-    await logAudit({ userId: user.id, action: "CREATE", entity: "IrsTable", entityId: table.id, details: `${year} — ${region}` });
+    const table = await prisma.irsTable.create({ data: { year, region, tableType, label } });
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "IrsTable",
+      entityId: table.id,
+      details: `${year} — ${region} — Tabela ${tableType}`,
+    });
     revalidatePath("/payroll/pressupostos");
     return {};
   } catch (e) {
@@ -152,15 +171,30 @@ export async function upsertIrsBracket(
     const upToGrossRaw = String(formData.get("upToGross") ?? "").trim();
     const upToGross = upToGrossRaw ? Number(upToGrossRaw) : null;
     const rate = Number(formData.get("rate"));
+    const deductionRaw = String(formData.get("deduction") ?? "").trim();
+    const deduction = deductionRaw ? Number(deductionRaw) : null;
+    const dependentAddition = Number(formData.get("dependentAddition") ?? 0);
 
     if (!irsTableId) throw new Error("Tabela de IRS em falta.");
     if (!(rate >= 0 && rate < 1)) throw new Error("Taxa do escalão tem de estar entre 0% e 100%.");
     if (upToGross !== null && upToGross <= 0) throw new Error("Limite do escalão tem de ser positivo.");
 
+    // A edição manual só suporta a parcela a abater fixa — a fórmula
+    // dinâmica dos escalões mais baixos só chega por importação Excel das
+    // tabelas oficiais (ver importIrsTableAction).
+    const data = {
+      order,
+      upToGross,
+      rate,
+      deduction,
+      deductionCoefficient: null,
+      deductionThreshold: null,
+      dependentAddition,
+    };
     if (id) {
-      await prisma.irsBracket.update({ where: { id }, data: { order, upToGross, rate } });
+      await prisma.irsBracket.update({ where: { id }, data });
     } else {
-      await prisma.irsBracket.create({ data: { irsTableId, order, upToGross, rate } });
+      await prisma.irsBracket.create({ data: { irsTableId, ...data } });
     }
 
     await logAudit({ userId: user.id, action: "UPDATE", entity: "IrsBracket", details: `Escalão ${order}` });
@@ -178,11 +212,22 @@ export async function deleteIrsBracket(id: string) {
   revalidatePath("/payroll/pressupostos");
 }
 
-export type ImportIrsTableState = { error?: string; success?: boolean; imported?: number };
+export type ImportIrsTableState = {
+  error?: string;
+  success?: boolean;
+  imported?: number;
+  // Já existe tabela com escalões para este período — pede confirmação ao
+  // utilizador antes de substituir (reenvia o mesmo formulário com
+  // replace=1).
+  duplicate?: { year: number; region: string; tableType: string };
+};
 
 // "Anexar" uma tabela de IRS completa de uma vez — cria a tabela para o
-// ano/região indicados (ou reutiliza uma já existente, sem escalões) e
-// importa os escalões de um ficheiro Excel (colunas: Ordem, Até (€), Taxa).
+// ano/região/tabela indicados (ou reutiliza uma já existente, sem
+// escalões) e importa os escalões de um ficheiro Excel. Colunas: Ordem,
+// Até (€), Taxa, Parcela a Abater (€) (opcional), Coeficiente (opcional —
+// só nos escalões mais baixos com fórmula dinâmica), Limiar (€) (idem),
+// Adicional por Dependente (€) (opcional).
 export async function importIrsTableAction(
   _prev: ImportIrsTableState,
   formData: FormData
@@ -191,11 +236,14 @@ export async function importIrsTableAction(
 
   const year = Number(formData.get("year"));
   const region = String(formData.get("region") ?? "CONTINENTE");
+  const tableType = String(formData.get("tableType") ?? "I") as IrsTableType;
   const label = String(formData.get("label") ?? "").trim() || null;
   const file = formData.get("file") as File | null;
+  const replace = formData.get("replace") === "1";
 
   if (!Number.isInteger(year) || year < 2000 || year > 2100) return { error: "Ano inválido." };
   if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) return { error: "Região inválida." };
+  if (!IRS_TABLE_TYPES.includes(tableType)) return { error: "Tabela inválida." };
   if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
 
   let rows: Record<string, unknown>[];
@@ -206,37 +254,63 @@ export async function importIrsTableAction(
   }
   if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
 
-  const brackets: { order: number; upToGross: number | null; rate: number }[] = [];
+  const toNum = (v: unknown): number | null => (v === "" || v == null ? null : Number(v));
+  const brackets: {
+    order: number;
+    upToGross: number | null;
+    rate: number;
+    deduction: number | null;
+    deductionCoefficient: number | null;
+    deductionThreshold: number | null;
+    dependentAddition: number;
+  }[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const order = Number(row["Ordem"] ?? i + 1);
-    const upToGrossRaw = row["Até (€)"];
-    const upToGross = upToGrossRaw === "" || upToGrossRaw == null ? null : Number(upToGrossRaw);
+    const upToGross = toNum(row["Até (€)"]);
     const rate = Number(row["Taxa"]);
+    const deduction = toNum(row["Parcela a Abater (€)"]);
+    const deductionCoefficient = toNum(row["Coeficiente"]);
+    const deductionThreshold = toNum(row["Limiar (€)"]);
+    const dependentAddition = toNum(row["Adicional por Dependente (€)"]) ?? 0;
     if (!Number.isFinite(order) || !Number.isFinite(rate) || rate < 0 || rate >= 1) {
       return { error: `Linha ${i + 2}: dados inválidos (confirme Ordem, Até (€) e Taxa entre 0 e 1).` };
     }
-    brackets.push({ order, upToGross: upToGross === null || Number.isFinite(upToGross) ? upToGross : null, rate });
+    brackets.push({
+      order,
+      upToGross: upToGross !== null && Number.isFinite(upToGross) ? upToGross : null,
+      rate,
+      deduction,
+      deductionCoefficient,
+      deductionThreshold,
+      dependentAddition,
+    });
   }
 
-  let table = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
+  let table = await prisma.irsTable.findUnique({
+    where: { year_region_tableType: { year, region, tableType } },
+  });
   if (table) {
     const existingBrackets = await prisma.irsBracket.count({ where: { irsTableId: table.id } });
-    if (existingBrackets > 0) {
-      return { error: `Já existe uma tabela de IRS com escalões para ${year} — ${region}. Elimine-a primeiro se quiser substituir.` };
+    if (existingBrackets > 0 && !replace) {
+      return { duplicate: { year, region, tableType } };
     }
+    if (existingBrackets > 0) {
+      await prisma.irsBracket.deleteMany({ where: { irsTableId: table.id } });
+    }
+    if (label) await prisma.irsTable.update({ where: { id: table.id }, data: { label } });
   } else {
-    table = await prisma.irsTable.create({ data: { year, region, label } });
+    table = await prisma.irsTable.create({ data: { year, region, tableType, label } });
   }
 
   await prisma.irsBracket.createMany({ data: brackets.map((b) => ({ ...b, irsTableId: table!.id })) });
 
   await logAudit({
     userId: user.id,
-    action: "CREATE",
+    action: replace ? "UPDATE" : "CREATE",
     entity: "IrsTable",
     entityId: table.id,
-    details: `${year} — ${region}: ${brackets.length} escalão(ões) importado(s)`,
+    details: `${year} — ${region} — Tabela ${tableType}: ${brackets.length} escalão(ões) ${replace ? "substituído(s)" : "importado(s)"}`,
   });
 
   revalidatePath("/payroll/pressupostos");
@@ -252,11 +326,41 @@ export async function updateEmployeePayrollProfile(employeeId: string, formData:
   const mealAllowanceOverrideRaw = String(formData.get("mealAllowanceOverride") ?? "").trim();
   const mealAllowanceOverride = mealAllowanceOverrideRaw ? Number(mealAllowanceOverrideRaw) : null;
 
+  const youngTaxRegime = formData.get("youngTaxRegime") === "on";
+  const youngTaxRegimeStartYearRaw = String(formData.get("youngTaxRegimeStartYear") ?? "").trim();
+  const youngTaxRegimeStartYear = youngTaxRegimeStartYearRaw ? Number(youngTaxRegimeStartYearRaw) : null;
+  const adseBeneficiary = formData.get("adseBeneficiary") === "on";
+  const judicialDeductionPercentRaw = String(formData.get("judicialDeductionPercent") ?? "").trim();
+  const judicialDeductionPercent = judicialDeductionPercentRaw ? Number(judicialDeductionPercentRaw) : null;
+  const vacationSubsidyMode = String(formData.get("vacationSubsidyMode") ?? "") || null;
+  const vacationSubsidyMonths = String(formData.get("vacationSubsidyMonths") ?? "").trim() || null;
+  const christmasSubsidyMode = String(formData.get("christmasSubsidyMode") ?? "") || null;
+  const christmasSubsidyMonths = String(formData.get("christmasSubsidyMonths") ?? "").trim() || null;
+
   if (dependents < 0) throw new Error("Número de dependentes inválido.");
+  if (youngTaxRegime && !youngTaxRegimeStartYear) {
+    throw new Error("Indique o ano de início do regime do IRS Jovem.");
+  }
+  if (judicialDeductionPercent !== null && !(judicialDeductionPercent >= 0 && judicialDeductionPercent <= 100)) {
+    throw new Error("Percentagem de desconto judicial tem de estar entre 0% e 100%.");
+  }
 
   await prisma.employee.update({
     where: { id: employeeId },
-    data: { maritalStatus, dependents, fiscalRegion, mealAllowanceOverride },
+    data: {
+      maritalStatus,
+      dependents,
+      fiscalRegion,
+      mealAllowanceOverride,
+      youngTaxRegime,
+      youngTaxRegimeStartYear: youngTaxRegime ? youngTaxRegimeStartYear : null,
+      adseBeneficiary,
+      judicialDeductionPercent,
+      vacationSubsidyMode,
+      vacationSubsidyMonths,
+      christmasSubsidyMode,
+      christmasSubsidyMonths,
+    },
   });
 
   await logAudit({ userId: user.id, action: "UPDATE", entity: "EmployeePayrollProfile", entityId: employeeId });

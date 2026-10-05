@@ -321,6 +321,22 @@ model Employee {
   fiscalRegion          String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
   mealAllowanceOverride Float? // € / dia; se vazio usa o valor por omissão dos pressupostos
 
+  // Regime fiscal do IRS Jovem — isenção decrescente por "ano de
+  // rendimentos" desde o início do regime (ver IrsYoungExemption).
+  youngTaxRegime          Boolean @default(false)
+  youngTaxRegimeStartYear Int? // ano civil do 1º ano de benefício
+
+  adseBeneficiary          Boolean @default(false) // só aplicável a entidades da função pública
+  judicialDeductionPercent Float? // % de desconto judicial sobre o líquido; vazio = não aplicável
+
+  // Subsídios de férias/Natal — vazio usa a definição global de
+  // PayrollSettings; por colaborador pode optar por duodécimos ou por
+  // meses concretos (ex.: "6" ou "5,11").
+  vacationSubsidyMode    String? // DUODECIMOS | MONTHS
+  vacationSubsidyMonths  String? // CSV de meses 1-12, só quando MONTHS
+  christmasSubsidyMode   String? // DUODECIMOS | MONTHS
+  christmasSubsidyMonths String?
+
   employeeContracts EmployeeContract[]
   shifts            Shift[]
   absences          Absence[]
@@ -873,38 +889,81 @@ model PayrollSettings {
   workingDaysPerMonth        Float    @default(22)
   vacationSubsidyMode        String   @default("LUMP_SUM_JUNE") // LUMP_SUM_JUNE | MONTHLY_DUODECIMOS
   christmasSubsidyMode       String   @default("LUMP_SUM_DECEMBER") // LUMP_SUM_DECEMBER | MONTHLY_DUODECIMOS
+  mealAllowancePaymentMethod String   @default("CARD") // CARD | CASH — define qual o limite diário de isenção fiscal a aplicar
+  adseEmployeeRate           Float    @default(0.035) // quota do trabalhador beneficiário ADSE, sobre o vencimento base
   updatedAt                  DateTime @updatedAt
   updatedById                String?
 }
 
 // Uma tabela de retenção na fonte de IRS — os escalões oficiais variam por
-// período (ano, e por vezes semestre) e por região (Continente/Açores/
-// Madeira têm taxas diferentes). RH anexa/atualiza uma tabela por
-// combinação período+região; o cálculo do recibo escolhe a tabela certa
-// pelo ano do recibo e pela região fiscal do colaborador.
+// período (ano), por região (Continente/Açores/Madeira) e por tabela
+// (I = não casado sem dependentes/casado dois titulares, II = não casado
+// com dependentes, III = casado único titular). RH anexa/atualiza uma
+// tabela por combinação período+região+tabela; o cálculo do recibo
+// escolhe a tabela certa pelo ano do recibo, pela região fiscal e pelo
+// estado civil/nº de dependentes do colaborador.
 model IrsTable {
   id        String       @id @default(cuid())
   year      Int
   region    String       @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
-  label     String? // ex.: "Trabalho dependente — não casado, sem dependentes"
+  tableType String       @default("I") // I | II | III — ver IRS_TABLE_TYPE_LABELS
+  label     String? // ex.: "Não casado sem dependentes / casado dois titulares"
   brackets  IrsBracket[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  @@unique([year, region])
+  @@unique([year, region, tableType])
 }
 
-// Escalões progressivos de uma tabela de IRS — a taxa marginal aplicada ao
-// valor bruto tributável do mês.
+// Escalões progressivos de uma tabela de IRS — taxa marginal aplicada ao
+// valor bruto tributável do mês, menos a parcela a abater e o adicional
+// por dependente. Nos primeiros escalões (mesmo acima do limite de
+// isenção), a Autoridade Tributária usa uma fórmula dinâmica em vez de uma
+// parcela fixa — deductionCoefficient/deductionThreshold, quando
+// preenchidos, substituem "deduction": parcela = rate * coef * (threshold
+// - rendimentoTributável).
 model IrsBracket {
-  id         String   @id @default(cuid())
-  irsTableId String
-  irsTable   IrsTable @relation(fields: [irsTableId], references: [id], onDelete: Cascade)
-  order      Int
-  upToGross  Float? // null = sem limite superior (último escalão)
-  rate       Float // taxa marginal (ex.: 0.145 = 14.5%)
+  id                   String   @id @default(cuid())
+  irsTableId           String
+  irsTable             IrsTable @relation(fields: [irsTableId], references: [id], onDelete: Cascade)
+  order                Int
+  upToGross            Float? // null = sem limite superior (último escalão)
+  rate                 Float // taxa marginal (ex.: 0.145 = 14.5%)
+  deduction            Float? // parcela a abater (€) — null quando usa fórmula dinâmica
+  deductionCoefficient Float? // fórmula dinâmica dos escalões baixos (ver comentário do modelo)
+  deductionThreshold   Float?
+  dependentAddition    Float    @default(0) // acréscimo por dependente (€)
 
   @@unique([irsTableId, order])
+}
+
+// Percentagem de isenção do regime do IRS Jovem por "ano de rendimentos"
+// desde o início do regime (1º ano = 100%, 2º-4º = 75%, etc.) — a lei
+// pode alterar estes valores por ano fiscal, por isso ficam por período
+// tal como as tabelas de IRS normais.
+model IrsYoungExemption {
+  id               String @id @default(cuid())
+  year             Int
+  yearOfBenefit    Int // 1..10
+  exemptionPercent Float // 1.00 = 100%
+
+  @@unique([year, yearOfBenefit])
+}
+
+// Constantes fiscais que mudam todos os anos e não são específicas de
+// nenhuma tabela de IRS — IAS (usado no teto de isenção do IRS Jovem) e os
+// limites diários de isenção do subsídio de alimentação (cartão vs.
+// transferência/numerário, valores diferentes por lei).
+model FiscalYearConstants {
+  id                                String   @id @default(cuid())
+  year                              Int      @unique
+  ias                               Float // Indexante dos Apoios Sociais
+  mealAllowanceExemptCardDaily      Float    @default(10.46)
+  mealAllowanceExemptCashDaily      Float    @default(6.15)
+  youngExemptionCapAnnualMultiplier Float    @default(55) // × IAS
+  youngExemptionCapPaymentsPerYear  Float    @default(14) // ÷ nº pagamentos/ano (12 meses + 2 subsídios)
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
 }
 
 // Layout do recibo de vencimento (PDF e pré-visualização no ecrã) —
@@ -961,6 +1020,8 @@ model Payslip {
   grossTotal             Float
   socialSecurityEmployee Float
   irsWithholding         Float
+  adseDeduction          Float    @default(0)
+  judicialDeduction      Float    @default(0)
   netTotal               Float
   socialSecurityEmployer Float
   employerCost           Float
@@ -1084,11 +1145,14 @@ model AnniversaryComment {
 // PDF de escalas): people4people fica sempre à esquerda (fixo no código);
 // a informação da empresa cliente à direita é o que este registo guarda.
 model DocumentBrandingSettings {
-  id                String   @id @default(cuid())
-  clientCompanyName String?
-  clientCompanyLogo String? // data URI (base64), como o avatar de utilizador
-  updatedAt         DateTime @updatedAt
-  updatedById       String?
+  id                      String   @id @default(cuid())
+  clientCompanyName       String?
+  clientCompanyLogo       String? // data URI (base64), como o avatar de utilizador
+  companyNif              String? // contribuinte da entidade empregadora
+  companyAddress          String? // morada da sede, para o cabeçalho de documentos (ex.: recibo de vencimento)
+  companySocialSecurityNo String? // nº de identificação da SS da entidade empregadora
+  updatedAt               DateTime @updatedAt
+  updatedById             String?
 }
 
 // Modelo de documento para exportação (Relatórios → Modelos de Documentos):

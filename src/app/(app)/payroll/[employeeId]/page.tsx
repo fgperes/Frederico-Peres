@@ -6,18 +6,22 @@ import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { Banknote } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  updateEmployeePayrollProfile,
-  removePayrollComponent,
-} from "../actions";
+import { removePayrollComponent } from "../actions";
 import { FISCAL_REGION_LABELS } from "@/lib/payroll";
 import { AddPayrollComponentForm } from "../add-payroll-component-form";
+import { EmployeePayrollProfileForm } from "./employee-payroll-profile-form";
 
 const MARITAL_LABELS: Record<string, string> = {
   NAO_CASADO: "Não casado(a)",
   CASADO_UNICO_TITULAR: "Casado(a) — único titular",
   CASADO_DOIS_TITULARES: "Casado(a) — dois titulares",
 };
+
+function subsidyModeLabel(mode: string | null, months: string | null): string {
+  if (mode === "DUODECIMOS") return "Duodécimos mensais";
+  if (mode === "MONTHS") return `Meses: ${months || "—"}`;
+  return "Definição global";
+}
 
 export default async function EmployeePayrollPage({
   params,
@@ -166,48 +170,33 @@ export default async function EmployeePayrollPage({
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-stone-900">Dados de Payroll</h2>
           {canEdit ? (
-            <form action={updateEmployeePayrollProfile.bind(null, employee.id)} className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Estado civil (fiscal)</label>
-                <select name="maritalStatus" defaultValue={employee.maritalStatus ?? ""} className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                  <option value="">—</option>
-                  {Object.entries(MARITAL_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Dependentes</label>
-                <input name="dependents" type="number" min={0} defaultValue={employee.dependents} className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Região fiscal</label>
-                <select name="fiscalRegion" defaultValue={employee.fiscalRegion} className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm">
-                  <option value="CONTINENTE">Continente</option>
-                  <option value="ACORES">Açores</option>
-                  <option value="MADEIRA">Madeira</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de alimentação (€/dia, opcional)</label>
-                <input
-                  name="mealAllowanceOverride"
-                  type="number"
-                  step="0.01"
-                  defaultValue={employee.mealAllowanceOverride ?? ""}
-                  placeholder="Usar valor por omissão"
-                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-                />
-              </div>
-              <button type="submit" className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700">
-                Guardar
-              </button>
-            </form>
+            <EmployeePayrollProfileForm employee={employee} />
           ) : (
             <dl className="space-y-2 text-sm">
               <Info label="Estado civil" value={employee.maritalStatus ? MARITAL_LABELS[employee.maritalStatus] : "—"} />
               <Info label="Dependentes" value={String(employee.dependents)} />
               <Info label="Região fiscal" value={FISCAL_REGION_LABELS[employee.fiscalRegion] ?? employee.fiscalRegion} />
+              <Info label="Beneficiário ADSE" value={employee.adseBeneficiary ? "Sim" : "Não"} />
+              <Info
+                label="IRS Jovem"
+                value={
+                  employee.youngTaxRegime
+                    ? `Sim — desde ${employee.youngTaxRegimeStartYear}`
+                    : "Não"
+                }
+              />
+              <Info
+                label="Desconto judicial"
+                value={employee.judicialDeductionPercent ? `${employee.judicialDeductionPercent}%` : "—"}
+              />
+              <Info
+                label="Subsídio de férias"
+                value={subsidyModeLabel(employee.vacationSubsidyMode, employee.vacationSubsidyMonths)}
+              />
+              <Info
+                label="Subsídio de Natal"
+                value={subsidyModeLabel(employee.christmasSubsidyMode, employee.christmasSubsidyMonths)}
+              />
             </dl>
           )}
         </Card>

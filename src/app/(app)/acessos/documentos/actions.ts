@@ -34,6 +34,36 @@ export async function updateClientCompanyName(name: string) {
   revalidatePath("/acessos/documentos");
 }
 
+// Dados fiscais da empresa cliente — usados no cabeçalho de documentos que
+// exigem identificação legal da entidade empregadora, como o recibo de
+// vencimento (Payroll).
+export async function updateClientCompanyFiscalInfo(data: {
+  nif: string;
+  address: string;
+  socialSecurityNo: string;
+}) {
+  const user = await assertSystemAdmin();
+  const settings = await getDocumentBranding();
+  await prisma.documentBrandingSettings.update({
+    where: { id: settings.id },
+    data: {
+      companyNif: data.nif.trim() || null,
+      companyAddress: data.address.trim() || null,
+      companySocialSecurityNo: data.socialSecurityNo.trim() || null,
+      updatedById: user.id,
+    },
+  });
+  await logAudit({
+    userId: user.id,
+    action: "UPDATE",
+    entity: "DocumentBrandingSettings",
+    entityId: settings.id,
+    details: "Dados fiscais da empresa cliente atualizados",
+  });
+  revalidatePath("/acessos/documentos");
+  revalidatePath("/payroll");
+}
+
 export async function uploadClientCompanyLogo(dataUrl: string): Promise<{ error?: string }> {
   try {
     const user = await assertSystemAdmin();

@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createIrsTable, type CreateIrsTableState } from "../actions";
-import { FISCAL_REGIONS, FISCAL_REGION_LABELS } from "@/lib/payroll";
+import { FISCAL_REGIONS, FISCAL_REGION_LABELS, IRS_TABLE_TYPES, IRS_TABLE_TYPE_LABELS } from "@/lib/payroll";
 import { SaveBanner } from "@/components/save-banner";
 
 export function CreateIrsTableForm() {
@@ -26,6 +26,15 @@ export function CreateIrsTableForm() {
       <select name="region" defaultValue="CONTINENTE" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
         {FISCAL_REGIONS.map((r) => (
           <option key={r} value={r}>{FISCAL_REGION_LABELS[r]}</option>
+        ))}
+      </select>
+      <select
+        name="tableType"
+        defaultValue="I"
+        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+      >
+        {IRS_TABLE_TYPES.map((t) => (
+          <option key={t} value={t}>{IRS_TABLE_TYPE_LABELS[t]}</option>
         ))}
       </select>
       <input

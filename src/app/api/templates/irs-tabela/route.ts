@@ -5,7 +5,15 @@ import { buildRowsWorkbook } from "@/lib/excel";
 export async function GET() {
   await requireUser();
 
-  const headers = ["Ordem", "Até (€)", "Taxa"];
+  const headers = [
+    "Ordem",
+    "Até (€)",
+    "Taxa",
+    "Parcela a Abater (€)",
+    "Coeficiente",
+    "Limiar (€)",
+    "Adicional por Dependente (€)",
+  ];
   const buffer = buildRowsWorkbook(headers, [], "Template");
 
   return new NextResponse(new Blob([buffer]), {

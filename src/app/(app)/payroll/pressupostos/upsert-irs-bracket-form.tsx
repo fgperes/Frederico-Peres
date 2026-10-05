@@ -38,6 +38,21 @@ export function UpsertIrsBracketForm({ irsTableId, nextOrder }: { irsTableId: st
         required
         className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
       />
+      <input
+        name="deduction"
+        type="number"
+        step="0.01"
+        placeholder="Parcela a abater (€)"
+        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+      />
+      <input
+        name="dependentAddition"
+        type="number"
+        step="0.01"
+        placeholder="Adicional / dependente (€)"
+        defaultValue={0}
+        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+      />
       <button
         type="submit"
         disabled={pending}
@@ -45,6 +60,10 @@ export function UpsertIrsBracketForm({ irsTableId, nextOrder }: { irsTableId: st
       >
         {pending ? "A guardar..." : "Adicionar / atualizar escalão"}
       </button>
+      <p className="col-span-4 text-xs text-stone-400">
+        A edição manual só suporta parcela a abater fixa — os escalões com fórmula dinâmica (parcela que varia com
+        o rendimento) só chegam por importação Excel.
+      </p>
     </form>
   );
 }

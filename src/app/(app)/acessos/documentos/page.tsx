@@ -5,6 +5,7 @@ import { PageHeader, Card } from "@/components/ui";
 import { AcessosTabs } from "../tabs";
 import { ClientLogoPicker } from "./client-logo-picker";
 import { ClientNameForm } from "./client-name-form";
+import { ClientFiscalInfoForm } from "./client-fiscal-info-form";
 import { LogoMark, PeopleWordmark } from "@/components/brand/logo";
 import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
@@ -43,6 +44,21 @@ export default async function DocumentosPage() {
             <ClientLogoPicker currentLogo={branding.clientCompanyLogo} />
           </div>
         </div>
+      </Card>
+
+      <Card className="mb-6">
+        <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
+          Dados fiscais da empresa
+        </h2>
+        <p className="mb-4 text-xs text-stone-500 dark:text-stone-400">
+          Usados no cabeçalho de documentos que exigem identificação legal da entidade empregadora — por agora, o
+          recibo de vencimento em Payroll.
+        </p>
+        <ClientFiscalInfoForm
+          currentNif={branding.companyNif}
+          currentAddress={branding.companyAddress}
+          currentSocialSecurityNo={branding.companySocialSecurityNo}
+        />
       </Card>
 
       <Card>
