@@ -1,11 +1,14 @@
 "use server";
 
+import { saveLead } from "@/lib/leads";
+
 /**
  * Pedidos vindos dos formulários do site (demonstração, informação, suporte).
  * Envia por email via a API da Resend (https://resend.com) — precisa de
  * RESEND_API_KEY configurada nas variáveis de ambiente da Vercel. Sem essa
  * chave, o pedido fica só registado no log do servidor (nunca chega a
- * ninguém) — ver nota no README.
+ * ninguém) — ver nota no README. Fica também gravado na tabela `leads` do
+ * Supabase (DATABASE_URL) — ver lib/leads.ts.
  */
 
 export type LeadFormState = { success?: boolean; error?: string };
@@ -45,6 +48,20 @@ export async function submitLeadForm(
   if (kind !== "support" && !dataConsent) {
     return { error: "É necessário autorizar o tratamento de dados para enviar o pedido." };
   }
+
+  await saveLead({
+    kind,
+    companyName,
+    contactName,
+    role,
+    phone,
+    email,
+    nipc,
+    employeeCount,
+    situation,
+    dataConsent,
+    marketingConsent,
+  });
 
   const lines = [
     `Empresa: ${companyName}`,
