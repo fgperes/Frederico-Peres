@@ -18,6 +18,7 @@ import { GenerateToolbar } from "./generate-toolbar";
 import { ScheduleGrid } from "./schedule-grid";
 import { MonthYearPicker } from "./month-year-picker";
 import { ScheduleFilterPanel } from "./schedule-filter-panel";
+import { EscalasNavPills } from "./escalas-nav-pills";
 import { ScheduleAlertsBanner } from "./schedule-alerts-banner";
 import { FullscreenSection } from "./fullscreen-section";
 import type { ShiftTemplateOption } from "./shift-modal";
@@ -131,30 +132,7 @@ export default async function EscalasPage({
             month={params.month}
           />
 
-          <div className="flex overflow-hidden rounded-full border border-stone-300 dark:border-stone-700">
-            <Link
-              href={`/escalas?view=week&${filterQuery}`}
-              prefetch={false}
-              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-                view === "week"
-                  ? "bg-violet-600 text-white"
-                  : "bg-white text-stone-600 hover:bg-stone-50 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-              }`}
-            >
-              Semana
-            </Link>
-            <Link
-              href={`/escalas?view=month&${filterQuery}`}
-              prefetch={false}
-              className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-                view === "month"
-                  ? "bg-violet-600 text-white"
-                  : "bg-white text-stone-600 hover:bg-stone-50 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
-              }`}
-            >
-              Mês
-            </Link>
-          </div>
+          <EscalasNavPills active={view} filterQuery={filterQuery} />
         </div>
       </Card>
 

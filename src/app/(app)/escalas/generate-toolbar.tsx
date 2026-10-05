@@ -189,6 +189,8 @@ export function GenerateToolbar({
               {genResult.skippedDueToAbsence > 0 && `, ${genResult.skippedDueToAbsence} ignorado(s) por ausência`}
               {genResult.skippedDueToRestriction > 0 &&
                 `, ${genResult.skippedDueToRestriction} ignorado(s) por fim de semana/feriado não permitido`}
+              {genResult.skippedDueToOperatingHours > 0 &&
+                `, ${genResult.skippedDueToOperatingHours} ignorado(s) por horário de funcionamento`}
               .
             </p>
             {genResult.issues.length > 0 && (

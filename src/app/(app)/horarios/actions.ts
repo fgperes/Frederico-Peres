@@ -51,6 +51,7 @@ export async function createShiftTemplate(formData: FormData) {
   const startTime = String(formData.get("startTime") ?? "");
   const endTime = String(formData.get("endTime") ?? "");
   const breakMins = Number(formData.get("breakMins") ?? 0);
+  const breakStart = String(formData.get("breakStart") ?? "").trim() || null;
   const color = String(formData.get("color") ?? "#2563eb");
 
   if (!name || !startTime || !endTime) throw new Error("Campos obrigatórios em falta.");
@@ -60,7 +61,7 @@ export async function createShiftTemplate(formData: FormData) {
   if (existing) throw new Error(`Já existe um modelo de turno com o nome "${name}".`);
 
   const template = await prisma.shiftTemplate.create({
-    data: { name, startTime, endTime, breakMins, color },
+    data: { name, startTime, endTime, breakMins, breakStart, color },
   });
 
   await logAudit({ userId: user.id, action: "CREATE", entity: "ShiftTemplate", entityId: template.id, details: name });
@@ -88,6 +89,7 @@ export async function updateShiftTemplate(templateId: string, formData: FormData
     const startTime = String(formData.get("startTime") ?? "");
     const endTime = String(formData.get("endTime") ?? "");
     const breakMins = Number(formData.get("breakMins") ?? 0);
+    const breakStart = String(formData.get("breakStart") ?? "").trim() || null;
     const color = String(formData.get("color") ?? "#2563eb");
 
     if (!name || !startTime || !endTime) throw new Error("Campos obrigatórios em falta.");
@@ -100,7 +102,7 @@ export async function updateShiftTemplate(templateId: string, formData: FormData
 
     await prisma.shiftTemplate.update({
       where: { id: templateId },
-      data: { name, startTime, endTime, breakMins, color },
+      data: { name, startTime, endTime, breakMins, breakStart, color },
     });
 
     await logAudit({ userId: user.id, action: "UPDATE", entity: "ShiftTemplate", entityId: templateId, details: name });

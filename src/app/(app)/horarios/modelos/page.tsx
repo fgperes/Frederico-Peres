@@ -41,6 +41,7 @@ export default async function ModelosTurnoPage() {
                     <th className="px-4 py-3">Início</th>
                     <th className="px-4 py-3">Fim</th>
                     <th className="px-4 py-3">Pausa (min)</th>
+                    <th className="px-4 py-3">Hora de almoço</th>
                     <th className="px-4 py-3">Horas diárias</th>
                     {canEdit && <th className="px-4 py-3 text-right">Ações</th>}
                   </tr>

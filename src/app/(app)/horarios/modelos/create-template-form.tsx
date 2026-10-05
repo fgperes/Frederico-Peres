@@ -31,9 +31,13 @@ export function CreateTemplateForm() {
           <input name="breakMins" type="number" defaultValue={0} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Cor</label>
-          <input name="color" type="color" defaultValue="#2563eb" className="h-9 w-full rounded-md border border-stone-300" />
+          <label className="mb-1 block text-xs font-medium text-stone-600">Hora de almoço</label>
+          <TimeField name="breakStart" />
         </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-stone-600">Cor</label>
+        <input name="color" type="color" defaultValue="#2563eb" className="h-9 w-full rounded-md border border-stone-300" />
       </div>
       <button
         type="submit"

@@ -26,6 +26,7 @@ export type GenerationResult = {
   created: number;
   skippedDueToAbsence: number;
   skippedDueToRestriction: number;
+  skippedDueToOperatingHours: number;
   issues: GenerationIssue[];
 };
 
@@ -78,6 +79,7 @@ export async function generateSchedulesForEmployees(
   let created = 0;
   let skippedDueToAbsence = 0;
   let skippedDueToRestriction = 0;
+  let skippedDueToOperatingHours = 0;
 
   const employees = await prisma.employee.findMany({
     where: { id: { in: employeeIds } },
@@ -85,7 +87,10 @@ export async function generateSchedulesForEmployees(
   });
   const employeeById = new Map(employees.map((e) => [e.id, e]));
 
-  const [cycleAssignments, contracts, absences, existingShiftsInDept, moduleSub, templates, holidays] =
+  const departmentIds = [...new Set(employees.map((e) => e.departmentId).filter((v): v is string => !!v))];
+  const locationIds = [...new Set(employees.map((e) => e.locationId).filter((v): v is string => !!v))];
+
+  const [cycleAssignments, contracts, absences, existingShiftsInDept, moduleSub, templates, holidays, operatingHours] =
     await Promise.all([
       prisma.scheduleCycleAssignment.findMany({
         where: { employeeId: { in: employeeIds }, cycle: { isTemplate: false } },
@@ -103,6 +108,9 @@ export async function generateSchedulesForEmployees(
       getModuleSubscription(),
       prisma.shiftTemplate.findMany(),
       getHolidaysInRange(from, to),
+      prisma.operatingHours.findMany({
+        where: { OR: [{ departmentId: { in: departmentIds } }, { locationId: { in: locationIds } }] },
+      }),
     ]);
 
   const holidaysByDateKey = new Map<string, typeof holidays>();
@@ -110,6 +118,54 @@ export async function generateSchedulesForEmployees(
     const key = isoDate(h.date);
     if (!holidaysByDateKey.has(key)) holidaysByDateKey.set(key, []);
     holidaysByDateKey.get(key)!.push(h);
+  }
+
+  function isHolidayForEmployee(employeeId: string, day: Date): boolean {
+    const employee = employeeById.get(employeeId);
+    const dayHolidays = holidaysByDateKey.get(isoDate(day));
+    return !!dayHolidays?.some((h) => isHolidayForMunicipality(h, employee?.location?.municipality ?? null));
+  }
+
+  // Horário de funcionamento do departamento E do local do colaborador —
+  // um turno só é gerado se respeitar os dois (quando configurados; sem
+  // linha de horário para aquele dia/feriado, não há restrição a aplicar).
+  // Devolve a mensagem de erro, ou null se não há violação.
+  function operatingHoursViolation(
+    employeeId: string,
+    day: Date,
+    template: { startTime: string; endTime: string }
+  ): string | null {
+    const employee = employeeById.get(employeeId);
+    if (!employee) return null;
+    const isHolidayDay = isHolidayForEmployee(employeeId, day);
+    const dow = day.getDay();
+
+    const scopes: { id: string | null; label: string; match: (oh: (typeof operatingHours)[number]) => boolean }[] = [
+      { id: employee.departmentId, label: "departamento", match: (oh) => oh.departmentId === employee.departmentId },
+      { id: employee.locationId, label: "local", match: (oh) => oh.locationId === employee.locationId },
+    ];
+
+    for (const scope of scopes) {
+      if (!scope.id) continue;
+      const row = operatingHours.find(
+        (oh) => scope.match(oh) && (isHolidayDay ? oh.isHoliday : !oh.isHoliday && oh.dayOfWeek === dow)
+      );
+      if (!row) continue; // sem horário configurado para este dia — não bloqueia
+
+      if (row.isClosed) {
+        return `${scope.label} encerrado ${isHolidayDay ? "em feriados" : "a este dia da semana"}`;
+      }
+      if (row.openTime && row.closeTime) {
+        const shiftStart = minutesFromMidnight(template.startTime);
+        const shiftEnd = shiftEndOffsetMinutes(template.startTime, template.endTime);
+        const openMin = minutesFromMidnight(row.openTime);
+        const closeMin = minutesFromMidnight(row.closeTime);
+        if (shiftStart < openMin || shiftEnd > closeMin) {
+          return `turno (${template.startTime}-${template.endTime}) fora do horário do ${scope.label} (${row.openTime}-${row.closeTime})`;
+        }
+      }
+    }
+    return null;
   }
 
   const cycleAssignmentByEmployee = new Map(cycleAssignments.map((a) => [a.employeeId, a]));
@@ -214,6 +270,17 @@ export async function generateSchedulesForEmployees(
         continue;
       }
 
+      const ohViolation = operatingHoursViolation(employeeId, day, template);
+      if (ohViolation) {
+        skippedDueToOperatingHours++;
+        issues.push({
+          employeeId,
+          employeeName,
+          message: `${employeeName}, ${isoDate(day)}: não gerado — ${ohViolation}.`,
+        });
+        continue;
+      }
+
       await commitShift(employeeId, day, template, "CYCLE");
     }
   }
@@ -306,6 +373,17 @@ export async function generateSchedulesForEmployees(
           const template = templateForWindow(win);
           if (!template) continue;
 
+          const ohViolation = operatingHoursViolation(employeeId, day, template);
+          if (ohViolation) {
+            skippedDueToOperatingHours++;
+            issues.push({
+              employeeId,
+              employeeName,
+              message: `${employeeName}, ${isoDate(day)}: não gerado — ${ohViolation}.`,
+            });
+            continue;
+          }
+
           const hoursForWindow = shiftDurationHours(template.startTime, template.endTime, template.breakMins);
           const weekHours = weeklyHoursAssigned.get(week) ?? 0;
           if (weekHours + hoursForWindow > contract.contractProfile.weeklyHours) continue;
@@ -355,5 +433,5 @@ export async function generateSchedulesForEmployees(
     }
   }
 
-  return { created, skippedDueToAbsence, skippedDueToRestriction, issues };
+  return { created, skippedDueToAbsence, skippedDueToRestriction, skippedDueToOperatingHours, issues };
 }

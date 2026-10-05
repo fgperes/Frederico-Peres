@@ -2,13 +2,14 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
-import { updateLocation, deleteLocation } from "../../actions";
+import { updateLocation, deleteLocation, saveLocationOperatingHours } from "../../actions";
 import { DeleteSectionButton } from "../../delete-section-button";
 import { MigrateEmployeeForm } from "../../migrate-employee-form";
 import { LocationAddressFields } from "../../location-address-fields";
+import { OperatingHoursEditor } from "../../operating-hours-editor";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 
 export default async function LocalDetailPage({
   params,
@@ -25,6 +26,7 @@ export default async function LocalDetailPage({
     where: { id },
     include: {
       employees: { orderBy: { firstName: "asc" }, include: { department: true } },
+      operatingHours: true,
     },
   });
   if (!location) notFound();
@@ -36,6 +38,7 @@ export default async function LocalDetailPage({
 
   const boundUpdate = updateLocation.bind(null, location.id);
   const boundDelete = deleteLocation.bind(null, location.id);
+  const boundSaveHours = saveLocationOperatingHours.bind(null, location.id);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -110,6 +113,19 @@ export default async function LocalDetailPage({
               confirmMessage={`Apagar o local "${location.name}"? Só é possível se estiver vazio.`}
             />
           </div>
+        </Card>
+      )}
+
+      {canEdit && (
+        <Card className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+            <Clock size={15} className="text-stone-500 dark:text-stone-400" />
+            Horário de funcionamento
+          </h2>
+          <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+            A geração de escalas não propõe turnos fora deste horário neste local.
+          </p>
+          <OperatingHoursEditor action={boundSaveHours} existingRows={location.operatingHours} />
         </Card>
       )}
 
