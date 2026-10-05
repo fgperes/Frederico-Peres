@@ -1,11 +1,29 @@
 import Link from "next/link";
-import { ShieldCheck, MapPin, Headset, TrendingUp, ArrowRight } from "lucide-react";
+import { ShieldCheck, MapPin, Headset, TrendingUp, ArrowRight, FileText, Mail, Phone } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration, LinkedRingsIllustration } from "@/components/illustrations";
 import { ContactForm } from "@/components/contact-form";
 import { ServicesTabs } from "@/components/services-tabs";
 import { Reveal } from "@/components/reveal";
+
+const CONTACT_CHANNELS = [
+  {
+    icon: FileText,
+    title: "Formulário",
+    description: "Preencha o formulário e a nossa equipa entra em contacto consigo.",
+  },
+  {
+    icon: Mail,
+    title: "Email",
+    description: "[email de contacto]",
+  },
+  {
+    icon: Phone,
+    title: "Telefone",
+    description: "[telefone de contacto]",
+  },
+];
 
 const VALUE_PROPS = [
   {
@@ -143,17 +161,65 @@ function Porque() {
   );
 }
 
+function Parcerias() {
+  return (
+    <section className="border-t border-stone-200 bg-white py-20 sm:py-28">
+      <div className="mx-auto max-w-6xl px-6">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Parcerias</h2>
+          <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+            Empresas e entidades que confiam na people4people
+          </p>
+        </Reveal>
+        <Reveal
+          delay={100}
+          className="mt-14 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6"
+        >
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex h-20 items-center justify-center rounded-xl border border-dashed border-stone-300 text-xs font-medium text-stone-400"
+            >
+              Logótipo
+            </div>
+          ))}
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 function Contacto() {
   return (
     <section id="contacto" className="py-20 sm:py-28">
-      <Reveal className="mx-auto max-w-2xl rounded-3xl bg-violet-900 px-8 py-16 text-center sm:px-16">
-        <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Vamos simplificar a gestão de pessoas da sua empresa.
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-violet-100">
-          Preencha os seus dados e a nossa equipa entra em contacto para marcar uma demonstração.
-        </p>
-        <ContactForm />
+      <Reveal className="mx-auto max-w-5xl rounded-3xl bg-violet-900 px-8 py-16 sm:px-16">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            Vamos simplificar a gestão de pessoas da sua empresa.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-violet-100">
+            Preencha os seus dados e a nossa equipa entra em contacto para marcar uma demonstração.
+          </p>
+        </div>
+        <div className="mt-12 grid grid-cols-1 gap-10 lg:grid-cols-[1.3fr_0.7fr]">
+          <ContactForm />
+          <div className="space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-300">
+              Outras formas de contacto
+            </h3>
+            {CONTACT_CHANNELS.map(({ icon: Icon, title, description }) => (
+              <div key={title} className="flex items-start gap-3 rounded-xl bg-white/10 p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
+                  <Icon size={17} strokeWidth={2} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-white">{title}</p>
+                  <p className="mt-0.5 text-sm text-violet-100">{description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </Reveal>
     </section>
   );
@@ -167,6 +233,7 @@ export default function Home() {
       <Sobre />
       <Modulos />
       <Porque />
+      <Parcerias />
       <Contacto />
       <Footer />
     </main>

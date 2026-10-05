@@ -1,9 +1,36 @@
 import Link from "next/link";
-import { ShieldCheck, Layers, Headset, Sparkles, ArrowRight } from "lucide-react";
+import { ShieldCheck, Layers, Headset, Sparkles, ArrowRight, Rocket, Eye, Trophy, CalendarCheck } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration } from "@/components/illustrations";
 import { Reveal } from "@/components/reveal";
+
+const PILARES = [
+  {
+    icon: Rocket,
+    title: "Missão",
+    description:
+      "Simplificar a gestão de recursos humanos das empresas portuguesas, com tecnologia pensada de raiz para o Código do Trabalho.",
+  },
+  {
+    icon: Eye,
+    title: "Visão",
+    description:
+      "Ser a plataforma de referência na gestão de RH para PME portuguesas, substituindo processos que hoje vivem dispersos por ficheiros e emails.",
+  },
+  {
+    icon: Trophy,
+    title: "Valores",
+    description:
+      "Simplicidade, rigor e proximidade acima de funcionalidades vistosas — colocamos as equipas de RH no centro de cada decisão.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Compromisso",
+    description:
+      "Cumprir o que prometemos, com prazos claros e os dados dos colaboradores tratados com o rigor que a gestão de pessoas exige.",
+  },
+];
 
 const PRINCIPIOS = [
   {
@@ -84,6 +111,17 @@ export default function Sobre() {
             </p>
           </div>
         </Reveal>
+        <div className="mx-auto mt-14 grid max-w-3xl grid-cols-1 gap-6 px-6 sm:grid-cols-2">
+          {PILARES.map(({ icon: Icon, title, description }, i) => (
+            <Reveal key={title} delay={i * 100} className="rounded-2xl border border-stone-200 bg-stone-50 p-6">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700">
+                <Icon size={20} strokeWidth={2} />
+              </span>
+              <h3 className="mt-4 text-base font-semibold text-stone-900">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-stone-600">{description}</p>
+            </Reveal>
+          ))}
+        </div>
       </section>
 
       <section className="py-20 sm:py-28">

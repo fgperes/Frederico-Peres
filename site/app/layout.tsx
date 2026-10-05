@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { CookieConsent } from "@/components/cookie-consent";
 
 export const metadata: Metadata = {
   title: "people4people — Menos processos, mais pessoas",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style>
         </noscript>
         {children}
+        <CookieConsent />
       </body>
     </html>
   );
