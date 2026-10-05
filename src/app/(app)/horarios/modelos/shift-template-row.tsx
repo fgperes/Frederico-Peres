@@ -13,6 +13,7 @@ type Template = {
   startTime: string;
   endTime: string;
   breakMins: number;
+  breakStart: string | null;
   color: string;
 };
 
@@ -54,7 +55,7 @@ export function ShiftTemplateRow({
   if (editing) {
     return (
       <tr>
-        <td colSpan={6} className="px-4 py-3">
+        <td colSpan={7} className="px-4 py-3">
           <form action={handleSave} className="flex flex-wrap items-end gap-2">
             <div>
               <label className="mb-1 block text-[11px] font-medium text-stone-600">Nome</label>
@@ -91,6 +92,14 @@ export function ShiftTemplateRow({
                 min={0}
                 defaultValue={template.breakMins}
                 className="w-20 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600">Hora de almoço</label>
+              <TimeField
+                name="breakStart"
+                defaultValue={template.breakStart ?? ""}
+                inputClassName="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
@@ -136,6 +145,7 @@ export function ShiftTemplateRow({
       <td className="px-4 py-3">{template.startTime}</td>
       <td className="px-4 py-3">{template.endTime}</td>
       <td className="px-4 py-3">{template.breakMins}</td>
+      <td className="px-4 py-3">{template.breakStart ?? "—"}</td>
       <td className="px-4 py-3">
         {shiftDurationHours(template.startTime, template.endTime, template.breakMins).toFixed(1)}h
       </td>

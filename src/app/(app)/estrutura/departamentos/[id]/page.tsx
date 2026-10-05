@@ -2,12 +2,13 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
-import { updateDepartment, deleteDepartment } from "../../actions";
+import { updateDepartment, deleteDepartment, saveDepartmentOperatingHours } from "../../actions";
 import { DeleteSectionButton } from "../../delete-section-button";
 import { MigrateEmployeeForm } from "../../migrate-employee-form";
+import { OperatingHoursEditor } from "../../operating-hours-editor";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Building2, Users2 } from "lucide-react";
+import { Building2, Clock, Users2 } from "lucide-react";
 
 export default async function DepartamentoDetailPage({
   params,
@@ -25,6 +26,7 @@ export default async function DepartamentoDetailPage({
     include: {
       teams: { orderBy: { name: "asc" }, include: { _count: { select: { employees: true } } } },
       employees: { orderBy: { firstName: "asc" }, include: { location: true } },
+      operatingHours: true,
     },
   });
   if (!department) notFound();
@@ -35,6 +37,7 @@ export default async function DepartamentoDetailPage({
 
   const boundUpdate = updateDepartment.bind(null, department.id);
   const boundDelete = deleteDepartment.bind(null, department.id);
+  const boundSaveHours = saveDepartmentOperatingHours.bind(null, department.id);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -97,6 +100,19 @@ export default async function DepartamentoDetailPage({
               confirmMessage={`Apagar o departamento "${department.name}"? Só é possível se estiver vazio.`}
             />
           </div>
+        </Card>
+      )}
+
+      {canEdit && (
+        <Card className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+            <Clock size={15} className="text-stone-500 dark:text-stone-400" />
+            Horário de funcionamento
+          </h2>
+          <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
+            A geração de escalas não propõe turnos fora deste horário neste departamento.
+          </p>
+          <OperatingHoursEditor action={boundSaveHours} existingRows={department.operatingHours} />
         </Card>
       )}
 

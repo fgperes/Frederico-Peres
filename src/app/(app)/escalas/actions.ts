@@ -90,6 +90,7 @@ export type GenerateSchedulesResult = {
   created: number;
   skippedDueToAbsence: number;
   skippedDueToRestriction: number;
+  skippedDueToOperatingHours: number;
   issues: GenerationIssue[];
 };
 
@@ -109,7 +110,7 @@ export async function generateSchedulesAction(
       userId: user.id,
       action: "GENERATE",
       entity: "Shift",
-      details: `Escalas geradas ${fromIso} a ${toIso} para ${employeeIds.length} colaborador(es): ${result.created} turnos criados, ${result.skippedDueToAbsence} ignorados por ausência, ${result.skippedDueToRestriction} ignorados por fim de semana/feriado não permitido, ${result.issues.length} com incidências`,
+      details: `Escalas geradas ${fromIso} a ${toIso} para ${employeeIds.length} colaborador(es): ${result.created} turnos criados, ${result.skippedDueToAbsence} ignorados por ausência, ${result.skippedDueToRestriction} ignorados por fim de semana/feriado não permitido, ${result.skippedDueToOperatingHours} ignorados por horário de funcionamento, ${result.issues.length} com incidências`,
     });
 
     revalidatePath("/escalas");

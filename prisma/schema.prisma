@@ -161,16 +161,17 @@ model RolePermission {
 // ---------------------------------------------------------------------------
 
 model Department {
-  id        String       @id @default(cuid())
-  name      String       @unique
-  parentId  String?
-  parent    Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
-  children  Department[] @relation("DeptHierarchy")
-  teams     Team[]
-  employees Employee[]
-  userRoles UserRole[]
-  equipment Equipment[]
-  createdAt DateTime     @default(now())
+  id             String           @id @default(cuid())
+  name           String           @unique
+  parentId       String?
+  parent         Department?      @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children       Department[]     @relation("DeptHierarchy")
+  teams          Team[]
+  employees      Employee[]
+  userRoles      UserRole[]
+  equipment      Equipment[]
+  operatingHours OperatingHours[]
+  createdAt      DateTime         @default(now())
 }
 
 model Team {
@@ -187,17 +188,43 @@ model Team {
 }
 
 model Location {
-  id           String     @id @default(cuid())
-  name         String     @unique
+  id             String           @id @default(cuid())
+  name           String           @unique
   // Morada (rua/número) em linha livre; distrito, concelho e código postal
   // ficam em campos próprios — o concelho é o que liga este local aos
   // feriados regionais (ver Holiday.municipalities).
-  address      String?
-  postalCode   String?
-  municipality String?
-  district     String?
-  employees    Employee[]
-  createdAt    DateTime   @default(now())
+  address        String?
+  postalCode     String?
+  municipality   String?
+  district       String?
+  employees      Employee[]
+  operatingHours OperatingHours[]
+  createdAt      DateTime         @default(now())
+}
+
+// Horário de funcionamento de um departamento ou de um local — usado pela
+// geração de escalas para nunca propor turnos fora do horário em que o
+// departamento/local está aberto. Uma linha por dia da semana (0=Domingo..
+// 6=Sábado) mais uma linha especial para feriados (isHoliday=true,
+// dayOfWeek=null, aplica-se a qualquer feriado — ver Holiday). Cada linha
+// pertence exclusivamente a um departamento OU a um local, nunca aos dois
+// (validado na camada de aplicação, não há CHECK constraint no Postgres).
+model OperatingHours {
+  id           String      @id @default(cuid())
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  locationId   String?
+  location     Location?   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int? // 0=Domingo..6=Sábado; null quando isHoliday=true
+  isHoliday    Boolean     @default(false)
+  isClosed     Boolean     @default(false)
+  openTime     String? // "HH:MM"
+  closeTime    String? // "HH:MM"
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([departmentId, dayOfWeek, isHoliday])
+  @@unique([locationId, dayOfWeek, isHoliday])
 }
 
 // Feriados configuráveis em Perfis e Acessos → Feriados. Nacionais aplicam-se
@@ -329,6 +356,12 @@ model ShiftTemplate {
   startTime             String // "08:00"
   endTime               String // "16:00"
   breakMins             Int                    @default(0)
+  // Hora de início da pausa de refeição deste modelo de turno (ex: "12:00").
+  // Para ter o mesmo turno (ex: 09h-18h) com colaboradores a almoçar a
+  // horas diferentes, criam-se vários modelos com o mesmo startTime/endTime
+  // e breakStart diferente — usado pelo sub-módulo Execução (Escalas) para
+  // saber quem está de pausa em cada hora.
+  breakStart            String?
   color                 String                 @default("#2563eb")
   shifts                Shift[]
   createdAt             DateTime               @default(now())
