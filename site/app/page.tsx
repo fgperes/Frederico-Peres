@@ -156,6 +156,8 @@ function Porque() {
   );
 }
 
+// Por usar na home até termos logótipos reais de parceiros — ver <Parcerias /> em Home().
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function Parcerias() {
   return (
     <section className="border-t border-stone-200 bg-white py-20 sm:py-28">
@@ -228,7 +230,7 @@ export default function Home() {
       <Sobre />
       <Modulos />
       <Porque />
-      <Parcerias />
+      {/* <Parcerias /> — voltar a mostrar quando houver logótipos reais de parceiros */}
       <Contacto />
       <Footer />
     </main>
