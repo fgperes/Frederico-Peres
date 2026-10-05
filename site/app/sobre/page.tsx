@@ -3,6 +3,7 @@ import { ShieldCheck, Layers, Headset, Sparkles, ArrowRight } from "lucide-react
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TeamIllustration } from "@/components/illustrations";
+import { Reveal } from "@/components/reveal";
 
 const PRINCIPIOS = [
   {
@@ -38,7 +39,7 @@ export default function Sobre() {
 
       <section className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:pb-24 sm:pt-20">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-          <div>
+          <Reveal>
             <span className="inline-block rounded-full bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-700">
               Sobre nós
             </span>
@@ -50,13 +51,15 @@ export default function Sobre() {
               portuguesas ainda vive espalhada por ficheiros Excel, emails e papel — mesmo em
               empresas que já digitalizaram praticamente tudo o resto.
             </p>
-          </div>
-          <TeamIllustration className="w-full max-w-md justify-self-center lg:justify-self-end" />
+          </Reveal>
+          <Reveal delay={150} className="justify-self-center lg:justify-self-end">
+            <TeamIllustration className="w-full max-w-md" />
+          </Reveal>
         </div>
       </section>
 
       <section className="border-t border-stone-200 bg-white py-20 sm:py-28">
-        <div className="mx-auto max-w-3xl px-6">
+        <Reveal className="mx-auto max-w-3xl px-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">A nossa missão</h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Dar às equipas de RH o tempo que os processos manuais lhes tiram.
@@ -80,33 +83,33 @@ export default function Sobre() {
               Código do Trabalho e construímos a aplicação à volta dele.
             </p>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <section className="py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto max-w-2xl text-center">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Como trabalhamos</h2>
             <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
               Os princípios por trás de cada funcionalidade
             </p>
-          </div>
+          </Reveal>
           <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-2">
-            {PRINCIPIOS.map(({ icon: Icon, title, description }) => (
-              <div key={title} className="rounded-2xl border border-stone-200 bg-white p-6">
+            {PRINCIPIOS.map(({ icon: Icon, title, description }, i) => (
+              <Reveal key={title} delay={i * 100} className="rounded-2xl border border-stone-200 bg-white p-6">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600/10 text-violet-700">
                   <Icon size={20} strokeWidth={2} />
                 </span>
                 <h3 className="mt-4 text-base font-semibold text-stone-900">{title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-stone-600">{description}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       <section className="border-t border-stone-200 bg-white py-20 sm:py-28">
-        <div className="mx-auto max-w-3xl px-6 text-center">
+        <Reveal className="mx-auto max-w-3xl px-6 text-center">
           <h2 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Quer conhecer o SGRH por dentro?
           </h2>
@@ -128,7 +131,7 @@ export default function Sobre() {
               Pedir uma demonstração
             </Link>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <Footer />

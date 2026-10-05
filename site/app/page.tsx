@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { TeamIllustration, LinkedRingsIllustration } from "@/components/illustrations";
 import { ContactForm } from "@/components/contact-form";
 import { ServicesTabs } from "@/components/services-tabs";
+import { Reveal } from "@/components/reveal";
 
 const VALUE_PROPS = [
   {
@@ -33,7 +34,7 @@ function Hero() {
   return (
     <section className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:pb-24 sm:pt-20">
       <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
+        <Reveal>
           <span className="inline-block rounded-full bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-700">
             Software de Gestão de Recursos Humanos
           </span>
@@ -56,8 +57,10 @@ function Hero() {
               <ArrowRight size={16} />
             </a>
           </div>
-        </div>
-        <TeamIllustration className="w-full max-w-md justify-self-center lg:justify-self-end" />
+        </Reveal>
+        <Reveal delay={150} className="justify-self-center lg:justify-self-end">
+          <TeamIllustration className="w-full max-w-md" />
+        </Reveal>
       </div>
     </section>
   );
@@ -67,8 +70,10 @@ function Sobre() {
   return (
     <section id="sobre" className="border-t border-stone-200 bg-white py-20 sm:py-28">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <LinkedRingsIllustration className="w-full max-w-md" />
-        <div>
+        <Reveal>
+          <LinkedRingsIllustration className="w-full max-w-md" />
+        </Reveal>
+        <Reveal delay={150}>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Quem somos</h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Acabámos com as folhas de cálculo dispersas na gestão de pessoas.
@@ -88,7 +93,7 @@ function Sobre() {
             Conhecer a nossa história
             <ArrowRight size={15} />
           </Link>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -98,15 +103,15 @@ function Modulos() {
   return (
     <section id="modulos" className="py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Serviços</h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Os módulos do SGRH
           </p>
-        </div>
-        <div className="mt-14">
+        </Reveal>
+        <Reveal delay={100} className="mt-14">
           <ServicesTabs />
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -116,21 +121,21 @@ function Porque() {
   return (
     <section className="border-t border-stone-200 bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Porquê people4people</h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Feito para a realidade portuguesa
           </p>
-        </div>
+        </Reveal>
         <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {VALUE_PROPS.map(({ icon: Icon, title, description }) => (
-            <div key={title} className="text-center">
+          {VALUE_PROPS.map(({ icon: Icon, title, description }, i) => (
+            <Reveal key={title} delay={i * 100} className="text-center">
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-600/10 text-violet-700">
                 <Icon size={22} strokeWidth={2} />
               </span>
               <h3 className="mt-4 text-sm font-semibold text-stone-900">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-stone-600">{description}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -141,7 +146,7 @@ function Porque() {
 function Contacto() {
   return (
     <section id="contacto" className="py-20 sm:py-28">
-      <div className="mx-auto max-w-2xl rounded-3xl bg-violet-900 px-8 py-16 text-center sm:px-16">
+      <Reveal className="mx-auto max-w-2xl rounded-3xl bg-violet-900 px-8 py-16 text-center sm:px-16">
         <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           Vamos simplificar a gestão de pessoas da sua empresa.
         </h2>
@@ -149,7 +154,7 @@ function Contacto() {
           Preencha os seus dados e a nossa equipa entra em contacto para marcar uma demonstração.
         </p>
         <ContactForm />
-      </div>
+      </Reveal>
     </section>
   );
 }
