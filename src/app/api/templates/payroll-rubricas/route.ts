@@ -5,21 +5,13 @@ import { buildRowsWorkbook } from "@/lib/excel";
 export async function GET() {
   await requireUser();
 
-  const headers = [
-    "Ordem",
-    "Até (€)",
-    "Taxa",
-    "Parcela a Abater (€)",
-    "Coeficiente",
-    "Limiar (€)",
-    "Adicional por Dependente (€)",
-  ];
+  const headers = ["Nº Colaborador", "Email", "Rubrica", "Tipo", "Categoria", "Valor", "Recorrente", "Ano", "Mês"];
   const buffer = buildRowsWorkbook(headers, [], "Template");
 
   return new NextResponse(new Blob([buffer]), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": "attachment; filename=template_tabela_irs.xlsx",
+      "Content-Disposition": "attachment; filename=template_rubricas_payroll.xlsx",
     },
   });
 }

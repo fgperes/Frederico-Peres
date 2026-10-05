@@ -68,13 +68,34 @@ export function PayrollSettingsForm({ settings }: { settings: PayrollSettings })
       />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Subsídio de alimentação (€/dia)" name="mealAllowanceDaily" defaultValue={settings.mealAllowanceDaily} />
-        <Field
-          label="Limite isento (€/dia)"
-          name="mealAllowanceExemptCap"
-          defaultValue={settings.mealAllowanceExemptCap}
-          hint="acima disto é tributado"
-        />
+        <div>
+          <label className="mb-1 block text-xs font-medium text-stone-600">Forma de pagamento</label>
+          <select
+            name="mealAllowancePaymentMethod"
+            defaultValue={settings.mealAllowancePaymentMethod}
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          >
+            <option value="CARD">Cartão de refeição</option>
+            <option value="CASH">Transferência/numerário</option>
+          </select>
+          <p className="mt-0.5 text-xs text-stone-400">
+            Define o limite diário de isenção fiscal a aplicar (diferente por lei entre as duas formas).
+          </p>
+        </div>
       </div>
+      <Field
+        label="Limite isento (€/dia) — valor de referência"
+        name="mealAllowanceExemptCap"
+        defaultValue={settings.mealAllowanceExemptCap}
+        hint="só usado se não houver constantes fiscais carregadas para o ano do recibo"
+      />
+      <Field
+        label="Taxa ADSE do trabalhador"
+        name="adseEmployeeRate"
+        defaultValue={settings.adseEmployeeRate}
+        step="0.001"
+        hint="ex.: 0.035 = 3,5% sobre o vencimento base — só desconta a quem está marcado como beneficiário ADSE"
+      />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field
           label="Acréscimo 1ª hora extra"

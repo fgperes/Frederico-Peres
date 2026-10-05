@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
-import { getPayrollSettings, getIrsTables, FISCAL_REGION_LABELS } from "@/lib/payroll";
+import { getPayrollSettings, getIrsTables, FISCAL_REGION_LABELS, IRS_TABLE_TYPE_LABELS, type IrsTableType } from "@/lib/payroll";
 import { PageHeader, Card, Badge, LinkButton } from "@/components/ui";
 import { Sliders } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -70,9 +70,11 @@ export default async function PayrollSettingsPage() {
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-stone-900">
-                    {table.year} — {FISCAL_REGION_LABELS[table.region] ?? table.region}
+                    {table.year} — {FISCAL_REGION_LABELS[table.region] ?? table.region} — Tabela {table.tableType}
                   </h2>
-                  {table.label && <p className="text-xs text-stone-500">{table.label}</p>}
+                  <p className="text-xs text-stone-500">
+                    {table.label || IRS_TABLE_TYPE_LABELS[table.tableType as IrsTableType]}
+                  </p>
                 </div>
                 <form action={deleteIrsTable.bind(null, table.id)}>
                   <button type="submit" className="text-xs text-rose-600 hover:underline">
@@ -88,6 +90,8 @@ export default async function PayrollSettingsPage() {
                       <th className="py-2">Ordem</th>
                       <th className="py-2">Até (€)</th>
                       <th className="py-2">Taxa</th>
+                      <th className="py-2">Parcela a abater</th>
+                      <th className="py-2">Adicional/dep.</th>
                       <th className="py-2"></th>
                     </tr>
                   </thead>
@@ -99,6 +103,12 @@ export default async function PayrollSettingsPage() {
                         <td className="py-2">
                           <Badge color="blue">{(b.rate * 100).toFixed(1)}%</Badge>
                         </td>
+                        <td className="py-2">
+                          {b.deductionCoefficient != null
+                            ? `${b.rate * 100}% × ${b.deductionCoefficient} × (${b.deductionThreshold} - R)`
+                            : (b.deduction?.toFixed(2) ?? "0.00")}
+                        </td>
+                        <td className="py-2">{b.dependentAddition.toFixed(2)}</td>
                         <td className="py-2 text-right">
                           <form action={deleteIrsBracket.bind(null, b.id)}>
                             <button type="submit" className="text-xs text-rose-600 hover:underline">

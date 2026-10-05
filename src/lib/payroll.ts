@@ -1,29 +1,58 @@
 import { prisma } from "@/lib/prisma";
 import { computeWorkedHoursByDay } from "@/lib/hours";
 import { isoDate } from "@/lib/dates";
+import { shiftDurationHours } from "@/lib/schedule";
 
 // ---------------------------------------------------------------------------
-// Pressupostos e escalões de IRS — valores por omissão configuráveis.
-// Não são uma cópia das tabelas oficiais da Autoridade Tributária (essas
-// variam por estado civil/dependentes/região e mudam todos os anos); servem
-// de ponto de partida razoável, editável por RH/Admin em /payroll/pressupostos.
+// Pressupostos e escalões de IRS. As tabelas de 2026 (Continente/Açores/
+// Madeira × Tabelas I/II/III) são as oficiais, importadas de
+// src/lib/irs-tables-2026-seed.ts; para outros anos sem tabela carregada,
+// cai-se num escalão único simplificado só para nunca ficar sem retenção
+// calculada — RH deve carregar a tabela oficial desse ano em
+// /payroll/pressupostos.
 // ---------------------------------------------------------------------------
 
 const DEFAULT_IRS_BRACKETS = [
-  { order: 1, upToGross: 870, rate: 0 },
-  { order: 2, upToGross: 1000, rate: 0.13 },
-  { order: 3, upToGross: 1300, rate: 0.165 },
-  { order: 4, upToGross: 1800, rate: 0.21 },
-  { order: 5, upToGross: 2500, rate: 0.26 },
-  { order: 6, upToGross: 3500, rate: 0.32 },
-  { order: 7, upToGross: 5000, rate: 0.37 },
-  { order: 8, upToGross: null, rate: 0.45 },
+  { order: 1, upToGross: 870, rate: 0, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 2, upToGross: 1000, rate: 0.13, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 3, upToGross: 1300, rate: 0.165, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 4, upToGross: 1800, rate: 0.21, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 5, upToGross: 2500, rate: 0.26, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 6, upToGross: 3500, rate: 0.32, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 7, upToGross: 5000, rate: 0.37, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
+  { order: 8, upToGross: null, rate: 0.45, deduction: 0, deductionCoefficient: null, deductionThreshold: null, dependentAddition: 0 },
 ];
 
 export async function getPayrollSettings() {
   const existing = await prisma.payrollSettings.findFirst();
   if (existing) return existing;
   return prisma.payrollSettings.create({ data: {} });
+}
+
+// Categoria de uma rubrica variável (PayrollComponent) — a forma amigável
+// de escolher a combinação taxable/ssApplicable já existente no modelo,
+// tal como pedido: rendimentos sujeitos a IRS e SS, só a IRS, ou isentos
+// de ambos (ex.: outros benefícios isentos, como seguro de saúde).
+export const PAYROLL_COMPONENT_CATEGORIES = ["TAXABLE_SS", "TAXABLE_ONLY", "EXEMPT"] as const;
+export type PayrollComponentCategory = (typeof PAYROLL_COMPONENT_CATEGORIES)[number];
+export const PAYROLL_COMPONENT_CATEGORY_LABELS: Record<PayrollComponentCategory, string> = {
+  TAXABLE_SS: "Sujeito a IRS e Segurança Social",
+  TAXABLE_ONLY: "Sujeito só a IRS",
+  EXEMPT: "Isento (IRS e Segurança Social)",
+};
+export function categoryToTaxFlags(category: PayrollComponentCategory): { taxable: boolean; ssApplicable: boolean } {
+  switch (category) {
+    case "TAXABLE_SS":
+      return { taxable: true, ssApplicable: true };
+    case "TAXABLE_ONLY":
+      return { taxable: true, ssApplicable: false };
+    case "EXEMPT":
+      return { taxable: false, ssApplicable: false };
+  }
+}
+export function taxFlagsToCategory(taxable: boolean, ssApplicable: boolean): PayrollComponentCategory {
+  if (!taxable) return "EXEMPT";
+  return ssApplicable ? "TAXABLE_SS" : "TAXABLE_ONLY";
 }
 
 export const FISCAL_REGIONS = ["CONTINENTE", "ACORES", "MADEIRA"] as const;
@@ -33,28 +62,108 @@ export const FISCAL_REGION_LABELS: Record<string, string> = {
   MADEIRA: "Madeira",
 };
 
+export const IRS_TABLE_TYPES = ["I", "II", "III"] as const;
+export type IrsTableType = (typeof IRS_TABLE_TYPES)[number];
+export const IRS_TABLE_TYPE_LABELS: Record<IrsTableType, string> = {
+  I: "Tabela I — não casado sem dependentes / casado dois titulares",
+  II: "Tabela II — não casado com dependentes",
+  III: "Tabela III — casado único titular",
+};
+
+export type IrsSeedBracket = {
+  order: number;
+  upToGross: number | null;
+  rate: number;
+  deduction: number | null;
+  deductionCoefficient: number | null;
+  deductionThreshold: number | null;
+  dependentAddition: number;
+};
+
+export type IrsSeedTable = {
+  year: number;
+  region: string;
+  tableType: IrsTableType;
+  label: string;
+  brackets: IrsSeedBracket[];
+};
+
+// Qual das 3 tabelas de retenção se aplica — a mesma lógica das tabelas
+// oficiais da Autoridade Tributária: Tabela I para quem não tem
+// dependentes (ou é casado com dois titulares, exceto nos Açores sem
+// dependentes, onde também cai na I); Tabela II para não casado com
+// dependentes; Tabela III (casado único titular) cobre o resto.
+export function determineIrsTableType(
+  maritalStatus: string | null,
+  dependents: number,
+  region: string
+): IrsTableType {
+  const isSingleTitulant = maritalStatus === "CASADO_UNICO_TITULAR";
+  const isDualTitulant = maritalStatus === "CASADO_DOIS_TITULARES";
+  const isAcores = region === "ACORES";
+
+  const isTableI =
+    (dependents === 0 && !isSingleTitulant && !isDualTitulant) ||
+    (isDualTitulant && !isAcores) ||
+    (isDualTitulant && dependents === 0 && isAcores);
+  if (isTableI) return "I";
+
+  const isTableII = dependents > 0 && !isSingleTitulant && !isDualTitulant;
+  if (isTableII) return "II";
+
+  return "III";
+}
+
 export async function getIrsTables() {
   return prisma.irsTable.findMany({
     include: { brackets: { orderBy: { order: "asc" } } },
-    orderBy: [{ year: "desc" }, { region: "asc" }],
+    orderBy: [{ year: "desc" }, { region: "asc" }, { tableType: "asc" }],
   });
 }
 
+async function seedIrsTablesForYear(year: number) {
+  if (year !== 2026) return [] as Awaited<ReturnType<typeof getIrsTables>>;
+  const { IRS_TABLES_2026 } = await import("./irs-tables-2026-seed");
+  const created = [];
+  for (const t of IRS_TABLES_2026) {
+    created.push(
+      await prisma.irsTable.create({
+        data: {
+          year: t.year,
+          region: t.region,
+          tableType: t.tableType,
+          label: t.label,
+          brackets: { createMany: { data: t.brackets } },
+        },
+        include: { brackets: { orderBy: { order: "asc" } } },
+      })
+    );
+  }
+  return created;
+}
+
 // Escolhe a tabela de IRS a aplicar a um recibo: a combinação exata
-// ano+região se existir; caso contrário cai para a região Continente do
-// mesmo ano e, na falta de tabelas para o ano pedido, para a tabela mais
-// recente disponível (região pedida, depois Continente). Sem nenhuma
-// tabela configurada, semeia uma tabela por omissão para o ano pedido —
-// tal como o comportamento antigo (lista única global).
-export async function getIrsBracketsFor(year: number, region: string) {
-  const tables = await getIrsTables();
+// ano+região+tabela se existir; caso contrário cai sucessivamente para
+// Continente do mesmo ano+tabela, para a tabela mais recente disponível
+// (mesma região/tabela, depois Continente/mesma tabela), e por fim para a
+// tabela mais antiga disponível de todas — nunca fica sem retenção
+// calculada. Para 2026 sem nenhuma tabela ainda carregada, semeia as 9
+// tabelas oficiais (ver irs-tables-2026-seed.ts); para outros anos sem
+// nada carregado, cai num escalão único simplificado.
+export async function getIrsBracketsFor(year: number, region: string, tableType: IrsTableType) {
+  let tables = await getIrsTables();
+
+  if (tables.length === 0 && year === 2026) {
+    tables = await seedIrsTablesForYear(2026);
+  }
 
   if (tables.length === 0) {
     const seeded = await prisma.irsTable.create({
       data: {
         year,
         region: "CONTINENTE",
-        label: "Tabela por omissão",
+        tableType: "I",
+        label: "Tabela por omissão (simplificada)",
         brackets: { createMany: { data: DEFAULT_IRS_BRACKETS } },
       },
       include: { brackets: { orderBy: { order: "asc" } } },
@@ -62,54 +171,131 @@ export async function getIrsBracketsFor(year: number, region: string) {
     return seeded.brackets;
   }
 
-  const exact = tables.find((t) => t.year === year && t.region === region);
+  const exact = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType);
   if (exact) return exact.brackets;
 
-  const sameYearContinente = tables.find((t) => t.year === year && t.region === "CONTINENTE");
+  const sameYearContinente = tables.find(
+    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType
+  );
   if (sameYearContinente) return sameYearContinente.brackets;
 
   const candidatesForRegion = tables
-    .filter((t) => t.region === region && t.year <= year)
+    .filter((t) => t.region === region && t.tableType === tableType && t.year <= year)
     .sort((a, b) => b.year - a.year);
   if (candidatesForRegion[0]) return candidatesForRegion[0].brackets;
 
   const candidatesContinente = tables
-    .filter((t) => t.region === "CONTINENTE" && t.year <= year)
+    .filter((t) => t.region === "CONTINENTE" && t.tableType === tableType && t.year <= year)
     .sort((a, b) => b.year - a.year);
   if (candidatesContinente[0]) return candidatesContinente[0].brackets;
 
-  // Nenhuma tabela igual ou anterior ao ano pedido — usa a mais antiga
-  // disponível, para nunca ficar sem retenção nenhuma calculada.
+  // Nenhuma tabela igual ou anterior ao ano pedido, para esta tabela —
+  // usa a mais antiga disponível (qualquer tabela/região), para nunca
+  // ficar sem retenção nenhuma calculada.
   const oldestFirst = [...tables].sort((a, b) => a.year - b.year);
   return oldestFirst[0].brackets;
 }
 
-export function computeIrsWithholding(
-  taxableGross: number,
-  brackets: { upToGross: number | null; rate: number }[]
-): number {
-  let tax = 0;
-  let lower = 0;
-  for (const bracket of brackets) {
-    const upper = bracket.upToGross ?? Infinity;
-    if (taxableGross <= lower) break;
-    const amountInBracket = Math.min(taxableGross, upper) - lower;
-    tax += amountInBracket * bracket.rate;
-    lower = upper;
-  }
+export type IrsBracketRow = {
+  upToGross: number | null;
+  rate: number;
+  deduction: number | null;
+  deductionCoefficient: number | null;
+  deductionThreshold: number | null;
+  dependentAddition: number;
+};
+
+// Fórmula oficial de retenção na fonte: encontra o escalão em que o
+// rendimento tributável se enquadra e aplica a taxa marginal máxima a TODO
+// o rendimento (não é uma soma progressiva por escalão), descontando a
+// parcela a abater (fixa, ou calculada dinamicamente nos escalões mais
+// baixos: taxa × coeficiente × (limiar - rendimento)) e o acréscimo por
+// dependente multiplicado pelo nº de dependentes.
+export function computeIrsFlatRate(taxableGross: number, dependents: number, brackets: IrsBracketRow[]): number {
+  if (taxableGross <= 0 || brackets.length === 0) return 0;
+
+  const sorted = [...brackets].sort((a, b) => (a.upToGross ?? Infinity) - (b.upToGross ?? Infinity));
+  const bracket = sorted.find((b) => taxableGross < (b.upToGross ?? Infinity)) ?? sorted[sorted.length - 1];
+
+  const deduction =
+    bracket.deductionCoefficient != null && bracket.deductionThreshold != null
+      ? bracket.rate * bracket.deductionCoefficient * (bracket.deductionThreshold - taxableGross)
+      : (bracket.deduction ?? 0);
+
+  const tax = taxableGross * bracket.rate - deduction - dependents * bracket.dependentAddition;
   return Math.max(0, tax);
 }
 
-function overlapDays(
-  aStart: Date,
-  aEnd: Date,
-  bStart: Date,
-  bEnd: Date
+export async function getFiscalYearConstants(year: number) {
+  const existing = await prisma.fiscalYearConstants.findUnique({ where: { year } });
+  if (existing) return existing;
+
+  if (year === 2026) {
+    const { FISCAL_YEAR_CONSTANTS_2026 } = await import("./irs-tables-2026-seed");
+    return prisma.fiscalYearConstants.create({ data: FISCAL_YEAR_CONSTANTS_2026 });
+  }
+
+  // Sem constantes carregadas para o ano pedido — usa as mais recentes
+  // disponíveis (até ao ano pedido) ou, na sua falta, os valores por
+  // omissão do modelo (ver schema.prisma).
+  const candidates = await prisma.fiscalYearConstants.findMany({ orderBy: { year: "desc" } });
+  const sameOrEarlier = candidates.find((c) => c.year <= year);
+  if (sameOrEarlier) return sameOrEarlier;
+  if (candidates[0]) return candidates[0];
+
+  return prisma.fiscalYearConstants.create({ data: { year, ias: 509.26 } });
+}
+
+const DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT: Record<number, number> = {
+  1: 1.0,
+  2: 0.75,
+  3: 0.75,
+  4: 0.75,
+  5: 0.5,
+  6: 0.5,
+  7: 0.5,
+  8: 0.25,
+  9: 0.25,
+  10: 0.25,
+};
+
+export async function getIrsYoungExemptionPercent(year: number, yearOfBenefit: number): Promise<number> {
+  const clamped = Math.min(10, Math.max(1, yearOfBenefit));
+  const exact = await prisma.irsYoungExemption.findUnique({
+    where: { year_yearOfBenefit: { year, yearOfBenefit: clamped } },
+  });
+  if (exact) return exact.exemptionPercent;
+
+  if (year === 2026) {
+    const { IRS_YOUNG_EXEMPTION_2026 } = await import("./irs-tables-2026-seed");
+    await prisma.irsYoungExemption.createMany({
+      data: IRS_YOUNG_EXEMPTION_2026.map((e) => ({ year: 2026, ...e })),
+      skipDuplicates: true,
+    });
+    const seeded = IRS_YOUNG_EXEMPTION_2026.find((e) => e.yearOfBenefit === clamped);
+    if (seeded) return seeded.exemptionPercent;
+  }
+
+  return DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT[clamped] ?? 0.25;
+}
+
+// Regime do IRS Jovem: aplica uma isenção (percentagem decrescente por
+// "ano de rendimentos" desde o início do regime) sobre um teto anual —
+// equivalente ao que o simulador oficial faz: se a isenção plena exceder o
+// teto, só a parte acima do teto é tributada à taxa normal; caso
+// contrário, tributa-se a fração (1 - isenção) à taxa normal.
+export function applyYoungTaxExemption(
+  normalTax: number,
+  taxableAmount: number,
+  exemptionPercent: number,
+  capAmount: number
 ): number {
-  const start = aStart > bStart ? aStart : bStart;
-  const end = aEnd < bEnd ? aEnd : bEnd;
-  if (end < start) return 0;
-  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  if (taxableAmount <= 0) return 0;
+  const exemptAmount = exemptionPercent * taxableAmount;
+  if (exemptAmount > capAmount) {
+    return Math.max(0, ((taxableAmount - capAmount) / taxableAmount) * normalTax);
+  }
+  return Math.max(0, (1 - exemptionPercent) * normalTax);
 }
 
 export type PayslipBreakdown = {
@@ -134,12 +320,37 @@ export type PayslipBreakdown = {
   grossTotal: number;
   socialSecurityEmployee: number;
   irsWithholding: number;
+  adseDeduction: number;
+  judicialDeduction: number;
   netTotal: number;
   socialSecurityEmployer: number;
   employerCost: number;
   belowMinimumWage: boolean;
   workedDays: number;
 };
+
+// Resolve o modo de pagamento do subsídio de férias/Natal: usa a
+// personalização do colaborador quando definida, caso contrário a
+// definição global de PayrollSettings (convertida para a mesma forma —
+// duodécimos, ou meses concretos, por omissão o mês tradicional do
+// subsídio em causa).
+function resolveSubsidyPlan(
+  employeeMode: string | null,
+  employeeMonths: string | null,
+  globalMode: string,
+  defaultMonth: number
+): { mode: "DUODECIMOS" | "MONTHS"; months: number[] } {
+  if (employeeMode === "DUODECIMOS") return { mode: "DUODECIMOS", months: [] };
+  if (employeeMode === "MONTHS") {
+    const months = (employeeMonths ?? "")
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => n >= 1 && n <= 12);
+    return { mode: "MONTHS", months: months.length ? months : [defaultMonth] };
+  }
+  if (globalMode === "MONTHLY_DUODECIMOS") return { mode: "DUODECIMOS", months: [] };
+  return { mode: "MONTHS", months: [defaultMonth] };
+}
 
 // Motor de cálculo do recibo de vencimento: cruza contrato ativo, picagens,
 // horário gerado (turnos publicados) e ausências não remuneradas do período.
@@ -162,7 +373,11 @@ export async function computePayslipBreakdown(
       },
     }),
   ]);
-  const irsBrackets = await getIrsBracketsFor(year, employee.fiscalRegion);
+  const tableType = determineIrsTableType(employee.maritalStatus, employee.dependents, employee.fiscalRegion);
+  const [irsBrackets, fiscalConstants] = await Promise.all([
+    getIrsBracketsFor(year, employee.fiscalRegion, tableType),
+    getFiscalYearConstants(year),
+  ]);
 
   const contract = employee.employeeContracts[0];
   const baseSalary = contract?.baseSalary ?? 0;
@@ -207,6 +422,19 @@ export async function computePayslipBreakdown(
       },
     }),
   ]);
+
+  // Turnos escalados no período — usados para traduzir cada dia de
+  // ausência nas horas que estavam previstas (e não numa diária fixa),
+  // tal como pedido: "desconto por absentismo... % do valor hora".
+  const shiftsInPeriod = await prisma.shift.findMany({
+    where: { employeeId, date: { gte: periodStart, lte: periodEnd } },
+    include: { shiftTemplate: { select: { breakMins: true } } },
+  });
+  const shiftHoursByDay = new Map<string, number>();
+  for (const s of shiftsInPeriod) {
+    const hours = shiftDurationHours(s.startTime, s.endTime, s.shiftTemplate?.breakMins ?? 0);
+    shiftHoursByDay.set(isoDate(s.date), (shiftHoursByDay.get(isoDate(s.date)) ?? 0) + hours);
+  }
 
   const workedByDay = computeWorkedHoursByDay(entries);
 
@@ -267,60 +495,138 @@ export async function computePayslipBreakdown(
   }
 
   // Cada dia de ausência com impacto salarial < 100% desconta a fração
-  // correspondente da diária (0% = desconto total, 50% = meia diária, etc.).
-  const dailyRate = settings.workingDaysPerMonth > 0 ? baseSalary / settings.workingDaysPerMonth : 0;
+  // correspondente às horas que estavam escaladas nesse dia (não uma
+  // diária fixa) — se não houver turno escalado nesse dia, cai numa média
+  // (horas semanais contratuais / 5) para nunca ficar sem desconto.
+  const averageDayHours = contractedWeeklyHours > 0 ? contractedWeeklyHours / 5 : 0;
   let absenceDeductionDays = 0;
   let absenceDeduction = 0;
   for (const absence of absencesWithImpact) {
-    const days = overlapDays(absence.startDate, absence.endDate, periodStart, periodEnd);
     const unpaidFraction = 1 - absence.absenceType.salaryImpactPercent / 100;
-    absenceDeductionDays += days * unpaidFraction;
-    absenceDeduction += days * unpaidFraction * dailyRate;
+    const from = absence.startDate > periodStart ? absence.startDate : periodStart;
+    const to = absence.endDate < periodEnd ? absence.endDate : periodEnd;
+    for (let d = new Date(from); d <= to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      const dayIso = isoDate(d);
+      const scheduledHours = shiftHoursByDay.get(dayIso) ?? averageDayHours;
+      absenceDeductionDays += unpaidFraction;
+      absenceDeduction += unpaidFraction * scheduledHours * regularHourRate;
+    }
   }
 
+  // O subsídio de alimentação conta os dias a partir do nº de dias
+  // trabalhado em escala (turnos escalados no período), não das picagens.
+  const mealAllowanceDays = shiftHoursByDay.size;
   const mealAllowanceDaily = employee.mealAllowanceOverride ?? settings.mealAllowanceDaily;
-  const mealAllowanceTotal = workedDays * mealAllowanceDaily;
-  const mealAllowanceExempt = Math.min(mealAllowanceTotal, workedDays * settings.mealAllowanceExemptCap);
+  const mealAllowanceTotal = mealAllowanceDays * mealAllowanceDaily;
+  const mealAllowanceExemptCapDaily =
+    settings.mealAllowancePaymentMethod === "CASH"
+      ? fiscalConstants.mealAllowanceExemptCashDaily
+      : fiscalConstants.mealAllowanceExemptCardDaily;
+  const mealAllowanceExempt = Math.min(mealAllowanceTotal, mealAllowanceDays * mealAllowanceExemptCapDaily);
   const mealAllowanceTaxable = mealAllowanceTotal - mealAllowanceExempt;
 
+  // Rendimentos variáveis por colaborador, nas 3 categorias pedidas: suj.
+  // a IRS e SS, suj. só a IRS, e isentos (de ambos) — cada rubrica já guarda
+  // isto em `taxable`/`ssApplicable`.
   const earningComponents = components.filter((c) => c.type === "EARNING");
   const deductionComponents = components.filter((c) => c.type === "DEDUCTION");
-  const otherEarnings = earningComponents.reduce((sum, c) => sum + c.amount, 0);
+  const earningsTaxableAndSS = earningComponents
+    .filter((c) => c.taxable && c.ssApplicable)
+    .reduce((sum, c) => sum + c.amount, 0);
+  const earningsTaxableOnly = earningComponents
+    .filter((c) => c.taxable && !c.ssApplicable)
+    .reduce((sum, c) => sum + c.amount, 0);
+  const earningsExempt = earningComponents.filter((c) => !c.taxable).reduce((sum, c) => sum + c.amount, 0);
+  const otherEarnings = earningsTaxableAndSS + earningsTaxableOnly + earningsExempt;
   // Inclui o desconto por desvios de picagens injustificados (>1h, decisão
   // "DEDUCTION" do gestor de RH em Picagens → Execução) junto dos restantes
   // descontos pontuais/recorrentes.
   const otherDeductions =
     deductionComponents.reduce((sum, c) => sum + c.amount, 0) + unjustifiedDeductionHours * regularHourRate;
 
-  const vacationSubsidy =
-    settings.vacationSubsidyMode === "MONTHLY_DUODECIMOS"
-      ? baseSalary / 12
-      : month === 6
-        ? baseSalary
-        : 0;
-  const christmasSubsidy =
-    settings.christmasSubsidyMode === "MONTHLY_DUODECIMOS"
-      ? baseSalary / 12
-      : month === 12
-        ? baseSalary
-        : 0;
+  const vacationPlan = resolveSubsidyPlan(
+    employee.vacationSubsidyMode,
+    employee.vacationSubsidyMonths,
+    settings.vacationSubsidyMode,
+    6
+  );
+  const christmasPlan = resolveSubsidyPlan(
+    employee.christmasSubsidyMode,
+    employee.christmasSubsidyMonths,
+    settings.christmasSubsidyMode,
+    12
+  );
+  const duodecimosVacation = vacationPlan.mode === "DUODECIMOS" ? baseSalary / 12 : 0;
+  const lumpSumVacation =
+    vacationPlan.mode === "MONTHS" && vacationPlan.months.includes(month)
+      ? baseSalary / vacationPlan.months.length
+      : 0;
+  const duodecimosChristmas = christmasPlan.mode === "DUODECIMOS" ? baseSalary / 12 : 0;
+  const lumpSumChristmas =
+    christmasPlan.mode === "MONTHS" && christmasPlan.months.includes(month)
+      ? baseSalary / christmasPlan.months.length
+      : 0;
+  const vacationSubsidy = duodecimosVacation + lumpSumVacation;
+  const christmasSubsidy = duodecimosChristmas + lumpSumChristmas;
+  const duodecimosAmount = duodecimosVacation + duodecimosChristmas;
+  // Subsídios pagos de uma vez (não em duodécimos) são tributados à parte,
+  // com a tabela de IRS aplicada só ao próprio valor — tal como a AT exige
+  // para "retribuições extraordinárias" (ex.: o 13º/14º mês de uma vez).
+  const lumpSumAmount = lumpSumVacation + lumpSumChristmas;
 
-  const grossTaxable =
+  const ordinaryIrsBase = Math.max(
+    0,
     baseSalary -
-    absenceDeduction +
-    overtimePay +
-    mealAllowanceTaxable +
-    otherEarnings +
-    vacationSubsidy +
-    christmasSubsidy;
+      absenceDeduction +
+      overtimePay +
+      mealAllowanceTaxable +
+      earningsTaxableAndSS +
+      earningsTaxableOnly +
+      duodecimosAmount
+  );
+  const ordinarySsBase = Math.max(
+    0,
+    baseSalary - absenceDeduction + overtimePay + mealAllowanceTaxable + earningsTaxableAndSS + duodecimosAmount
+  );
+  const extraIrsBase = Math.max(0, lumpSumAmount);
+  const extraSsBase = extraIrsBase;
 
-  const socialSecurityEmployee = Math.max(0, grossTaxable) * settings.socialSecurityEmployeeRate;
-  const irsWithholding = computeIrsWithholding(Math.max(0, grossTaxable), irsBrackets);
-  const grossTotal = grossTaxable + mealAllowanceExempt;
-  const netTotal = grossTotal - socialSecurityEmployee - irsWithholding - otherDeductions;
-  const socialSecurityEmployer = Math.max(0, grossTaxable) * settings.socialSecurityEmployerRate;
+  let irsOrdinary = computeIrsFlatRate(ordinaryIrsBase, employee.dependents, irsBrackets);
+  let irsExtra = extraIrsBase > 0 ? computeIrsFlatRate(extraIrsBase, employee.dependents, irsBrackets) : 0;
+
+  // IRS Jovem — isenção decrescente por "ano de rendimentos" desde o
+  // início do regime, aplicada separadamente ao rendimento ordinário e ao
+  // extraordinário (mesmo mecanismo do simulador oficial).
+  if (employee.youngTaxRegime && employee.youngTaxRegimeStartYear) {
+    const yearOfBenefit = year - employee.youngTaxRegimeStartYear + 1;
+    if (yearOfBenefit >= 1 && yearOfBenefit <= 10) {
+      const exemptionPercent = await getIrsYoungExemptionPercent(year, yearOfBenefit);
+      const cap =
+        (fiscalConstants.youngExemptionCapAnnualMultiplier * fiscalConstants.ias) /
+        fiscalConstants.youngExemptionCapPaymentsPerYear;
+      irsOrdinary = applyYoungTaxExemption(irsOrdinary, ordinaryIrsBase, exemptionPercent, cap);
+      if (extraIrsBase > 0) {
+        irsExtra = applyYoungTaxExemption(irsExtra, extraIrsBase, exemptionPercent, cap);
+      }
+    }
+  }
+  const irsWithholding = irsOrdinary + irsExtra;
+
+  const socialSecurityEmployee = (ordinarySsBase + extraSsBase) * settings.socialSecurityEmployeeRate;
+  const adseDeduction = employee.adseBeneficiary ? baseSalary * settings.adseEmployeeRate : 0;
+
+  const grossTaxable = ordinaryIrsBase + extraIrsBase;
+  const grossTotal = grossTaxable + mealAllowanceExempt + earningsExempt;
+  const netBeforeJudicial = grossTotal - socialSecurityEmployee - irsWithholding - otherDeductions - adseDeduction;
+  const judicialDeduction =
+    employee.judicialDeductionPercent && netBeforeJudicial > 0
+      ? netBeforeJudicial * (employee.judicialDeductionPercent / 100)
+      : 0;
+  const netTotal = netBeforeJudicial - judicialDeduction;
+
+  const socialSecurityEmployer = (ordinarySsBase + extraSsBase) * settings.socialSecurityEmployerRate;
   const employerCost =
-    grossTotal + socialSecurityEmployer + Math.max(0, grossTaxable) * settings.workAccidentInsuranceRate;
+    grossTotal + socialSecurityEmployer + (ordinarySsBase + extraSsBase) * settings.workAccidentInsuranceRate;
 
   return {
     employeeId,
@@ -344,6 +650,8 @@ export async function computePayslipBreakdown(
     grossTotal,
     socialSecurityEmployee,
     irsWithholding,
+    adseDeduction,
+    judicialDeduction,
     netTotal,
     socialSecurityEmployer,
     employerCost,
@@ -377,6 +685,8 @@ export function toPayslipRecord(b: PayslipBreakdown) {
     grossTotal: b.grossTotal,
     socialSecurityEmployee: b.socialSecurityEmployee,
     irsWithholding: b.irsWithholding,
+    adseDeduction: b.adseDeduction,
+    judicialDeduction: b.judicialDeduction,
     netTotal: b.netTotal,
     socialSecurityEmployer: b.socialSecurityEmployer,
     employerCost: b.employerCost,
@@ -403,6 +713,8 @@ export type PayslipLineItemKey =
   | "absenceDeduction"
   | "socialSecurityEmployee"
   | "irsWithholding"
+  | "adseDeduction"
+  | "judicialDeduction"
   | "otherDeductions";
 
 export type PayslipLineItemConfig = {
@@ -429,7 +741,9 @@ export const DEFAULT_PAYSLIP_LINE_ITEMS: PayslipLineItemConfig[] = [
   { key: "otherEarnings", label: "Outros vencimentos", section: "EARNINGS", visible: true },
   { key: "absenceDeduction", label: "Desconto por faltas não remuneradas", section: "EARNINGS", visible: true },
   { key: "socialSecurityEmployee", label: "Segurança Social (trabalhador)", section: "DEDUCTIONS", visible: true },
-  { key: "irsWithholding", label: "IRS — retenção na fonte (estimativa)", section: "DEDUCTIONS", visible: true },
+  { key: "irsWithholding", label: "IRS — retenção na fonte", section: "DEDUCTIONS", visible: true },
+  { key: "adseDeduction", label: "ADSE", section: "DEDUCTIONS", visible: true },
+  { key: "judicialDeduction", label: "Desconto judicial", section: "DEDUCTIONS", visible: true },
   { key: "otherDeductions", label: "Outros descontos", section: "DEDUCTIONS", visible: true },
 ];
 
@@ -498,6 +812,8 @@ type PayslipLineSource = {
   absenceDeduction: number;
   socialSecurityEmployee: number;
   irsWithholding: number;
+  adseDeduction: number;
+  judicialDeduction: number;
   otherDeductions: number;
 };
 
@@ -527,6 +843,10 @@ function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): {
       return { value: -source.socialSecurityEmployee, suffix: "" };
     case "irsWithholding":
       return { value: -source.irsWithholding, suffix: "" };
+    case "adseDeduction":
+      return { value: -source.adseDeduction, suffix: "" };
+    case "judicialDeduction":
+      return { value: -source.judicialDeduction, suffix: "" };
     case "otherDeductions":
       return { value: -source.otherDeductions, suffix: "" };
   }
@@ -535,12 +855,19 @@ function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): {
 // Aplica o layout configurado (ordem, texto e visibilidade) aos valores
 // calculados de um recibo — usado tanto na pré-visualização no ecrã como
 // no PDF, para que os dois mostrem sempre exatamente as mesmas linhas.
-export function buildPayslipLines(source: PayslipLineSource, lineItems: PayslipLineItemConfig[]): PayslipLine[] {
+// `includeZero` ignora o filtro de "só mostra se tiver valor" — usado na
+// exportação Excel por período, onde todas as colunas têm de aparecer em
+// todas as linhas (mesmo a 0€) para a tabela ficar tabular.
+export function buildPayslipLines(
+  source: PayslipLineSource,
+  lineItems: PayslipLineItemConfig[],
+  includeZero = false
+): PayslipLine[] {
   const lines: PayslipLine[] = [];
   for (const item of lineItems) {
     if (!item.visible) continue;
     const { value, suffix } = payslipLineValue(source, item.key);
-    if (!ALWAYS_SHOW_LINE_ITEMS.has(item.key) && value === 0) continue;
+    if (!includeZero && !ALWAYS_SHOW_LINE_ITEMS.has(item.key) && value === 0) continue;
     lines.push({ key: item.key, label: item.label + suffix, section: item.section, value });
   }
   return lines;

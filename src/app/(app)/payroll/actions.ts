@@ -10,8 +10,15 @@ import {
   toPayslipRecord,
   FISCAL_REGIONS,
   DEFAULT_PAYSLIP_LINE_ITEMS,
+  IRS_TABLE_TYPES,
+  categoryToTaxFlags,
+  getPayslipLayoutSettings,
+  buildPayslipLines,
   type PayslipLineItemKey,
+  type IrsTableType,
+  type PayrollComponentCategory,
 } from "@/lib/payroll";
+import { getDocumentBranding } from "@/lib/document-branding";
 import { revalidatePath } from "next/cache";
 import { parseExcelFile } from "@/lib/excel";
 
@@ -45,6 +52,8 @@ export async function updatePayrollSettings(
   const workingDaysPerMonth = Number(formData.get("workingDaysPerMonth"));
   const vacationSubsidyMode = String(formData.get("vacationSubsidyMode"));
   const christmasSubsidyMode = String(formData.get("christmasSubsidyMode"));
+  const mealAllowancePaymentMethod = String(formData.get("mealAllowancePaymentMethod") ?? "CARD");
+  const adseEmployeeRate = Number(formData.get("adseEmployeeRate"));
 
   // Validações básicas de acordo com a legislação portuguesa (Código do
   // Trabalho): taxas têm de ser percentagens válidas, salário mínimo e
@@ -64,6 +73,9 @@ export async function updatePayrollSettings(
   if (overtimeRateWeekendHoliday < 1) errors.push("Acréscimo de fim de semana/feriado não pode ser inferior a 1x.");
   if (!(workingDaysPerMonth > 0 && workingDaysPerMonth <= 31))
     errors.push("Dias úteis por mês inválido.");
+  if (!(adseEmployeeRate >= 0 && adseEmployeeRate < 1)) errors.push("Taxa ADSE do trabalhador inválida.");
+  if (!["CARD", "CASH"].includes(mealAllowancePaymentMethod))
+    errors.push("Forma de pagamento do subsídio de alimentação inválida.");
 
   if (errors.length > 0) throw new Error(errors.join(" "));
 
@@ -81,6 +93,8 @@ export async function updatePayrollSettings(
     workingDaysPerMonth,
     vacationSubsidyMode,
     christmasSubsidyMode,
+    mealAllowancePaymentMethod,
+    adseEmployeeRate,
     updatedById: user.id,
   };
 
@@ -113,16 +127,26 @@ export async function createIrsTable(
     const user = await assertCanWrite();
     const year = Number(formData.get("year"));
     const region = String(formData.get("region") ?? "CONTINENTE");
+    const tableType = String(formData.get("tableType") ?? "I") as IrsTableType;
     const label = String(formData.get("label") ?? "").trim() || null;
 
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Ano inválido.");
     if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) throw new Error("Região inválida.");
+    if (!IRS_TABLE_TYPES.includes(tableType)) throw new Error("Tabela inválida.");
 
-    const existing = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
-    if (existing) throw new Error(`Já existe uma tabela de IRS para ${year} — ${region}.`);
+    const existing = await prisma.irsTable.findUnique({
+      where: { year_region_tableType: { year, region, tableType } },
+    });
+    if (existing) throw new Error(`Já existe uma tabela de IRS ${tableType} para ${year} — ${region}.`);
 
-    const table = await prisma.irsTable.create({ data: { year, region, label } });
-    await logAudit({ userId: user.id, action: "CREATE", entity: "IrsTable", entityId: table.id, details: `${year} — ${region}` });
+    const table = await prisma.irsTable.create({ data: { year, region, tableType, label } });
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "IrsTable",
+      entityId: table.id,
+      details: `${year} — ${region} — Tabela ${tableType}`,
+    });
     revalidatePath("/payroll/pressupostos");
     return {};
   } catch (e) {
@@ -152,15 +176,30 @@ export async function upsertIrsBracket(
     const upToGrossRaw = String(formData.get("upToGross") ?? "").trim();
     const upToGross = upToGrossRaw ? Number(upToGrossRaw) : null;
     const rate = Number(formData.get("rate"));
+    const deductionRaw = String(formData.get("deduction") ?? "").trim();
+    const deduction = deductionRaw ? Number(deductionRaw) : null;
+    const dependentAddition = Number(formData.get("dependentAddition") ?? 0);
 
     if (!irsTableId) throw new Error("Tabela de IRS em falta.");
     if (!(rate >= 0 && rate < 1)) throw new Error("Taxa do escalão tem de estar entre 0% e 100%.");
     if (upToGross !== null && upToGross <= 0) throw new Error("Limite do escalão tem de ser positivo.");
 
+    // A edição manual só suporta a parcela a abater fixa — a fórmula
+    // dinâmica dos escalões mais baixos só chega por importação Excel das
+    // tabelas oficiais (ver importIrsTableAction).
+    const data = {
+      order,
+      upToGross,
+      rate,
+      deduction,
+      deductionCoefficient: null,
+      deductionThreshold: null,
+      dependentAddition,
+    };
     if (id) {
-      await prisma.irsBracket.update({ where: { id }, data: { order, upToGross, rate } });
+      await prisma.irsBracket.update({ where: { id }, data });
     } else {
-      await prisma.irsBracket.create({ data: { irsTableId, order, upToGross, rate } });
+      await prisma.irsBracket.create({ data: { irsTableId, ...data } });
     }
 
     await logAudit({ userId: user.id, action: "UPDATE", entity: "IrsBracket", details: `Escalão ${order}` });
@@ -178,11 +217,22 @@ export async function deleteIrsBracket(id: string) {
   revalidatePath("/payroll/pressupostos");
 }
 
-export type ImportIrsTableState = { error?: string; success?: boolean; imported?: number };
+export type ImportIrsTableState = {
+  error?: string;
+  success?: boolean;
+  imported?: number;
+  // Já existe tabela com escalões para este período — pede confirmação ao
+  // utilizador antes de substituir (reenvia o mesmo formulário com
+  // replace=1).
+  duplicate?: { year: number; region: string; tableType: string };
+};
 
 // "Anexar" uma tabela de IRS completa de uma vez — cria a tabela para o
-// ano/região indicados (ou reutiliza uma já existente, sem escalões) e
-// importa os escalões de um ficheiro Excel (colunas: Ordem, Até (€), Taxa).
+// ano/região/tabela indicados (ou reutiliza uma já existente, sem
+// escalões) e importa os escalões de um ficheiro Excel. Colunas: Ordem,
+// Até (€), Taxa, Parcela a Abater (€) (opcional), Coeficiente (opcional —
+// só nos escalões mais baixos com fórmula dinâmica), Limiar (€) (idem),
+// Adicional por Dependente (€) (opcional).
 export async function importIrsTableAction(
   _prev: ImportIrsTableState,
   formData: FormData
@@ -191,11 +241,14 @@ export async function importIrsTableAction(
 
   const year = Number(formData.get("year"));
   const region = String(formData.get("region") ?? "CONTINENTE");
+  const tableType = String(formData.get("tableType") ?? "I") as IrsTableType;
   const label = String(formData.get("label") ?? "").trim() || null;
   const file = formData.get("file") as File | null;
+  const replace = formData.get("replace") === "1";
 
   if (!Number.isInteger(year) || year < 2000 || year > 2100) return { error: "Ano inválido." };
   if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) return { error: "Região inválida." };
+  if (!IRS_TABLE_TYPES.includes(tableType)) return { error: "Tabela inválida." };
   if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
 
   let rows: Record<string, unknown>[];
@@ -206,37 +259,63 @@ export async function importIrsTableAction(
   }
   if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
 
-  const brackets: { order: number; upToGross: number | null; rate: number }[] = [];
+  const toNum = (v: unknown): number | null => (v === "" || v == null ? null : Number(v));
+  const brackets: {
+    order: number;
+    upToGross: number | null;
+    rate: number;
+    deduction: number | null;
+    deductionCoefficient: number | null;
+    deductionThreshold: number | null;
+    dependentAddition: number;
+  }[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const order = Number(row["Ordem"] ?? i + 1);
-    const upToGrossRaw = row["Até (€)"];
-    const upToGross = upToGrossRaw === "" || upToGrossRaw == null ? null : Number(upToGrossRaw);
+    const upToGross = toNum(row["Até (€)"]);
     const rate = Number(row["Taxa"]);
+    const deduction = toNum(row["Parcela a Abater (€)"]);
+    const deductionCoefficient = toNum(row["Coeficiente"]);
+    const deductionThreshold = toNum(row["Limiar (€)"]);
+    const dependentAddition = toNum(row["Adicional por Dependente (€)"]) ?? 0;
     if (!Number.isFinite(order) || !Number.isFinite(rate) || rate < 0 || rate >= 1) {
       return { error: `Linha ${i + 2}: dados inválidos (confirme Ordem, Até (€) e Taxa entre 0 e 1).` };
     }
-    brackets.push({ order, upToGross: upToGross === null || Number.isFinite(upToGross) ? upToGross : null, rate });
+    brackets.push({
+      order,
+      upToGross: upToGross !== null && Number.isFinite(upToGross) ? upToGross : null,
+      rate,
+      deduction,
+      deductionCoefficient,
+      deductionThreshold,
+      dependentAddition,
+    });
   }
 
-  let table = await prisma.irsTable.findUnique({ where: { year_region: { year, region } } });
+  let table = await prisma.irsTable.findUnique({
+    where: { year_region_tableType: { year, region, tableType } },
+  });
   if (table) {
     const existingBrackets = await prisma.irsBracket.count({ where: { irsTableId: table.id } });
-    if (existingBrackets > 0) {
-      return { error: `Já existe uma tabela de IRS com escalões para ${year} — ${region}. Elimine-a primeiro se quiser substituir.` };
+    if (existingBrackets > 0 && !replace) {
+      return { duplicate: { year, region, tableType } };
     }
+    if (existingBrackets > 0) {
+      await prisma.irsBracket.deleteMany({ where: { irsTableId: table.id } });
+    }
+    if (label) await prisma.irsTable.update({ where: { id: table.id }, data: { label } });
   } else {
-    table = await prisma.irsTable.create({ data: { year, region, label } });
+    table = await prisma.irsTable.create({ data: { year, region, tableType, label } });
   }
 
   await prisma.irsBracket.createMany({ data: brackets.map((b) => ({ ...b, irsTableId: table!.id })) });
 
   await logAudit({
     userId: user.id,
-    action: "CREATE",
+    action: replace ? "UPDATE" : "CREATE",
     entity: "IrsTable",
     entityId: table.id,
-    details: `${year} — ${region}: ${brackets.length} escalão(ões) importado(s)`,
+    details: `${year} — ${region} — Tabela ${tableType}: ${brackets.length} escalão(ões) ${replace ? "substituído(s)" : "importado(s)"}`,
   });
 
   revalidatePath("/payroll/pressupostos");
@@ -252,11 +331,41 @@ export async function updateEmployeePayrollProfile(employeeId: string, formData:
   const mealAllowanceOverrideRaw = String(formData.get("mealAllowanceOverride") ?? "").trim();
   const mealAllowanceOverride = mealAllowanceOverrideRaw ? Number(mealAllowanceOverrideRaw) : null;
 
+  const youngTaxRegime = formData.get("youngTaxRegime") === "on";
+  const youngTaxRegimeStartYearRaw = String(formData.get("youngTaxRegimeStartYear") ?? "").trim();
+  const youngTaxRegimeStartYear = youngTaxRegimeStartYearRaw ? Number(youngTaxRegimeStartYearRaw) : null;
+  const adseBeneficiary = formData.get("adseBeneficiary") === "on";
+  const judicialDeductionPercentRaw = String(formData.get("judicialDeductionPercent") ?? "").trim();
+  const judicialDeductionPercent = judicialDeductionPercentRaw ? Number(judicialDeductionPercentRaw) : null;
+  const vacationSubsidyMode = String(formData.get("vacationSubsidyMode") ?? "") || null;
+  const vacationSubsidyMonths = String(formData.get("vacationSubsidyMonths") ?? "").trim() || null;
+  const christmasSubsidyMode = String(formData.get("christmasSubsidyMode") ?? "") || null;
+  const christmasSubsidyMonths = String(formData.get("christmasSubsidyMonths") ?? "").trim() || null;
+
   if (dependents < 0) throw new Error("Número de dependentes inválido.");
+  if (youngTaxRegime && !youngTaxRegimeStartYear) {
+    throw new Error("Indique o ano de início do regime do IRS Jovem.");
+  }
+  if (judicialDeductionPercent !== null && !(judicialDeductionPercent >= 0 && judicialDeductionPercent <= 100)) {
+    throw new Error("Percentagem de desconto judicial tem de estar entre 0% e 100%.");
+  }
 
   await prisma.employee.update({
     where: { id: employeeId },
-    data: { maritalStatus, dependents, fiscalRegion, mealAllowanceOverride },
+    data: {
+      maritalStatus,
+      dependents,
+      fiscalRegion,
+      mealAllowanceOverride,
+      youngTaxRegime,
+      youngTaxRegimeStartYear: youngTaxRegime ? youngTaxRegimeStartYear : null,
+      adseBeneficiary,
+      judicialDeductionPercent,
+      vacationSubsidyMode,
+      vacationSubsidyMonths,
+      christmasSubsidyMode,
+      christmasSubsidyMonths,
+    },
   });
 
   await logAudit({ userId: user.id, action: "UPDATE", entity: "EmployeePayrollProfile", entityId: employeeId });
@@ -278,8 +387,8 @@ export async function addPayrollComponent(
     const type = String(formData.get("type") ?? "EARNING");
     const amount = Number(formData.get("amount"));
     const recurring = formData.get("recurring") === "on";
-    const taxable = formData.get("taxable") === "on";
-    const ssApplicable = formData.get("ssApplicable") === "on";
+    const category = String(formData.get("category") ?? "TAXABLE_SS") as PayrollComponentCategory;
+    const { taxable, ssApplicable } = categoryToTaxFlags(category);
     const applyYear = recurring ? null : Number(formData.get("applyYear"));
     const applyMonth = recurring ? null : Number(formData.get("applyMonth"));
 
@@ -326,10 +435,20 @@ export async function generatePayslipAction(
     const breakdown = await computePayslipBreakdown(employeeId, year, month);
     const record = toPayslipRecord(breakdown);
 
+    const existing = await prisma.payslip.findUnique({
+      where: { employeeId_year_month: { employeeId, year, month } },
+      select: { regenerationCount: true },
+    });
+
     await prisma.payslip.upsert({
       where: { employeeId_year_month: { employeeId, year, month } },
       create: { ...record, generatedById: user.id },
-      update: { ...record, generatedById: user.id, generatedAt: new Date() },
+      update: {
+        ...record,
+        regeneratedAt: new Date(),
+        regeneratedById: user.id,
+        regenerationCount: (existing?.regenerationCount ?? 0) + 1,
+      },
     });
 
     await logAudit({
@@ -337,7 +456,7 @@ export async function generatePayslipAction(
       action: "GENERATE",
       entity: "Payslip",
       entityId: employeeId,
-      details: `${month}/${year}`,
+      details: existing ? `${month}/${year} (regerado)` : `${month}/${year}`,
     });
 
     revalidatePath(`/payroll/${employeeId}`);
@@ -346,6 +465,140 @@ export async function generatePayslipAction(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erro ao gerar recibo." };
   }
+}
+
+// Gera (ou regenera) o recibo para vários colaboradores de uma vez, no
+// mesmo período — "gerar só para alguns colaboradores selecionados".
+export type GeneratePayslipsBulkState = { error?: string; created?: number; failed?: string[] };
+
+export async function generatePayslipsBulkAction(
+  employeeIds: string[],
+  year: number,
+  month: number
+): Promise<GeneratePayslipsBulkState> {
+  const user = await assertCanWrite();
+  if (employeeIds.length === 0) return { error: "Selecione pelo menos um colaborador." };
+
+  let created = 0;
+  const failed: string[] = [];
+
+  for (const employeeId of employeeIds) {
+    try {
+      const breakdown = await computePayslipBreakdown(employeeId, year, month);
+      const record = toPayslipRecord(breakdown);
+      const existing = await prisma.payslip.findUnique({
+        where: { employeeId_year_month: { employeeId, year, month } },
+        select: { regenerationCount: true },
+      });
+      await prisma.payslip.upsert({
+        where: { employeeId_year_month: { employeeId, year, month } },
+        create: { ...record, generatedById: user.id },
+        update: {
+          ...record,
+          regeneratedAt: new Date(),
+          regeneratedById: user.id,
+          regenerationCount: (existing?.regenerationCount ?? 0) + 1,
+        },
+      });
+      created++;
+    } catch {
+      failed.push(employeeId);
+    }
+  }
+
+  await logAudit({
+    userId: user.id,
+    action: "GENERATE",
+    entity: "Payslip",
+    details: `${created}/${employeeIds.length} recibo(s) gerado(s) para ${month}/${year}`,
+  });
+
+  revalidatePath("/payroll");
+  return { created, failed: failed.length > 0 ? failed : undefined };
+}
+
+export type SendPayslipEmailState = { error?: string; success?: boolean };
+
+// Envia o PDF do recibo já gerado por email ao colaborador (Resend — ver
+// src/lib/email.ts). Requer RESEND_API_KEY/PAYROLL_EMAIL_FROM configurados.
+export async function sendPayslipEmailAction(
+  employeeId: string,
+  year: number,
+  month: number
+): Promise<SendPayslipEmailState> {
+  const user = await assertCanWrite();
+
+  const [employee, payslip, branding, layout] = await Promise.all([
+    prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
+    prisma.payslip.findUnique({ where: { employeeId_year_month: { employeeId, year, month } } }),
+    getDocumentBranding(),
+    getPayslipLayoutSettings(),
+  ]);
+  if (!payslip) return { error: "O recibo deste período ainda não foi gerado." };
+  if (!employee.email) return { error: "O colaborador não tem email na ficha." };
+
+  const ytdPayslips = await prisma.payslip.findMany({ where: { employeeId, year, month: { lte: month } } });
+  const ytdGross = ytdPayslips.reduce((sum, p) => sum + p.grossTotal, 0);
+  const ytdIrs = ytdPayslips.reduce((sum, p) => sum + p.irsWithholding, 0);
+  const ytdSocialSecurity = ytdPayslips.reduce((sum, p) => sum + p.socialSecurityEmployee, 0);
+
+  const lines = buildPayslipLines(payslip, layout.lineItems);
+
+  const { buildPayslipPdfDoc, payslipPdfFileName } = await import("@/lib/payslip-pdf");
+  const pdfData = {
+    companyName: branding.clientCompanyName,
+    companyLogo: branding.clientCompanyLogo,
+    companyNif: branding.companyNif,
+    companyAddress: branding.companyAddress,
+    companySocialSecurityNo: branding.companySocialSecurityNo,
+    employeeName: `${employee.firstName} ${employee.lastName}`,
+    employeeNumber: employee.employeeNumber,
+    nif: employee.nif,
+    socialSecurityNo: employee.socialSecurityNo,
+    address: employee.address,
+    iban: employee.iban,
+    jobTitle: employee.jobTitle,
+    year,
+    month,
+    documentTitle: layout.documentTitle,
+    footerNote: layout.footerNote,
+    earnings: lines.filter((l) => l.section === "EARNINGS").map((l) => ({ label: l.label, value: l.value })),
+    deductions: lines.filter((l) => l.section === "DEDUCTIONS").map((l) => ({ label: l.label, value: l.value })),
+    grossTotal: payslip.grossTotal,
+    netTotal: payslip.netTotal,
+    employerCost: payslip.employerCost,
+    ytdGross,
+    ytdIrs,
+    ytdSocialSecurity,
+  };
+
+  const doc = await buildPayslipPdfDoc(pdfData);
+  const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+
+  const { sendEmailWithAttachment } = await import("@/lib/email");
+  const monthName = new Date(year, month - 1, 1).toLocaleDateString("pt-PT", { month: "long" });
+  const result = await sendEmailWithAttachment({
+    to: employee.email,
+    subject: `Recibo de vencimento — ${monthName} de ${year}`,
+    html: `<p>Olá ${employee.firstName},</p><p>Segue em anexo o recibo de vencimento de ${monthName} de ${year}.</p>`,
+    attachment: { filename: payslipPdfFileName(pdfData), content: pdfBuffer },
+  });
+
+  if (!result.ok) return { error: result.error };
+
+  await prisma.payslip.update({
+    where: { employeeId_year_month: { employeeId, year, month } },
+    data: { emailSentAt: new Date() },
+  });
+  await logAudit({
+    userId: user.id,
+    action: "UPDATE",
+    entity: "Payslip",
+    entityId: employeeId,
+    details: `Recibo de ${month}/${year} enviado por email para ${employee.email}`,
+  });
+  revalidatePath(`/payroll/${employeeId}/${year}/${month}`);
+  return { success: true };
 }
 
 export async function ensureSettingsSeeded() {
@@ -389,4 +642,223 @@ export async function updatePayslipLayoutSettings(formData: FormData) {
   await logAudit({ userId: user.id, action: "UPDATE", entity: "PayslipLayoutSettings" });
   revalidatePath("/payroll/layout");
   revalidatePath("/payroll");
+}
+
+// ---------------------------------------------------------------------------
+// Rubricas mensais (PayrollComponent) em massa — carregamento por Excel para
+// todos os colaboradores de uma vez, com deteção de duplicados (mesmo
+// colaborador + rubrica + período) a confirmar antes de substituir.
+// ---------------------------------------------------------------------------
+
+export type PayrollComponentDuplicate = {
+  key: string;
+  employeeId: string;
+  employeeName: string;
+  existingComponentId: string;
+  name: string;
+  type: "EARNING" | "DEDUCTION";
+  category: PayrollComponentCategory;
+  newAmount: number;
+  existingAmount: number;
+  recurring: boolean;
+  applyYear: number | null;
+  applyMonth: number | null;
+};
+
+export type ImportPayrollComponentsState = {
+  error?: string;
+  created?: number;
+  duplicates?: PayrollComponentDuplicate[];
+};
+
+function parseComponentCategory(raw: unknown): PayrollComponentCategory {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s.includes("isent")) return "EXEMPT";
+  if (s.includes("só") || s.includes("so ") || s.includes("apenas")) return "TAXABLE_ONLY";
+  return "TAXABLE_SS";
+}
+
+// Carrega rubricas (prémios, subsídios específicos, benefícios, descontos)
+// para vários colaboradores de uma vez a partir de um Excel. Colunas: Nº
+// Colaborador (ou Email), Rubrica, Tipo (Vencimento/Desconto), Categoria
+// (Sujeito a IRS e SS / Sujeito só a IRS / Isento), Valor, Recorrente
+// (Sim/Não), Ano e Mês (só quando não recorrente). Linhas sem conflito são
+// criadas de imediato; linhas que colidem com uma rubrica já existente
+// (mesmo colaborador+nome+período) ficam pendentes de confirmação — ver
+// resolvePayrollComponentDuplicatesAction.
+export async function importPayrollComponentsAction(
+  _prev: ImportPayrollComponentsState,
+  formData: FormData
+): Promise<ImportPayrollComponentsState> {
+  const user = await assertCanWrite();
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
+
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await parseExcelFile(file);
+  } catch {
+    return { error: "Não foi possível ler o ficheiro. Confirme que é um Excel válido (.xlsx)." };
+  }
+  if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
+
+  const employees = await prisma.employee.findMany({
+    select: { id: true, employeeNumber: true, email: true, firstName: true, lastName: true },
+  });
+  const byNumber = new Map(employees.filter((e) => e.employeeNumber).map((e) => [e.employeeNumber as string, e]));
+  const byEmail = new Map(employees.map((e) => [e.email.toLowerCase(), e]));
+
+  type ParsedRow = {
+    employeeId: string;
+    employeeName: string;
+    name: string;
+    type: "EARNING" | "DEDUCTION";
+    category: PayrollComponentCategory;
+    amount: number;
+    recurring: boolean;
+    applyYear: number | null;
+    applyMonth: number | null;
+  };
+  const parsed: ParsedRow[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2;
+    const identifier = String(row["Nº Colaborador"] ?? row["Email"] ?? "").trim();
+    if (!identifier) return { error: `Linha ${rowNum}: indique o Nº de Colaborador ou o Email.` };
+    const employee = byNumber.get(identifier) ?? byEmail.get(identifier.toLowerCase());
+    if (!employee) return { error: `Linha ${rowNum}: colaborador "${identifier}" não encontrado.` };
+
+    const name = String(row["Rubrica"] ?? "").trim();
+    if (!name) return { error: `Linha ${rowNum}: indique o nome da rubrica.` };
+
+    const typeRaw = String(row["Tipo"] ?? "").trim().toLowerCase();
+    const type: "EARNING" | "DEDUCTION" = typeRaw.startsWith("desc") ? "DEDUCTION" : "EARNING";
+    const category = parseComponentCategory(row["Categoria"]);
+
+    const amount = Number(row["Valor"]);
+    if (!Number.isFinite(amount) || amount <= 0) return { error: `Linha ${rowNum}: valor inválido.` };
+
+    const recurringRaw = String(row["Recorrente"] ?? "sim").trim().toLowerCase();
+    const recurring = !(recurringRaw.startsWith("n") || recurringRaw === "false" || recurringRaw === "0");
+
+    let applyYear: number | null = null;
+    let applyMonth: number | null = null;
+    if (!recurring) {
+      applyYear = Number(row["Ano"]);
+      applyMonth = Number(row["Mês"] ?? row["Mes"]);
+      if (!applyYear || !applyMonth) return { error: `Linha ${rowNum}: indique Ano e Mês para uma rubrica pontual.` };
+    }
+
+    parsed.push({
+      employeeId: employee.id,
+      employeeName: `${employee.firstName} ${employee.lastName}`,
+      name,
+      type,
+      category,
+      amount,
+      recurring,
+      applyYear,
+      applyMonth,
+    });
+  }
+
+  const existingComponents = await prisma.payrollComponent.findMany({
+    where: { employeeId: { in: [...new Set(parsed.map((p) => p.employeeId))] } },
+  });
+
+  const toCreate: ParsedRow[] = [];
+  const duplicates: PayrollComponentDuplicate[] = [];
+
+  for (const row of parsed) {
+    const match = existingComponents.find(
+      (c) =>
+        c.employeeId === row.employeeId &&
+        c.name.toLowerCase() === row.name.toLowerCase() &&
+        c.recurring === row.recurring &&
+        (row.recurring || (c.applyYear === row.applyYear && c.applyMonth === row.applyMonth))
+    );
+    if (match) {
+      duplicates.push({
+        key: `${row.employeeId}:${row.name}:${row.applyYear ?? ""}:${row.applyMonth ?? ""}`,
+        employeeId: row.employeeId,
+        employeeName: row.employeeName,
+        existingComponentId: match.id,
+        name: row.name,
+        type: row.type,
+        category: row.category,
+        newAmount: row.amount,
+        existingAmount: match.amount,
+        recurring: row.recurring,
+        applyYear: row.applyYear,
+        applyMonth: row.applyMonth,
+      });
+    } else {
+      toCreate.push(row);
+    }
+  }
+
+  if (toCreate.length > 0) {
+    await prisma.payrollComponent.createMany({
+      data: toCreate.map((r) => {
+        const { taxable, ssApplicable } = categoryToTaxFlags(r.category);
+        return {
+          employeeId: r.employeeId,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          recurring: r.recurring,
+          taxable,
+          ssApplicable,
+          applyYear: r.applyYear,
+          applyMonth: r.applyMonth,
+        };
+      }),
+    });
+    await logAudit({
+      userId: user.id,
+      action: "IMPORT",
+      entity: "PayrollComponent",
+      details: `${toCreate.length} rubrica(s) importada(s) de ${file.name}`,
+    });
+    revalidatePath("/payroll");
+  }
+
+  return { created: toCreate.length, duplicates: duplicates.length > 0 ? duplicates : undefined };
+}
+
+// Aplica as decisões tomadas na modal de duplicados (ver
+// importPayrollComponentsAction) — substitui só as rubricas que o
+// utilizador confirmou (linha a linha, ou todas de uma vez via "aplicar a
+// todos" no cliente).
+export async function resolvePayrollComponentDuplicatesAction(
+  resolutions: {
+    existingComponentId: string;
+    replace: boolean;
+    newAmount: number;
+    type: "EARNING" | "DEDUCTION";
+    category: PayrollComponentCategory;
+  }[]
+): Promise<{ replaced: number }> {
+  const user = await assertCanWrite();
+  let replaced = 0;
+  for (const r of resolutions) {
+    if (!r.replace) continue;
+    const { taxable, ssApplicable } = categoryToTaxFlags(r.category);
+    await prisma.payrollComponent.update({
+      where: { id: r.existingComponentId },
+      data: { amount: r.newAmount, type: r.type, taxable, ssApplicable },
+    });
+    replaced++;
+  }
+  if (replaced > 0) {
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "PayrollComponent",
+      details: `${replaced} rubrica(s) substituída(s) por importação`,
+    });
+    revalidatePath("/payroll");
+  }
+  return { replaced };
 }

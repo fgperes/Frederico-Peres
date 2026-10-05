@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { addPayrollComponent, type AddPayrollComponentState } from "./actions";
 import { SaveBanner } from "@/components/save-banner";
+import { PAYROLL_COMPONENT_CATEGORIES, PAYROLL_COMPONENT_CATEGORY_LABELS } from "@/lib/payroll";
 
 export function AddPayrollComponentForm({ employeeId, currentYear }: { employeeId: string; currentYear: number }) {
   const [state, formAction, pending] = useActionState<AddPayrollComponentState, FormData>(
@@ -26,13 +27,11 @@ export function AddPayrollComponentForm({ employeeId, currentYear }: { employeeI
       <label className="flex items-center gap-1.5 text-xs text-stone-600">
         <input type="checkbox" name="recurring" defaultChecked /> Recorrente (todos os meses)
       </label>
-      <label className="flex items-center gap-1.5 text-xs text-stone-600">
-        <input type="checkbox" name="taxable" defaultChecked /> Sujeito a IRS
-      </label>
-      <label className="flex items-center gap-1.5 text-xs text-stone-600">
-        <input type="checkbox" name="ssApplicable" defaultChecked /> Sujeito a SS
-      </label>
-      <div />
+      <select name="category" defaultValue="TAXABLE_SS" className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+        {PAYROLL_COMPONENT_CATEGORIES.map((c) => (
+          <option key={c} value={c}>{PAYROLL_COMPONENT_CATEGORY_LABELS[c]}</option>
+        ))}
+      </select>
       <select name="applyMonth" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
         {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
           <option key={m} value={m}>{m}</option>
