@@ -11,12 +11,12 @@ const CONTACT_CHANNELS = [
   {
     icon: Mail,
     title: "Email",
-    description: "[email de contacto]",
+    description: "geral@people4people.pt",
   },
   {
     icon: Phone,
     title: "Telefone",
-    description: "[telefone de contacto]",
+    description: "+351 962 995 102",
   },
 ];
 
