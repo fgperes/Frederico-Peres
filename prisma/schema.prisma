@@ -269,6 +269,33 @@ model Employee {
   iban               String?
   birthDate          DateTime?
 
+  // Dados de identificação adicionais
+  idDocumentIssuePlace String? // local de emissão do documento de identificação
+  idDocumentType2      String? // segundo documento (ex.: Passaporte, quando o 1º é CC)
+  idDocument2          String?
+  nationality          String?
+  educationLevel       String? // ver EDUCATION_LEVELS em lib/employee-constants
+  erpCode              String? // código do colaborador no ERP externo (quando aplicável)
+  ibanSupplementary    String? // IBAN suplementar
+  mealCardIban         String? // IBAN do cartão de refeição
+  expensesIban         String? // IBAN para reembolso de despesas
+  childrenCount        Int?    @default(0) // nº de filhos (informativo — distinto de "dependents", usado no IRS)
+  professionalOrderRegistrationNo String? // nº de inscrição na Ordem Profissional
+  professionalOrderCardNo         String? // nº da carteira profissional na Ordem Profissional
+
+  // Contactos
+  mobilePhone String? // telemóvel, distinto do telefone fixo (phone)
+  locality    String?
+  postalCode  String?
+  country     String? // país de residência
+
+  // Contacto de emergência
+  bloodType              String?
+  emergencyContact1Name  String?
+  emergencyContact1Phone String?
+  emergencyContact2Name  String?
+  emergencyContact2Phone String?
+
   // Dados organizacionais
   jobTitle     String
   departmentId String?

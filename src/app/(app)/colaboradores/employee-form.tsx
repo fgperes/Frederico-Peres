@@ -2,7 +2,13 @@
 
 import { useState, useActionState } from "react";
 import type { Department, Location, Team, Employee } from "@prisma/client";
-import { ID_DOCUMENT_TYPES, ID_DOCUMENT_TYPE_LABELS } from "@/lib/employee-constants";
+import {
+  ID_DOCUMENT_TYPES,
+  ID_DOCUMENT_TYPE_LABELS,
+  EDUCATION_LEVELS,
+  EDUCATION_LEVEL_LABELS,
+  BLOOD_TYPES,
+} from "@/lib/employee-constants";
 import { SearchableSelect } from "@/components/searchable-select";
 import { SaveBanner } from "@/components/save-banner";
 import { DateField } from "@/components/date-field";
@@ -99,7 +105,78 @@ export function EmployeeForm({
             name="birthDate"
             defaultValue={employee?.birthDate ? employee.birthDate.toISOString().slice(0, 10) : ""}
           />
+          <Field label="Local de emissão" name="idDocumentIssuePlace" defaultValue={employee?.idDocumentIssuePlace ?? ""} />
+          <Field label="Nacionalidade" name="nationality" defaultValue={employee?.nationality ?? ""} />
+          <SelectField
+            label="Tipo de identificação 2"
+            name="idDocumentType2"
+            defaultValue={employee?.idDocumentType2 ?? ""}
+            options={ID_DOCUMENT_TYPES.map((t) => ({ value: t, label: ID_DOCUMENT_TYPE_LABELS[t] }))}
+          />
+          <Field label="Nº de identificação 2" name="idDocument2" defaultValue={employee?.idDocument2 ?? ""} />
+          <SelectField
+            label="Habilitações literárias"
+            name="educationLevel"
+            defaultValue={employee?.educationLevel ?? ""}
+            options={EDUCATION_LEVELS.map((l) => ({ value: l, label: EDUCATION_LEVEL_LABELS[l] }))}
+          />
+          <Field label="Código ERP" name="erpCode" defaultValue={employee?.erpCode ?? ""} />
+          <Field label="NIB suplementar" name="ibanSupplementary" defaultValue={employee?.ibanSupplementary ?? ""} />
+          <Field label="NIB do cartão de refeição" name="mealCardIban" defaultValue={employee?.mealCardIban ?? ""} />
+          <Field label="NIB de despesas" name="expensesIban" defaultValue={employee?.expensesIban ?? ""} />
+          <div>
+            <Field
+              label="Número de filhos"
+              name="childrenCount"
+              type="number"
+              defaultValue={employee?.childrenCount ?? 0}
+            />
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              Informativo. O número de dependentes usado no cálculo de IRS define-se em{" "}
+              <span className="font-medium">Payroll → ficha do colaborador</span>.
+            </p>
+          </div>
+          <Field
+            label="Nº inscrição na O.F."
+            name="professionalOrderRegistrationNo"
+            defaultValue={employee?.professionalOrderRegistrationNo ?? ""}
+          />
+          <Field
+            label="Nº carteira profissional na O.F."
+            name="professionalOrderCardNo"
+            defaultValue={employee?.professionalOrderCardNo ?? ""}
+          />
           <Field label="Morada" name="address" defaultValue={employee?.address ?? ""} className="sm:col-span-2" />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+          Contactos
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="País" name="country" defaultValue={employee?.country ?? ""} />
+          <Field label="Localidade" name="locality" defaultValue={employee?.locality ?? ""} />
+          <Field label="Código-postal" name="postalCode" defaultValue={employee?.postalCode ?? ""} />
+          <Field label="Telemóvel" name="mobilePhone" defaultValue={employee?.mobilePhone ?? ""} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+          Emergências
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Nome 1" name="emergencyContact1Name" defaultValue={employee?.emergencyContact1Name ?? ""} />
+          <Field label="Contacto 1" name="emergencyContact1Phone" defaultValue={employee?.emergencyContact1Phone ?? ""} />
+          <SelectField
+            label="Tipo de sangue"
+            name="bloodType"
+            defaultValue={employee?.bloodType ?? ""}
+            options={BLOOD_TYPES.map((b) => ({ value: b, label: b }))}
+          />
+          <Field label="Nome 2" name="emergencyContact2Name" defaultValue={employee?.emergencyContact2Name ?? ""} />
+          <Field label="Contacto 2" name="emergencyContact2Phone" defaultValue={employee?.emergencyContact2Phone ?? ""} />
         </div>
       </section>
 

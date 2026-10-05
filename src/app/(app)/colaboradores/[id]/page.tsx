@@ -6,7 +6,12 @@ import { PageHeader, Card, Badge, Button, LinkButton } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
 import { ColaboradorTabs } from "./tabs";
 import { updateEmployee, setEmployeeStatus } from "../actions";
-import { ID_DOCUMENT_TYPE_LABELS, type IdDocumentType } from "@/lib/employee-constants";
+import {
+  ID_DOCUMENT_TYPE_LABELS,
+  EDUCATION_LEVEL_LABELS,
+  type IdDocumentType,
+  type EducationLevel,
+} from "@/lib/employee-constants";
 import { notFound } from "next/navigation";
 import { User, Banknote } from "lucide-react";
 
@@ -135,6 +140,19 @@ function ReadOnlyView({
     idDocumentType: string | null;
     idDocumentExpiry: Date | null;
     idDocumentNoExpiry: boolean;
+    idDocumentIssuePlace: string | null;
+    nationality: string | null;
+    educationLevel: string | null;
+    childrenCount: number | null;
+    mobilePhone: string | null;
+    locality: string | null;
+    postalCode: string | null;
+    country: string | null;
+    bloodType: string | null;
+    emergencyContact1Name: string | null;
+    emergencyContact1Phone: string | null;
+    emergencyContact2Name: string | null;
+    emergencyContact2Phone: string | null;
   };
 }) {
   const isExpired =
@@ -143,44 +161,76 @@ function ReadOnlyView({
     employee.idDocumentExpiry < new Date();
 
   return (
-    <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-      <Info label="Número de Colaborador" value={employee.employeeNumber ?? "—"} />
-      <Info label="Email" value={employee.email} />
-      <Info label="Telefone" value={employee.phone ?? "—"} />
-      <Info label="Função" value={employee.jobTitle} />
-      <Info
-        label="Tipo de vínculo"
-        value={employee.employmentType === "FULL_TIME" ? "Full-time" : "Part-time"}
-      />
-      <Info label="Horas semanais" value={String(employee.weeklyHours)} />
-      <Info
-        label="Data de admissão"
-        value={
-          employee.hireDate
-            ? employee.hireDate.toLocaleDateString("pt-PT")
-            : "—"
-        }
-      />
-      <Info
-        label="Documento de identificação"
-        value={
-          employee.idDocumentType
-            ? ID_DOCUMENT_TYPE_LABELS[employee.idDocumentType as IdDocumentType]
-            : "—"
-        }
-      />
+    <div className="space-y-6">
+      <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+        <Info label="Número de Colaborador" value={employee.employeeNumber ?? "—"} />
+        <Info label="Email" value={employee.email} />
+        <Info label="Telefone" value={employee.phone ?? "—"} />
+        <Info label="Função" value={employee.jobTitle} />
+        <Info
+          label="Tipo de vínculo"
+          value={employee.employmentType === "FULL_TIME" ? "Full-time" : "Part-time"}
+        />
+        <Info label="Horas semanais" value={String(employee.weeklyHours)} />
+        <Info
+          label="Data de admissão"
+          value={
+            employee.hireDate
+              ? employee.hireDate.toLocaleDateString("pt-PT")
+              : "—"
+          }
+        />
+        <Info
+          label="Documento de identificação"
+          value={
+            employee.idDocumentType
+              ? ID_DOCUMENT_TYPE_LABELS[employee.idDocumentType as IdDocumentType]
+              : "—"
+          }
+        />
+        <div>
+          <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">Validade</dt>
+          <dd className="mt-0.5 flex items-center gap-2 text-stone-900 dark:text-stone-100">
+            {employee.idDocumentNoExpiry
+              ? "Vitalício"
+              : employee.idDocumentExpiry
+                ? employee.idDocumentExpiry.toLocaleDateString("pt-PT")
+                : "—"}
+            {isExpired && <Badge color="red">Caducado</Badge>}
+          </dd>
+        </div>
+        <Info label="Local de emissão" value={employee.idDocumentIssuePlace ?? "—"} />
+        <Info label="Nacionalidade" value={employee.nationality ?? "—"} />
+        <Info
+          label="Habilitações literárias"
+          value={
+            employee.educationLevel
+              ? EDUCATION_LEVEL_LABELS[employee.educationLevel as EducationLevel]
+              : "—"
+          }
+        />
+        <Info label="Número de filhos" value={String(employee.childrenCount ?? 0)} />
+      </dl>
+
       <div>
-        <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">Validade</dt>
-        <dd className="mt-0.5 flex items-center gap-2 text-stone-900 dark:text-stone-100">
-          {employee.idDocumentNoExpiry
-            ? "Vitalício"
-            : employee.idDocumentExpiry
-              ? employee.idDocumentExpiry.toLocaleDateString("pt-PT")
-              : "—"}
-          {isExpired && <Badge color="red">Caducado</Badge>}
-        </dd>
+        <h3 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Contactos</h3>
+        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+          <Info label="Telemóvel" value={employee.mobilePhone ?? "—"} />
+          <Info label="Localidade" value={employee.locality ?? "—"} />
+          <Info label="Código-postal" value={employee.postalCode ?? "—"} />
+          <Info label="País" value={employee.country ?? "—"} />
+        </dl>
       </div>
-    </dl>
+
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Emergências</h3>
+        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+          <Info label="Tipo de sangue" value={employee.bloodType ?? "—"} />
+          <Info label="Contacto 1" value={[employee.emergencyContact1Name, employee.emergencyContact1Phone].filter(Boolean).join(" · ") || "—"} />
+          <Info label="Contacto 2" value={[employee.emergencyContact2Name, employee.emergencyContact2Phone].filter(Boolean).join(" · ") || "—"} />
+        </dl>
+      </div>
+    </div>
   );
 }
 
