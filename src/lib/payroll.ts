@@ -29,6 +29,32 @@ export async function getPayrollSettings() {
   return prisma.payrollSettings.create({ data: {} });
 }
 
+// Categoria de uma rubrica variável (PayrollComponent) — a forma amigável
+// de escolher a combinação taxable/ssApplicable já existente no modelo,
+// tal como pedido: rendimentos sujeitos a IRS e SS, só a IRS, ou isentos
+// de ambos (ex.: outros benefícios isentos, como seguro de saúde).
+export const PAYROLL_COMPONENT_CATEGORIES = ["TAXABLE_SS", "TAXABLE_ONLY", "EXEMPT"] as const;
+export type PayrollComponentCategory = (typeof PAYROLL_COMPONENT_CATEGORIES)[number];
+export const PAYROLL_COMPONENT_CATEGORY_LABELS: Record<PayrollComponentCategory, string> = {
+  TAXABLE_SS: "Sujeito a IRS e Segurança Social",
+  TAXABLE_ONLY: "Sujeito só a IRS",
+  EXEMPT: "Isento (IRS e Segurança Social)",
+};
+export function categoryToTaxFlags(category: PayrollComponentCategory): { taxable: boolean; ssApplicable: boolean } {
+  switch (category) {
+    case "TAXABLE_SS":
+      return { taxable: true, ssApplicable: true };
+    case "TAXABLE_ONLY":
+      return { taxable: true, ssApplicable: false };
+    case "EXEMPT":
+      return { taxable: false, ssApplicable: false };
+  }
+}
+export function taxFlagsToCategory(taxable: boolean, ssApplicable: boolean): PayrollComponentCategory {
+  if (!taxable) return "EXEMPT";
+  return ssApplicable ? "TAXABLE_SS" : "TAXABLE_ONLY";
+}
+
 export const FISCAL_REGIONS = ["CONTINENTE", "ACORES", "MADEIRA"] as const;
 export const FISCAL_REGION_LABELS: Record<string, string> = {
   CONTINENTE: "Continente",
@@ -487,13 +513,16 @@ export async function computePayslipBreakdown(
     }
   }
 
+  // O subsídio de alimentação conta os dias a partir do nº de dias
+  // trabalhado em escala (turnos escalados no período), não das picagens.
+  const mealAllowanceDays = shiftHoursByDay.size;
   const mealAllowanceDaily = employee.mealAllowanceOverride ?? settings.mealAllowanceDaily;
-  const mealAllowanceTotal = workedDays * mealAllowanceDaily;
+  const mealAllowanceTotal = mealAllowanceDays * mealAllowanceDaily;
   const mealAllowanceExemptCapDaily =
     settings.mealAllowancePaymentMethod === "CASH"
       ? fiscalConstants.mealAllowanceExemptCashDaily
       : fiscalConstants.mealAllowanceExemptCardDaily;
-  const mealAllowanceExempt = Math.min(mealAllowanceTotal, workedDays * mealAllowanceExemptCapDaily);
+  const mealAllowanceExempt = Math.min(mealAllowanceTotal, mealAllowanceDays * mealAllowanceExemptCapDaily);
   const mealAllowanceTaxable = mealAllowanceTotal - mealAllowanceExempt;
 
   // Rendimentos variáveis por colaborador, nas 3 categorias pedidas: suj.

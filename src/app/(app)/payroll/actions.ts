@@ -11,8 +11,10 @@ import {
   FISCAL_REGIONS,
   DEFAULT_PAYSLIP_LINE_ITEMS,
   IRS_TABLE_TYPES,
+  categoryToTaxFlags,
   type PayslipLineItemKey,
   type IrsTableType,
+  type PayrollComponentCategory,
 } from "@/lib/payroll";
 import { revalidatePath } from "next/cache";
 import { parseExcelFile } from "@/lib/excel";
@@ -382,8 +384,8 @@ export async function addPayrollComponent(
     const type = String(formData.get("type") ?? "EARNING");
     const amount = Number(formData.get("amount"));
     const recurring = formData.get("recurring") === "on";
-    const taxable = formData.get("taxable") === "on";
-    const ssApplicable = formData.get("ssApplicable") === "on";
+    const category = String(formData.get("category") ?? "TAXABLE_SS") as PayrollComponentCategory;
+    const { taxable, ssApplicable } = categoryToTaxFlags(category);
     const applyYear = recurring ? null : Number(formData.get("applyYear"));
     const applyMonth = recurring ? null : Number(formData.get("applyMonth"));
 
@@ -493,4 +495,223 @@ export async function updatePayslipLayoutSettings(formData: FormData) {
   await logAudit({ userId: user.id, action: "UPDATE", entity: "PayslipLayoutSettings" });
   revalidatePath("/payroll/layout");
   revalidatePath("/payroll");
+}
+
+// ---------------------------------------------------------------------------
+// Rubricas mensais (PayrollComponent) em massa — carregamento por Excel para
+// todos os colaboradores de uma vez, com deteção de duplicados (mesmo
+// colaborador + rubrica + período) a confirmar antes de substituir.
+// ---------------------------------------------------------------------------
+
+export type PayrollComponentDuplicate = {
+  key: string;
+  employeeId: string;
+  employeeName: string;
+  existingComponentId: string;
+  name: string;
+  type: "EARNING" | "DEDUCTION";
+  category: PayrollComponentCategory;
+  newAmount: number;
+  existingAmount: number;
+  recurring: boolean;
+  applyYear: number | null;
+  applyMonth: number | null;
+};
+
+export type ImportPayrollComponentsState = {
+  error?: string;
+  created?: number;
+  duplicates?: PayrollComponentDuplicate[];
+};
+
+function parseComponentCategory(raw: unknown): PayrollComponentCategory {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s.includes("isent")) return "EXEMPT";
+  if (s.includes("só") || s.includes("so ") || s.includes("apenas")) return "TAXABLE_ONLY";
+  return "TAXABLE_SS";
+}
+
+// Carrega rubricas (prémios, subsídios específicos, benefícios, descontos)
+// para vários colaboradores de uma vez a partir de um Excel. Colunas: Nº
+// Colaborador (ou Email), Rubrica, Tipo (Vencimento/Desconto), Categoria
+// (Sujeito a IRS e SS / Sujeito só a IRS / Isento), Valor, Recorrente
+// (Sim/Não), Ano e Mês (só quando não recorrente). Linhas sem conflito são
+// criadas de imediato; linhas que colidem com uma rubrica já existente
+// (mesmo colaborador+nome+período) ficam pendentes de confirmação — ver
+// resolvePayrollComponentDuplicatesAction.
+export async function importPayrollComponentsAction(
+  _prev: ImportPayrollComponentsState,
+  formData: FormData
+): Promise<ImportPayrollComponentsState> {
+  const user = await assertCanWrite();
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
+
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await parseExcelFile(file);
+  } catch {
+    return { error: "Não foi possível ler o ficheiro. Confirme que é um Excel válido (.xlsx)." };
+  }
+  if (rows.length === 0) return { error: "O ficheiro não contém linhas de dados." };
+
+  const employees = await prisma.employee.findMany({
+    select: { id: true, employeeNumber: true, email: true, firstName: true, lastName: true },
+  });
+  const byNumber = new Map(employees.filter((e) => e.employeeNumber).map((e) => [e.employeeNumber as string, e]));
+  const byEmail = new Map(employees.map((e) => [e.email.toLowerCase(), e]));
+
+  type ParsedRow = {
+    employeeId: string;
+    employeeName: string;
+    name: string;
+    type: "EARNING" | "DEDUCTION";
+    category: PayrollComponentCategory;
+    amount: number;
+    recurring: boolean;
+    applyYear: number | null;
+    applyMonth: number | null;
+  };
+  const parsed: ParsedRow[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2;
+    const identifier = String(row["Nº Colaborador"] ?? row["Email"] ?? "").trim();
+    if (!identifier) return { error: `Linha ${rowNum}: indique o Nº de Colaborador ou o Email.` };
+    const employee = byNumber.get(identifier) ?? byEmail.get(identifier.toLowerCase());
+    if (!employee) return { error: `Linha ${rowNum}: colaborador "${identifier}" não encontrado.` };
+
+    const name = String(row["Rubrica"] ?? "").trim();
+    if (!name) return { error: `Linha ${rowNum}: indique o nome da rubrica.` };
+
+    const typeRaw = String(row["Tipo"] ?? "").trim().toLowerCase();
+    const type: "EARNING" | "DEDUCTION" = typeRaw.startsWith("desc") ? "DEDUCTION" : "EARNING";
+    const category = parseComponentCategory(row["Categoria"]);
+
+    const amount = Number(row["Valor"]);
+    if (!Number.isFinite(amount) || amount <= 0) return { error: `Linha ${rowNum}: valor inválido.` };
+
+    const recurringRaw = String(row["Recorrente"] ?? "sim").trim().toLowerCase();
+    const recurring = !(recurringRaw.startsWith("n") || recurringRaw === "false" || recurringRaw === "0");
+
+    let applyYear: number | null = null;
+    let applyMonth: number | null = null;
+    if (!recurring) {
+      applyYear = Number(row["Ano"]);
+      applyMonth = Number(row["Mês"] ?? row["Mes"]);
+      if (!applyYear || !applyMonth) return { error: `Linha ${rowNum}: indique Ano e Mês para uma rubrica pontual.` };
+    }
+
+    parsed.push({
+      employeeId: employee.id,
+      employeeName: `${employee.firstName} ${employee.lastName}`,
+      name,
+      type,
+      category,
+      amount,
+      recurring,
+      applyYear,
+      applyMonth,
+    });
+  }
+
+  const existingComponents = await prisma.payrollComponent.findMany({
+    where: { employeeId: { in: [...new Set(parsed.map((p) => p.employeeId))] } },
+  });
+
+  const toCreate: ParsedRow[] = [];
+  const duplicates: PayrollComponentDuplicate[] = [];
+
+  for (const row of parsed) {
+    const match = existingComponents.find(
+      (c) =>
+        c.employeeId === row.employeeId &&
+        c.name.toLowerCase() === row.name.toLowerCase() &&
+        c.recurring === row.recurring &&
+        (row.recurring || (c.applyYear === row.applyYear && c.applyMonth === row.applyMonth))
+    );
+    if (match) {
+      duplicates.push({
+        key: `${row.employeeId}:${row.name}:${row.applyYear ?? ""}:${row.applyMonth ?? ""}`,
+        employeeId: row.employeeId,
+        employeeName: row.employeeName,
+        existingComponentId: match.id,
+        name: row.name,
+        type: row.type,
+        category: row.category,
+        newAmount: row.amount,
+        existingAmount: match.amount,
+        recurring: row.recurring,
+        applyYear: row.applyYear,
+        applyMonth: row.applyMonth,
+      });
+    } else {
+      toCreate.push(row);
+    }
+  }
+
+  if (toCreate.length > 0) {
+    await prisma.payrollComponent.createMany({
+      data: toCreate.map((r) => {
+        const { taxable, ssApplicable } = categoryToTaxFlags(r.category);
+        return {
+          employeeId: r.employeeId,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          recurring: r.recurring,
+          taxable,
+          ssApplicable,
+          applyYear: r.applyYear,
+          applyMonth: r.applyMonth,
+        };
+      }),
+    });
+    await logAudit({
+      userId: user.id,
+      action: "IMPORT",
+      entity: "PayrollComponent",
+      details: `${toCreate.length} rubrica(s) importada(s) de ${file.name}`,
+    });
+    revalidatePath("/payroll");
+  }
+
+  return { created: toCreate.length, duplicates: duplicates.length > 0 ? duplicates : undefined };
+}
+
+// Aplica as decisões tomadas na modal de duplicados (ver
+// importPayrollComponentsAction) — substitui só as rubricas que o
+// utilizador confirmou (linha a linha, ou todas de uma vez via "aplicar a
+// todos" no cliente).
+export async function resolvePayrollComponentDuplicatesAction(
+  resolutions: {
+    existingComponentId: string;
+    replace: boolean;
+    newAmount: number;
+    type: "EARNING" | "DEDUCTION";
+    category: PayrollComponentCategory;
+  }[]
+): Promise<{ replaced: number }> {
+  const user = await assertCanWrite();
+  let replaced = 0;
+  for (const r of resolutions) {
+    if (!r.replace) continue;
+    const { taxable, ssApplicable } = categoryToTaxFlags(r.category);
+    await prisma.payrollComponent.update({
+      where: { id: r.existingComponentId },
+      data: { amount: r.newAmount, type: r.type, taxable, ssApplicable },
+    });
+    replaced++;
+  }
+  if (replaced > 0) {
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "PayrollComponent",
+      details: `${replaced} rubrica(s) substituída(s) por importação`,
+    });
+    revalidatePath("/payroll");
+  }
+  return { replaced };
 }

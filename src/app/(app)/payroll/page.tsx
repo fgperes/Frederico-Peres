@@ -4,7 +4,7 @@ import { accessFor, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
 import { AvatarImage } from "@/lib/avatars";
-import { Banknote, Sliders, LayoutTemplate, Users, FileCheck2, Clock3 } from "lucide-react";
+import { Banknote, Sliders, LayoutTemplate, ListPlus, Users, FileCheck2, Clock3 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -53,6 +53,9 @@ export default async function PayrollPage({
         action={
           canEdit ? (
             <div className="flex flex-wrap items-center gap-2">
+              <LinkButton href="/payroll/rubricas" variant="secondary">
+                <ListPlus size={14} /> Rubricas
+              </LinkButton>
               <LinkButton href="/payroll/layout" variant="secondary">
                 <LayoutTemplate size={14} /> Layout do Recibo
               </LinkButton>
