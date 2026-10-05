@@ -133,9 +133,9 @@ function SupportFormView({ onBack }: { onBack: () => void }) {
       <form action={formAction} className="mt-4 space-y-3 text-left">
         <WidgetField label="Nome da empresa" name="companyName" required />
         <WidgetField label="Nome de contacto" name="contactName" required />
+        <WidgetField label="NIPC" name="nipc" />
         <WidgetField label="Email" name="email" type="email" required />
         <WidgetField label="Telefone" name="phone" type="tel" />
-        <WidgetField label="NIPC" name="nipc" />
         <WidgetTextareaField label="Descreva a situação" name="situation" required />
         {state.error && <p className="text-xs text-rose-600">{state.error}</p>}
         <button
