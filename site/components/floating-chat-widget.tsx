@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { MessageCircle, X, ArrowLeft } from "lucide-react";
 import { LogoMark } from "./logo";
 import { submitInfoForm, submitSupportForm, type LeadFormState } from "@/app/actions";
@@ -134,7 +135,7 @@ function SupportFormView({ onBack }: { onBack: () => void }) {
         <WidgetField label="Nome de contacto" name="contactName" required />
         <WidgetField label="Email" name="email" type="email" required />
         <WidgetField label="Telefone" name="phone" type="tel" />
-        <WidgetEmployeeCountField />
+        <WidgetField label="NIPC" name="nipc" />
         <WidgetTextareaField label="Descreva a situação" name="situation" required />
         {state.error && <p className="text-xs text-rose-600">{state.error}</p>}
         <button
@@ -175,6 +176,20 @@ function InfoFormView({ onBack }: { onBack: () => void }) {
         <WidgetField label="Telefone" name="phone" type="tel" />
         <WidgetEmployeeCountField />
         <WidgetField label="Email" name="email" type="email" required />
+        <WidgetCheckbox
+          name="dataConsent"
+          required
+          label={
+            <>
+              Autorizo o tratamento dos meus dados pessoais nos termos da{" "}
+              <Link href="/privacidade" className="text-violet-700 underline hover:text-violet-900">
+                Política de Privacidade
+              </Link>
+              . *
+            </>
+          }
+        />
+        <WidgetCheckbox name="marketingConsent" label="Autorizo o envio de comunicações comerciais da people4people." />
         {state.error && <p className="text-xs text-rose-600">{state.error}</p>}
         <button
           type="submit"
@@ -228,6 +243,28 @@ function WidgetTextareaField({ label, name, required }: { label: string; name: s
         rows={3}
         className="w-full resize-none rounded-md border border-stone-300 bg-white px-2.5 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
       />
+    </label>
+  );
+}
+
+function WidgetCheckbox({
+  label,
+  name,
+  required,
+}: {
+  label: ReactNode;
+  name: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="flex items-start gap-2 text-xs text-stone-600">
+      <input
+        type="checkbox"
+        name={name}
+        required={required}
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-stone-300 text-violet-600 focus:ring-1 focus:ring-violet-500"
+      />
+      <span>{label}</span>
     </label>
   );
 }

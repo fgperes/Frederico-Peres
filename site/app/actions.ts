@@ -30,14 +30,20 @@ export async function submitLeadForm(
   const role = String(formData.get("role") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const nipc = String(formData.get("nipc") ?? "").trim();
   const employeeCount = String(formData.get("employeeCount") ?? "").trim();
   const situation = String(formData.get("situation") ?? "").trim();
+  const dataConsent = formData.get("dataConsent") === "on";
+  const marketingConsent = formData.get("marketingConsent") === "on";
 
   if (!companyName || !contactName || !email) {
     return { error: "Preencha pelo menos a empresa, o nome de contacto e o email." };
   }
   if (kind === "support" && !situation) {
     return { error: "Descreva a situação para a nossa equipa poder ajudar." };
+  }
+  if (kind !== "support" && !dataConsent) {
+    return { error: "É necessário autorizar o tratamento de dados para enviar o pedido." };
   }
 
   const lines = [
@@ -46,7 +52,10 @@ export async function submitLeadForm(
     role ? `Função: ${role}` : null,
     phone ? `Telefone: ${phone}` : null,
     `Email: ${email}`,
+    nipc ? `NIPC: ${nipc}` : null,
     employeeCount ? `Número de colaboradores: ${employeeCount}` : null,
+    kind !== "support" ? `Consentimento de tratamento de dados: ${dataConsent ? "Sim" : "Não"}` : null,
+    kind !== "support" ? `Consentimento de comunicações comerciais: ${marketingConsent ? "Sim" : "Não"}` : null,
     situation ? `\nSituação:\n${situation}` : null,
   ]
     .filter((line): line is string => Boolean(line))
