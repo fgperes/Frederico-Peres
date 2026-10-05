@@ -117,7 +117,7 @@ function Modulos() {
     <section id="modulos" className="py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Serviços</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-violet-700">Os Nossos Serviços</h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
             Os módulos do SGRH
           </p>

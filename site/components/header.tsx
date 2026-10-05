@@ -8,7 +8,7 @@ export function Header() {
         <Logo />
         <nav className="hidden items-center gap-8 text-sm font-medium text-stone-600 sm:flex">
           <Link href="/sobre" className="hover:text-stone-900">Sobre Nós</Link>
-          <Link href="/#modulos" className="hover:text-stone-900">Serviços</Link>
+          <Link href="/#modulos" className="hover:text-stone-900">Os Nossos Serviços</Link>
           <Link href="/#contacto" className="hover:text-stone-900">Contacto</Link>
         </nav>
         <Link

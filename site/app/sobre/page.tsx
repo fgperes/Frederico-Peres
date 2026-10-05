@@ -159,7 +159,7 @@ export default function Sobre() {
               href="/#modulos"
               className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
             >
-              Ver os serviços
+              Os Nossos Serviços
               <ArrowRight size={16} />
             </Link>
             <Link

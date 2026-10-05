@@ -22,7 +22,7 @@ export function Footer() {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400">Empresa</h3>
             <ul className="mt-3 space-y-2 text-sm text-stone-600">
               <li><Link href="/sobre" className="hover:text-stone-900">Sobre nós</Link></li>
-              <li><Link href="/#modulos" className="hover:text-stone-900">Serviços</Link></li>
+              <li><Link href="/#modulos" className="hover:text-stone-900">Os Nossos Serviços</Link></li>
               <li><Link href="/#contacto" className="hover:text-stone-900">Contacto</Link></li>
             </ul>
           </div>
