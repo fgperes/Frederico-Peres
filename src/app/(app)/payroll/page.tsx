@@ -4,7 +4,7 @@ import { accessFor, canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
 import { AvatarImage } from "@/lib/avatars";
-import { Banknote, Sliders, LayoutTemplate, ListPlus, Users, FileCheck2, Clock3 } from "lucide-react";
+import { Banknote, Sliders, LayoutTemplate, ListPlus, Users, FileCheck2, Clock3, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -103,6 +103,14 @@ export default async function PayrollPage({
           <button type="submit" className="rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
             Aplicar
           </button>
+          {canEdit && (
+            <a
+              href={`/api/payroll/export?year=${year}&month=${month}`}
+              className="ml-auto flex items-center gap-1.5 rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
+            >
+              <FileSpreadsheet size={14} /> Exportar período (Excel)
+            </a>
+          )}
         </form>
       </Card>
 

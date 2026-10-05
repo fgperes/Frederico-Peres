@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { computePayslipBreakdown, toPayslipRecord, getPayslipLayoutSettings, buildPayslipLines } from "@/lib/payroll";
+import { getDocumentBranding } from "@/lib/document-branding";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { ReceiptText } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -39,12 +40,20 @@ export default async function PayslipDetailPage({
   // pré-visualização calculada na hora de um mês ainda por processar.
   if (!canEdit && !savedPayslip) notFound();
 
-  const layout = await getPayslipLayoutSettings();
+  const [layout, branding, ytdPayslips] = await Promise.all([
+    getPayslipLayoutSettings(),
+    getDocumentBranding(),
+    prisma.payslip.findMany({ where: { employeeId, year, month: { lte: month } } }),
+  ]);
   const breakdown = savedPayslip ?? toPayslipRecord(await computePayslipBreakdown(employeeId, year, month));
   const isSaved = !!savedPayslip;
   const lines = buildPayslipLines(breakdown, layout.lineItems);
   const earningsLines = lines.filter((l) => l.section === "EARNINGS");
   const deductionLines = lines.filter((l) => l.section === "DEDUCTIONS");
+
+  const ytdGross = ytdPayslips.reduce((sum, p) => sum + p.grossTotal, 0);
+  const ytdIrs = ytdPayslips.reduce((sum, p) => sum + p.irsWithholding, 0);
+  const ytdSocialSecurity = ytdPayslips.reduce((sum, p) => sum + p.socialSecurityEmployee, 0);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -105,8 +114,17 @@ export default async function PayslipDetailPage({
         {isSaved && (
           <PayslipPdfButton
             data={{
+              companyName: branding.clientCompanyName,
+              companyLogo: branding.clientCompanyLogo,
+              companyNif: branding.companyNif,
+              companyAddress: branding.companyAddress,
+              companySocialSecurityNo: branding.companySocialSecurityNo,
               employeeName: `${employee.firstName} ${employee.lastName}`,
+              employeeNumber: employee.employeeNumber,
               nif: employee.nif,
+              socialSecurityNo: employee.socialSecurityNo,
+              address: employee.address,
+              iban: employee.iban,
               jobTitle: employee.jobTitle,
               year,
               month,
@@ -117,6 +135,9 @@ export default async function PayslipDetailPage({
               grossTotal: breakdown.grossTotal,
               netTotal: breakdown.netTotal,
               employerCost: breakdown.employerCost,
+              ytdGross,
+              ytdIrs,
+              ytdSocialSecurity,
             }}
           />
         )}

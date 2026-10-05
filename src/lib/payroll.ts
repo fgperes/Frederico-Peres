@@ -855,12 +855,19 @@ function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): {
 // Aplica o layout configurado (ordem, texto e visibilidade) aos valores
 // calculados de um recibo — usado tanto na pré-visualização no ecrã como
 // no PDF, para que os dois mostrem sempre exatamente as mesmas linhas.
-export function buildPayslipLines(source: PayslipLineSource, lineItems: PayslipLineItemConfig[]): PayslipLine[] {
+// `includeZero` ignora o filtro de "só mostra se tiver valor" — usado na
+// exportação Excel por período, onde todas as colunas têm de aparecer em
+// todas as linhas (mesmo a 0€) para a tabela ficar tabular.
+export function buildPayslipLines(
+  source: PayslipLineSource,
+  lineItems: PayslipLineItemConfig[],
+  includeZero = false
+): PayslipLine[] {
   const lines: PayslipLine[] = [];
   for (const item of lineItems) {
     if (!item.visible) continue;
     const { value, suffix } = payslipLineValue(source, item.key);
-    if (!ALWAYS_SHOW_LINE_ITEMS.has(item.key) && value === 0) continue;
+    if (!includeZero && !ALWAYS_SHOW_LINE_ITEMS.has(item.key) && value === 0) continue;
     lines.push({ key: item.key, label: item.label + suffix, section: item.section, value });
   }
   return lines;
