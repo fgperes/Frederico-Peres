@@ -4,6 +4,7 @@ import { CookieConsent } from "@/components/cookie-consent";
 import { FloatingChatWidget } from "@/components/floating-chat-widget";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://people4people.pt"),
   title: "people4people — Menos processos, mais pessoas",
   description:
     "A people4people simplifica a gestão de recursos humanos das empresas portuguesas: colaboradores, horários, ausências, contratos e processamento salarial, tudo numa só plataforma.",
