@@ -5,6 +5,9 @@ import { createIrsTable, type CreateIrsTableState } from "../actions";
 import { FISCAL_REGIONS, FISCAL_REGION_LABELS, IRS_TABLE_TYPES, IRS_TABLE_TYPE_LABELS } from "@/lib/payroll";
 import { SaveBanner } from "@/components/save-banner";
 
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+const MONTH_LABELS = MONTHS.map((m) => new Date(2000, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" }));
+
 export function CreateIrsTableForm() {
   const [state, formAction, pending] = useActionState<CreateIrsTableState, FormData>(createIrsTable, {});
 
@@ -35,6 +38,16 @@ export function CreateIrsTableForm() {
       >
         {IRS_TABLE_TYPES.map((t) => (
           <option key={t} value={t}>{IRS_TABLE_TYPE_LABELS[t]}</option>
+        ))}
+      </select>
+      <select name="monthFrom" defaultValue="1" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+        {MONTHS.map((m) => (
+          <option key={m} value={m}>Desde {MONTH_LABELS[m - 1]}</option>
+        ))}
+      </select>
+      <select name="monthTo" defaultValue="12" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+        {MONTHS.map((m) => (
+          <option key={m} value={m}>Até {MONTH_LABELS[m - 1]}</option>
         ))}
       </select>
       <input

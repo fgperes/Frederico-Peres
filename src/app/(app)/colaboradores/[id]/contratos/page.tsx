@@ -89,7 +89,22 @@ export default async function ColaboradorContratosPage({
                 label="Vencimento base (para o Payroll)"
                 value={active.baseSalary ? `${active.baseSalary.toFixed(2)} €` : "—"}
               />
-              <Info label="Documento" value={active.documentName ?? "—"} />
+              <div>
+                <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">Documento</dt>
+                <dd className="mt-0.5 text-stone-900 dark:text-stone-100">
+                  {active.documentData ? (
+                    <a
+                      href={active.documentData}
+                      download={active.documentName ?? "documento_contratual"}
+                      className="text-violet-700 hover:underline dark:text-violet-400"
+                    >
+                      {active.documentName ?? "Descarregar"}
+                    </a>
+                  ) : (
+                    active.documentName ?? "—"
+                  )}
+                </dd>
+              </div>
               {active.notes && <Info label="Notas" value={active.notes} className="sm:col-span-2" />}
             </dl>
 

@@ -13,8 +13,8 @@ import type { IrsSeedTable } from "./payroll";
 export const FISCAL_YEAR_CONSTANTS_2026 = {
   year: 2026,
   ias: 537.13,
-  mealAllowanceExemptCardDaily: 10.46,
-  mealAllowanceExemptCashDaily: 6.15,
+  mealAllowanceExemptCardDaily: 10.60,
+  mealAllowanceExemptCashDaily: 6.60,
   youngExemptionCapAnnualMultiplier: 55,
   youngExemptionCapPaymentsPerYear: 14,
 };

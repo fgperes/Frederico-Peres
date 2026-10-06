@@ -3,18 +3,8 @@
 import { useState } from "react";
 import { updateEmployeePayrollProfile } from "../actions";
 
-const MARITAL_LABELS: Record<string, string> = {
-  NAO_CASADO: "Não casado(a)",
-  CASADO_UNICO_TITULAR: "Casado(a) — único titular",
-  CASADO_DOIS_TITULARES: "Casado(a) — dois titulares",
-};
-
 type Employee = {
   id: string;
-  maritalStatus: string | null;
-  dependents: number;
-  fiscalRegion: string;
-  mealAllowanceOverride: number | null;
   youngTaxRegime: boolean;
   youngTaxRegimeStartYear: number | null;
   adseBeneficiary: boolean;
@@ -67,53 +57,6 @@ export function EmployeePayrollProfileForm({ employee }: { employee: Employee })
 
   return (
     <form action={updateEmployeePayrollProfile.bind(null, employee.id)} className="space-y-3">
-      <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Estado civil (fiscal)</label>
-        <select
-          name="maritalStatus"
-          defaultValue={employee.maritalStatus ?? ""}
-          className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-        >
-          <option value="">—</option>
-          {Object.entries(MARITAL_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Dependentes</label>
-        <input
-          name="dependents"
-          type="number"
-          min={0}
-          defaultValue={employee.dependents}
-          className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Região fiscal (morada fiscal)</label>
-        <select
-          name="fiscalRegion"
-          defaultValue={employee.fiscalRegion}
-          className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-        >
-          <option value="CONTINENTE">Continente</option>
-          <option value="ACORES">Açores</option>
-          <option value="MADEIRA">Madeira</option>
-        </select>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de alimentação (€/dia, opcional)</label>
-        <input
-          name="mealAllowanceOverride"
-          type="number"
-          step="0.01"
-          defaultValue={employee.mealAllowanceOverride ?? ""}
-          placeholder="Usar valor por omissão"
-          className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
-        />
-      </div>
-
       <label className="flex items-center gap-2 text-sm text-stone-700">
         <input
           type="checkbox"

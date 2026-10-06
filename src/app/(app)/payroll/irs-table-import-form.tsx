@@ -6,6 +6,8 @@ import { importIrsTableAction, type ImportIrsTableState } from "./actions";
 import { FISCAL_REGIONS, FISCAL_REGION_LABELS, IRS_TABLE_TYPES, IRS_TABLE_TYPE_LABELS } from "@/lib/payroll";
 
 const initialState: ImportIrsTableState = {};
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+const MONTH_LABELS = MONTHS.map((m) => new Date(2000, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" }));
 
 export function IrsTableImportForm() {
   const [state, formAction, pending] = useActionState(importIrsTableAction, initialState);
@@ -54,6 +56,24 @@ export function IrsTableImportForm() {
         </div>
       </div>
       <div>
+        <label className="mb-1 block text-xs font-medium text-stone-600">Meses em que se aplica</label>
+        <div className="grid grid-cols-2 gap-3">
+          <select name="monthFrom" defaultValue="1" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
+            {MONTHS.map((m) => (
+              <option key={m} value={m}>Desde {MONTH_LABELS[m - 1]}</option>
+            ))}
+          </select>
+          <select name="monthTo" defaultValue="12" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
+            {MONTHS.map((m) => (
+              <option key={m} value={m}>Até {MONTH_LABELS[m - 1]}</option>
+            ))}
+          </select>
+        </div>
+        <p className="mt-1 text-xs text-stone-400">
+          Portugal pode ter mais do que uma tabela no mesmo ano — use isto quando a tabela só vale para um período (ex.: julho a dezembro).
+        </p>
+      </div>
+      <div>
         <label className="mb-1 block text-xs font-medium text-stone-600">Descrição (opcional)</label>
         <input
           name="label"
@@ -84,8 +104,9 @@ export function IrsTableImportForm() {
         <div className="space-y-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <p>
             Já existe uma tabela de IRS {state.duplicate.tableType} para {state.duplicate.year} —{" "}
-            {FISCAL_REGION_LABELS[state.duplicate.region] ?? state.duplicate.region}. Pretende substituir os
-            escalões atuais pelos deste ficheiro?
+            {FISCAL_REGION_LABELS[state.duplicate.region] ?? state.duplicate.region}, meses{" "}
+            {state.duplicate.monthFrom}–{state.duplicate.monthTo}, que se sobrepõe ao período escolhido.
+            Pretende substituir os escalões atuais pelos deste ficheiro?
           </p>
           <button
             type="button"

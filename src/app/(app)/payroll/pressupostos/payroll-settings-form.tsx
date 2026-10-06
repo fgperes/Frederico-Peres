@@ -84,12 +84,6 @@ export function PayrollSettingsForm({ settings }: { settings: PayrollSettings })
         </div>
       </div>
       <Field
-        label="Limite isento (€/dia) — valor de referência"
-        name="mealAllowanceExemptCap"
-        defaultValue={settings.mealAllowanceExemptCap}
-        hint="só usado se não houver constantes fiscais carregadas para o ano do recibo"
-      />
-      <Field
         label="Taxa ADSE do trabalhador"
         name="adseEmployeeRate"
         defaultValue={settings.adseEmployeeRate}

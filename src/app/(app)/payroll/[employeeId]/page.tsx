@@ -7,15 +7,7 @@ import { Banknote } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { removePayrollComponent } from "../actions";
-import { FISCAL_REGION_LABELS } from "@/lib/payroll";
 import { AddPayrollComponentForm } from "../add-payroll-component-form";
-import { EmployeePayrollProfileForm } from "./employee-payroll-profile-form";
-
-const MARITAL_LABELS: Record<string, string> = {
-  NAO_CASADO: "Não casado(a)",
-  CASADO_UNICO_TITULAR: "Casado(a) — único titular",
-  CASADO_DOIS_TITULARES: "Casado(a) — dois titulares",
-};
 
 function subsidyModeLabel(mode: string | null, months: string | null): string {
   if (mode === "DUODECIMOS") return "Duodécimos mensais";
@@ -163,42 +155,52 @@ export default async function EmployeePayrollPage({
                 ))}
               </ul>
             )}
-            {canEdit && <AddPayrollComponentForm employeeId={employee.id} currentYear={now.getFullYear()} />}
+            {canEdit && (
+              <AddPayrollComponentForm
+                employeeId={employee.id}
+                currentYear={now.getFullYear()}
+                currentMonth={now.getMonth() + 1}
+              />
+            )}
           </Card>
         </div>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">Dados de Payroll</h2>
-          {canEdit ? (
-            <EmployeePayrollProfileForm employee={employee} />
-          ) : (
-            <dl className="space-y-2 text-sm">
-              <Info label="Estado civil" value={employee.maritalStatus ? MARITAL_LABELS[employee.maritalStatus] : "—"} />
-              <Info label="Dependentes" value={String(employee.dependents)} />
-              <Info label="Região fiscal" value={FISCAL_REGION_LABELS[employee.fiscalRegion] ?? employee.fiscalRegion} />
-              <Info label="Beneficiário ADSE" value={employee.adseBeneficiary ? "Sim" : "Não"} />
-              <Info
-                label="IRS Jovem"
-                value={
-                  employee.youngTaxRegime
-                    ? `Sim — desde ${employee.youngTaxRegimeStartYear}`
-                    : "Não"
-                }
-              />
-              <Info
-                label="Desconto judicial"
-                value={employee.judicialDeductionPercent ? `${employee.judicialDeductionPercent}%` : "—"}
-              />
-              <Info
-                label="Subsídio de férias"
-                value={subsidyModeLabel(employee.vacationSubsidyMode, employee.vacationSubsidyMonths)}
-              />
-              <Info
-                label="Subsídio de Natal"
-                value={subsidyModeLabel(employee.christmasSubsidyMode, employee.christmasSubsidyMonths)}
-              />
-            </dl>
-          )}
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-stone-900">Dados de Payroll</h2>
+            <Link
+              href={`/colaboradores/${employee.id}/payroll`}
+              className="text-xs font-medium text-violet-700 hover:underline"
+            >
+              editar →
+            </Link>
+          </div>
+          <dl className="space-y-2 text-sm">
+            <Info label="Beneficiário ADSE" value={employee.adseBeneficiary ? "Sim" : "Não"} />
+            <Info
+              label="IRS Jovem"
+              value={
+                employee.youngTaxRegime
+                  ? `Sim — desde ${employee.youngTaxRegimeStartYear}`
+                  : "Não"
+              }
+            />
+            <Info
+              label="Desconto judicial"
+              value={employee.judicialDeductionPercent ? `${employee.judicialDeductionPercent}%` : "—"}
+            />
+            <Info
+              label="Subsídio de férias"
+              value={subsidyModeLabel(employee.vacationSubsidyMode, employee.vacationSubsidyMonths)}
+            />
+            <Info
+              label="Subsídio de Natal"
+              value={subsidyModeLabel(employee.christmasSubsidyMode, employee.christmasSubsidyMonths)}
+            />
+          </dl>
+          <p className="mt-3 text-xs text-stone-500">
+            Estado civil, dependentes e região fiscal estão na ficha do colaborador.
+          </p>
         </Card>
       </div>
     </div>

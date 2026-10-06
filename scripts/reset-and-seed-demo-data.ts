@@ -87,7 +87,6 @@ type Dataset = {
     maritalStatus: string;
     dependents: number;
     fiscalRegion: string;
-    mealAllowanceOverride: number;
   }[];
   perfis_acessos: {
     employeeNumber: string;
@@ -602,7 +601,6 @@ async function main() {
             maritalStatus: c.maritalStatus,
             dependents: c.dependents,
             fiscalRegion: c.fiscalRegion,
-            mealAllowanceOverride: c.mealAllowanceOverride,
           },
         },
       },

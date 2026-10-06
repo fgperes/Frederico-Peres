@@ -45,7 +45,6 @@ export async function updatePayrollSettings(
   const socialSecurityEmployerRate = Number(formData.get("socialSecurityEmployerRate"));
   const workAccidentInsuranceRate = Number(formData.get("workAccidentInsuranceRate"));
   const mealAllowanceDaily = Number(formData.get("mealAllowanceDaily"));
-  const mealAllowanceExemptCap = Number(formData.get("mealAllowanceExemptCap"));
   const overtimeRateFirstHour = Number(formData.get("overtimeRateFirstHour"));
   const overtimeRateAdditional = Number(formData.get("overtimeRateAdditional"));
   const overtimeRateWeekendHoliday = Number(formData.get("overtimeRateWeekendHoliday"));
@@ -86,7 +85,6 @@ export async function updatePayrollSettings(
     socialSecurityEmployerRate,
     workAccidentInsuranceRate,
     mealAllowanceDaily,
-    mealAllowanceExemptCap,
     overtimeRateFirstHour,
     overtimeRateAdditional,
     overtimeRateWeekendHoliday,
@@ -113,6 +111,63 @@ export async function updatePayrollSettings(
   }
 }
 
+export type FiscalYearConstantsFormState = { error?: string };
+
+// Limites de isenção fiscal por ano — subsídio de alimentação (isento até
+// um valor/dia, diferente entre cartão refeição e numerário/transferência)
+// e o teto da isenção do IRS Jovem. É o único sítio onde estes valores se
+// definem — o colaborador só escolhe a forma de pagamento (Pressupostos
+// Gerais) e o recibo aplica automaticamente o limite do ano em que é gerado.
+export async function updateFiscalYearConstants(
+  _prev: FiscalYearConstantsFormState,
+  formData: FormData
+): Promise<FiscalYearConstantsFormState> {
+  try {
+    const user = await assertCanWrite();
+
+    const year = Number(formData.get("year"));
+    const ias = Number(formData.get("ias"));
+    const mealAllowanceExemptCardDaily = Number(formData.get("mealAllowanceExemptCardDaily"));
+    const mealAllowanceExemptCashDaily = Number(formData.get("mealAllowanceExemptCashDaily"));
+    const youngExemptionCapAnnualMultiplier = Number(formData.get("youngExemptionCapAnnualMultiplier"));
+    const youngExemptionCapPaymentsPerYear = Number(formData.get("youngExemptionCapPaymentsPerYear"));
+
+    const errors: string[] = [];
+    if (!(year >= 2000 && year <= 2100)) errors.push("Ano inválido.");
+    if (!(ias > 0)) errors.push("IAS tem de ser superior a 0.");
+    if (mealAllowanceExemptCardDaily < 0) errors.push("Limite isento (cartão) não pode ser negativo.");
+    if (mealAllowanceExemptCashDaily < 0) errors.push("Limite isento (numerário) não pode ser negativo.");
+    if (!(youngExemptionCapAnnualMultiplier > 0)) errors.push("Multiplicador do teto do IRS Jovem inválido.");
+    if (!(youngExemptionCapPaymentsPerYear > 0)) errors.push("Nº de pagamentos/ano do teto do IRS Jovem inválido.");
+    if (errors.length > 0) throw new Error(errors.join(" "));
+
+    await prisma.fiscalYearConstants.upsert({
+      where: { year },
+      update: {
+        ias,
+        mealAllowanceExemptCardDaily,
+        mealAllowanceExemptCashDaily,
+        youngExemptionCapAnnualMultiplier,
+        youngExemptionCapPaymentsPerYear,
+      },
+      create: {
+        year,
+        ias,
+        mealAllowanceExemptCardDaily,
+        mealAllowanceExemptCashDaily,
+        youngExemptionCapAnnualMultiplier,
+        youngExemptionCapPaymentsPerYear,
+      },
+    });
+
+    await logAudit({ userId: user.id, action: "UPDATE", entity: "FiscalYearConstants", entityId: String(year) });
+    revalidatePath("/payroll/pressupostos");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível guardar as constantes fiscais." };
+  }
+}
+
 // Uma tabela de IRS junta os escalões que se aplicam a um período (ano) e
 // região fiscal (Continente/Açores/Madeira) — RH cria uma tabela nova
 // sempre que a Autoridade Tributária publica valores atualizados ou uma
@@ -126,6 +181,8 @@ export async function createIrsTable(
   try {
     const user = await assertCanWrite();
     const year = Number(formData.get("year"));
+    const monthFrom = Number(formData.get("monthFrom") ?? 1);
+    const monthTo = Number(formData.get("monthTo") ?? 12);
     const region = String(formData.get("region") ?? "CONTINENTE");
     const tableType = String(formData.get("tableType") ?? "I") as IrsTableType;
     const label = String(formData.get("label") ?? "").trim() || null;
@@ -133,13 +190,19 @@ export async function createIrsTable(
     if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error("Ano inválido.");
     if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) throw new Error("Região inválida.");
     if (!IRS_TABLE_TYPES.includes(tableType)) throw new Error("Tabela inválida.");
+    if (!(monthFrom >= 1 && monthFrom <= 12 && monthTo >= 1 && monthTo <= 12 && monthFrom <= monthTo)) {
+      throw new Error("Intervalo de meses inválido.");
+    }
 
-    const existing = await prisma.irsTable.findUnique({
-      where: { year_region_tableType: { year, region, tableType } },
-    });
-    if (existing) throw new Error(`Já existe uma tabela de IRS ${tableType} para ${year} — ${region}.`);
+    const sameGroup = await prisma.irsTable.findMany({ where: { year, region, tableType } });
+    const overlapping = sameGroup.find((t) => monthFrom <= t.monthTo && monthTo >= t.monthFrom);
+    if (overlapping) {
+      throw new Error(
+        `Já existe uma tabela de IRS ${tableType} para ${year} — ${region} a cobrir os meses ${overlapping.monthFrom}-${overlapping.monthTo}.`
+      );
+    }
 
-    const table = await prisma.irsTable.create({ data: { year, region, tableType, label } });
+    const table = await prisma.irsTable.create({ data: { year, monthFrom, monthTo, region, tableType, label } });
     await logAudit({
       userId: user.id,
       action: "CREATE",
@@ -224,7 +287,7 @@ export type ImportIrsTableState = {
   // Já existe tabela com escalões para este período — pede confirmação ao
   // utilizador antes de substituir (reenvia o mesmo formulário com
   // replace=1).
-  duplicate?: { year: number; region: string; tableType: string };
+  duplicate?: { year: number; region: string; tableType: string; monthFrom: number; monthTo: number };
 };
 
 // "Anexar" uma tabela de IRS completa de uma vez — cria a tabela para o
@@ -240,6 +303,8 @@ export async function importIrsTableAction(
   const user = await assertCanWrite();
 
   const year = Number(formData.get("year"));
+  const monthFrom = Number(formData.get("monthFrom") ?? 1);
+  const monthTo = Number(formData.get("monthTo") ?? 12);
   const region = String(formData.get("region") ?? "CONTINENTE");
   const tableType = String(formData.get("tableType") ?? "I") as IrsTableType;
   const label = String(formData.get("label") ?? "").trim() || null;
@@ -249,6 +314,9 @@ export async function importIrsTableAction(
   if (!Number.isInteger(year) || year < 2000 || year > 2100) return { error: "Ano inválido." };
   if (!FISCAL_REGIONS.includes(region as (typeof FISCAL_REGIONS)[number])) return { error: "Região inválida." };
   if (!IRS_TABLE_TYPES.includes(tableType)) return { error: "Tabela inválida." };
+  if (!(monthFrom >= 1 && monthFrom <= 12 && monthTo >= 1 && monthTo <= 12 && monthFrom <= monthTo)) {
+    return { error: "Intervalo de meses inválido." };
+  }
   if (!file || file.size === 0) return { error: "Selecione um ficheiro Excel." };
 
   let rows: Record<string, unknown>[];
@@ -292,20 +360,28 @@ export async function importIrsTableAction(
     });
   }
 
-  let table = await prisma.irsTable.findUnique({
-    where: { year_region_tableType: { year, region, tableType } },
-  });
+  const sameGroup = await prisma.irsTable.findMany({ where: { year, region, tableType } });
+  let table = sameGroup.find((t) => t.monthFrom === monthFrom && t.monthTo === monthTo);
+  const overlapping = !table && sameGroup.find((t) => monthFrom <= t.monthTo && monthTo >= t.monthFrom);
+
+  if (overlapping && !replace) {
+    return {
+      duplicate: { year, region, tableType, monthFrom: overlapping.monthFrom, monthTo: overlapping.monthTo },
+    };
+  }
+  if (overlapping) table = overlapping;
+
   if (table) {
     const existingBrackets = await prisma.irsBracket.count({ where: { irsTableId: table.id } });
     if (existingBrackets > 0 && !replace) {
-      return { duplicate: { year, region, tableType } };
+      return { duplicate: { year, region, tableType, monthFrom: table.monthFrom, monthTo: table.monthTo } };
     }
     if (existingBrackets > 0) {
       await prisma.irsBracket.deleteMany({ where: { irsTableId: table.id } });
     }
-    if (label) await prisma.irsTable.update({ where: { id: table.id }, data: { label } });
+    await prisma.irsTable.update({ where: { id: table.id }, data: { monthFrom, monthTo, label: label ?? table.label } });
   } else {
-    table = await prisma.irsTable.create({ data: { year, region, tableType, label } });
+    table = await prisma.irsTable.create({ data: { year, monthFrom, monthTo, region, tableType, label } });
   }
 
   await prisma.irsBracket.createMany({ data: brackets.map((b) => ({ ...b, irsTableId: table!.id })) });
@@ -325,12 +401,6 @@ export async function importIrsTableAction(
 export async function updateEmployeePayrollProfile(employeeId: string, formData: FormData) {
   const user = await assertCanWrite();
 
-  const maritalStatus = String(formData.get("maritalStatus") ?? "") || null;
-  const dependents = Number(formData.get("dependents") ?? 0);
-  const fiscalRegion = String(formData.get("fiscalRegion") ?? "CONTINENTE");
-  const mealAllowanceOverrideRaw = String(formData.get("mealAllowanceOverride") ?? "").trim();
-  const mealAllowanceOverride = mealAllowanceOverrideRaw ? Number(mealAllowanceOverrideRaw) : null;
-
   const youngTaxRegime = formData.get("youngTaxRegime") === "on";
   const youngTaxRegimeStartYearRaw = String(formData.get("youngTaxRegimeStartYear") ?? "").trim();
   const youngTaxRegimeStartYear = youngTaxRegimeStartYearRaw ? Number(youngTaxRegimeStartYearRaw) : null;
@@ -342,7 +412,6 @@ export async function updateEmployeePayrollProfile(employeeId: string, formData:
   const christmasSubsidyMode = String(formData.get("christmasSubsidyMode") ?? "") || null;
   const christmasSubsidyMonths = String(formData.get("christmasSubsidyMonths") ?? "").trim() || null;
 
-  if (dependents < 0) throw new Error("Número de dependentes inválido.");
   if (youngTaxRegime && !youngTaxRegimeStartYear) {
     throw new Error("Indique o ano de início do regime do IRS Jovem.");
   }
@@ -353,10 +422,6 @@ export async function updateEmployeePayrollProfile(employeeId: string, formData:
   await prisma.employee.update({
     where: { id: employeeId },
     data: {
-      maritalStatus,
-      dependents,
-      fiscalRegion,
-      mealAllowanceOverride,
       youngTaxRegime,
       youngTaxRegimeStartYear: youngTaxRegime ? youngTaxRegimeStartYear : null,
       adseBeneficiary,
@@ -405,6 +470,48 @@ export async function addPayrollComponent(
     await logAudit({ userId: user.id, action: "CREATE", entity: "PayrollComponent", details: `${name} (${employeeId})` });
     revalidatePath(`/payroll/${employeeId}`);
     return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível adicionar a componente." };
+  }
+}
+
+export type AddPayrollComponentDirectState = { error?: string; success?: boolean };
+
+export async function addPayrollComponentDirect(
+  _prev: AddPayrollComponentDirectState,
+  formData: FormData
+): Promise<AddPayrollComponentDirectState> {
+  try {
+    const user = await assertCanWrite();
+
+    const employeeId = String(formData.get("employeeId") ?? "").trim();
+    if (!employeeId) throw new Error("Selecione um colaborador.");
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { id: true } });
+    if (!employee) throw new Error("Colaborador não encontrado.");
+
+    const name = String(formData.get("name") ?? "").trim();
+    const type = String(formData.get("type") ?? "EARNING");
+    const amount = Number(formData.get("amount"));
+    const recurring = formData.get("recurring") === "on";
+    const category = String(formData.get("category") ?? "TAXABLE_SS") as PayrollComponentCategory;
+    const { taxable, ssApplicable } = categoryToTaxFlags(category);
+    const applyYear = recurring ? null : Number(formData.get("applyYear"));
+    const applyMonth = recurring ? null : Number(formData.get("applyMonth"));
+
+    if (!name) throw new Error("Indique um nome para a componente.");
+    if (!(amount > 0)) throw new Error("O valor tem de ser superior a 0.");
+    if (!recurring && (!applyYear || !applyMonth)) {
+      throw new Error("Indique o mês/ano para uma componente pontual.");
+    }
+
+    await prisma.payrollComponent.create({
+      data: { employeeId, name, type, amount, recurring, taxable, ssApplicable, applyYear, applyMonth },
+    });
+
+    await logAudit({ userId: user.id, action: "CREATE", entity: "PayrollComponent", details: `${name} (${employeeId})` });
+    revalidatePath(`/payroll/${employeeId}`);
+    revalidatePath("/payroll/rubricas");
+    return { success: true };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Não foi possível adicionar a componente." };
   }
@@ -542,7 +649,7 @@ export async function sendPayslipEmailAction(
   const ytdIrs = ytdPayslips.reduce((sum, p) => sum + p.irsWithholding, 0);
   const ytdSocialSecurity = ytdPayslips.reduce((sum, p) => sum + p.socialSecurityEmployee, 0);
 
-  const lines = buildPayslipLines(payslip, layout.lineItems);
+  const lines = buildPayslipLines(payslip, layout.lineItems, false, true);
 
   const { buildPayslipPdfDoc, payslipPdfFileName } = await import("@/lib/payslip-pdf");
   const pdfData = {

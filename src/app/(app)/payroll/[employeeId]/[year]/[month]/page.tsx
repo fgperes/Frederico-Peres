@@ -48,7 +48,7 @@ export default async function PayslipDetailPage({
   ]);
   const breakdown = savedPayslip ?? toPayslipRecord(await computePayslipBreakdown(employeeId, year, month));
   const isSaved = !!savedPayslip;
-  const lines = buildPayslipLines(breakdown, layout.lineItems);
+  const lines = buildPayslipLines(breakdown, layout.lineItems, false, true);
   const earningsLines = lines.filter((l) => l.section === "EARNINGS");
   const deductionLines = lines.filter((l) => l.section === "DEDUCTIONS");
 
