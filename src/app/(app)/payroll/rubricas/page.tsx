@@ -7,16 +7,24 @@ import { redirect } from "next/navigation";
 import { removePayrollComponent } from "../actions";
 import { PAYROLL_COMPONENT_CATEGORY_LABELS, taxFlagsToCategory } from "@/lib/payroll";
 import { ImportPayrollComponentsForm } from "./import-payroll-components-form";
+import { AddPayrollComponentDirectForm } from "./add-payroll-component-direct-form";
 
 export default async function PayrollRubricasPage() {
   const user = await requireUser();
   if (!canWrite(user.roles, "payroll")) redirect("/payroll");
 
-  const components = await prisma.payrollComponent.findMany({
-    include: { employee: { select: { firstName: true, lastName: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [components, employees] = await Promise.all([
+    prisma.payrollComponent.findMany({
+      include: { employee: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.employee.findMany({
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    }),
+  ]);
+  const now = new Date();
 
   return (
     <div>
@@ -26,13 +34,27 @@ export default async function PayrollRubricasPage() {
         description="Carregue rubricas (benefícios, rendimentos, descontos) para vários colaboradores de uma vez, ou linha a linha na ficha de cada um."
       />
 
-      <Card className="mb-6">
-        <h2 className="mb-1 text-sm font-semibold text-stone-900">Importar por Excel</h2>
-        <p className="mb-4 text-xs text-stone-500">
-          Para rubricas de um só colaborador, use a ficha de Payroll desse colaborador.
-        </p>
-        <ImportPayrollComponentsForm />
-      </Card>
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold text-stone-900">Importar por Excel</h2>
+          <p className="mb-4 text-xs text-stone-500">
+            Para várias rubricas de uma vez, para vários colaboradores.
+          </p>
+          <ImportPayrollComponentsForm />
+        </Card>
+
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold text-stone-900">Adicionar uma rubrica</h2>
+          <p className="mb-4 text-xs text-stone-500">
+            Para uma rubrica de um só colaborador, sem precisar de Excel.
+          </p>
+          <AddPayrollComponentDirectForm
+            employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }))}
+            currentYear={now.getFullYear()}
+            currentMonth={now.getMonth() + 1}
+          />
+        </Card>
+      </div>
 
       <Card className="p-0">
         <h2 className="px-4 pt-4 text-sm font-semibold text-stone-900">Últimas rubricas carregadas</h2>

@@ -143,14 +143,17 @@ async function seedIrsTablesForYear(year: number) {
 }
 
 // Escolhe a tabela de IRS a aplicar a um recibo: a combinação exata
-// ano+região+tabela se existir; caso contrário cai sucessivamente para
-// Continente do mesmo ano+tabela, para a tabela mais recente disponível
-// (mesma região/tabela, depois Continente/mesma tabela), e por fim para a
-// tabela mais antiga disponível de todas — nunca fica sem retenção
-// calculada. Para 2026 sem nenhuma tabela ainda carregada, semeia as 9
-// tabelas oficiais (ver irs-tables-2026-seed.ts); para outros anos sem
-// nada carregado, cai num escalão único simplificado.
-export async function getIrsBracketsFor(year: number, region: string, tableType: IrsTableType) {
+// ano+mês+região+tabela se existir (Portugal pode ter mais do que uma
+// tabela no mesmo ano, cada uma com o seu intervalo de meses); caso
+// contrário cai sucessivamente para Continente do mesmo ano+mês+tabela,
+// depois para qualquer tabela desse ano+região/Continente (ignorando o
+// mês, caso só exista uma tabela carregada nesse ano), depois para a mais
+// recente disponível de anos anteriores, e por fim para a mais antiga de
+// todas — nunca fica sem retenção calculada. Para 2026 sem nenhuma tabela
+// ainda carregada, semeia as 9 tabelas oficiais (ver
+// irs-tables-2026-seed.ts); para outros anos sem nada carregado, cai num
+// escalão único simplificado.
+export async function getIrsBracketsFor(year: number, month: number, region: string, tableType: IrsTableType) {
   let tables = await getIrsTables();
 
   if (tables.length === 0 && year === 2026) {
@@ -171,13 +174,23 @@ export async function getIrsBracketsFor(year: number, region: string, tableType:
     return seeded.brackets;
   }
 
-  const exact = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType);
+  const inMonth = (t: (typeof tables)[number]) => t.monthFrom <= month && month <= t.monthTo;
+
+  const exact = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType && inMonth(t));
   if (exact) return exact.brackets;
 
   const sameYearContinente = tables.find(
-    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType
+    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType && inMonth(t)
   );
   if (sameYearContinente) return sameYearContinente.brackets;
+
+  const sameYearAnyMonth = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType);
+  if (sameYearAnyMonth) return sameYearAnyMonth.brackets;
+
+  const sameYearContinenteAnyMonth = tables.find(
+    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType
+  );
+  if (sameYearContinenteAnyMonth) return sameYearContinenteAnyMonth.brackets;
 
   const candidatesForRegion = tables
     .filter((t) => t.region === region && t.tableType === tableType && t.year <= year)
@@ -298,6 +311,13 @@ export function applyYoungTaxExemption(
   return Math.max(0, (1 - exemptionPercent) * normalTax);
 }
 
+export type PayslipComponentSnapshot = {
+  name: string;
+  type: "EARNING" | "DEDUCTION";
+  amount: number;
+  category: PayrollComponentCategory;
+};
+
 export type PayslipBreakdown = {
   employeeId: string;
   year: number;
@@ -314,6 +334,7 @@ export type PayslipBreakdown = {
   absenceDeduction: number;
   otherEarnings: number;
   otherDeductions: number;
+  components: PayslipComponentSnapshot[];
   vacationSubsidy: number;
   christmasSubsidy: number;
   grossTaxable: number;
@@ -375,7 +396,7 @@ export async function computePayslipBreakdown(
   ]);
   const tableType = determineIrsTableType(employee.maritalStatus, employee.dependents, employee.fiscalRegion);
   const [irsBrackets, fiscalConstants] = await Promise.all([
-    getIrsBracketsFor(year, employee.fiscalRegion, tableType),
+    getIrsBracketsFor(year, month, employee.fiscalRegion, tableType),
     getFiscalYearConstants(year),
   ]);
 
@@ -514,9 +535,11 @@ export async function computePayslipBreakdown(
   }
 
   // O subsídio de alimentação conta os dias a partir do nº de dias
-  // trabalhado em escala (turnos escalados no período), não das picagens.
-  const mealAllowanceDays = shiftHoursByDay.size;
-  const mealAllowanceDaily = employee.mealAllowanceOverride ?? settings.mealAllowanceDaily;
+  // trabalhado em escala (turnos escalados no período) — só cai para os
+  // dias com picagem (workedDays) quando não há nenhum turno escalado,
+  // para não ficar a 0€ só por faltarem dados de escala.
+  const mealAllowanceDays = shiftHoursByDay.size > 0 ? shiftHoursByDay.size : workedDays;
+  const mealAllowanceDaily = settings.mealAllowanceDaily;
   const mealAllowanceTotal = mealAllowanceDays * mealAllowanceDaily;
   const mealAllowanceExemptCapDaily =
     settings.mealAllowancePaymentMethod === "CASH"
@@ -538,11 +561,30 @@ export async function computePayslipBreakdown(
     .reduce((sum, c) => sum + c.amount, 0);
   const earningsExempt = earningComponents.filter((c) => !c.taxable).reduce((sum, c) => sum + c.amount, 0);
   const otherEarnings = earningsTaxableAndSS + earningsTaxableOnly + earningsExempt;
+  const unjustifiedDeductionAmount = unjustifiedDeductionHours * regularHourRate;
   // Inclui o desconto por desvios de picagens injustificados (>1h, decisão
   // "DEDUCTION" do gestor de RH em Picagens → Execução) junto dos restantes
   // descontos pontuais/recorrentes.
-  const otherDeductions =
-    deductionComponents.reduce((sum, c) => sum + c.amount, 0) + unjustifiedDeductionHours * regularHourRate;
+  const otherDeductions = deductionComponents.reduce((sum, c) => sum + c.amount, 0) + unjustifiedDeductionAmount;
+
+  // Cada rubrica entra no recibo com o seu próprio nome (em vez de um
+  // "Outros vencimentos/descontos" agregado) — guardado em
+  // Payslip.componentsJson para o recibo continuar a mostrar cada rubrica
+  // mesmo que a PayrollComponent de origem seja depois editada ou apagada.
+  const componentSnapshots: PayslipComponentSnapshot[] = components.map((c) => ({
+    name: c.name,
+    type: c.type as "EARNING" | "DEDUCTION",
+    amount: c.amount,
+    category: taxFlagsToCategory(c.taxable, c.ssApplicable),
+  }));
+  if (unjustifiedDeductionAmount > 0) {
+    componentSnapshots.push({
+      name: "Desconto por desvios de picagens",
+      type: "DEDUCTION",
+      amount: unjustifiedDeductionAmount,
+      category: "TAXABLE_SS",
+    });
+  }
 
   const vacationPlan = resolveSubsidyPlan(
     employee.vacationSubsidyMode,
@@ -644,6 +686,7 @@ export async function computePayslipBreakdown(
     absenceDeduction,
     otherEarnings,
     otherDeductions,
+    components: componentSnapshots,
     vacationSubsidy,
     christmasSubsidy,
     grossTaxable,
@@ -680,6 +723,7 @@ export function toPayslipRecord(b: PayslipBreakdown) {
     absenceDeduction: b.absenceDeduction,
     otherEarnings: b.otherEarnings,
     otherDeductions: b.otherDeductions,
+    componentsJson: JSON.stringify(b.components),
     vacationSubsidy: b.vacationSubsidy,
     christmasSubsidy: b.christmasSubsidy,
     grossTotal: b.grossTotal,
@@ -815,7 +859,18 @@ type PayslipLineSource = {
   adseDeduction: number;
   judicialDeduction: number;
   otherDeductions: number;
+  componentsJson?: string | null;
 };
+
+function parsePayslipComponents(json: string | null | undefined): PayslipComponentSnapshot[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): { value: number; suffix: string } {
   switch (key) {
@@ -861,11 +916,27 @@ function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): {
 export function buildPayslipLines(
   source: PayslipLineSource,
   lineItems: PayslipLineItemConfig[],
-  includeZero = false
+  includeZero = false,
+  itemizeComponents = false
 ): PayslipLine[] {
+  const components = itemizeComponents ? parsePayslipComponents(source.componentsJson) : [];
   const lines: PayslipLine[] = [];
   for (const item of lineItems) {
     if (!item.visible) continue;
+
+    if (item.key === "otherEarnings" && components.length > 0) {
+      for (const c of components.filter((c) => c.type === "EARNING")) {
+        lines.push({ key: item.key, label: c.name, section: item.section, value: c.amount });
+      }
+      continue;
+    }
+    if (item.key === "otherDeductions" && components.length > 0) {
+      for (const c of components.filter((c) => c.type === "DEDUCTION")) {
+        lines.push({ key: item.key, label: c.name, section: item.section, value: -c.amount });
+      }
+      continue;
+    }
+
     const { value, suffix } = payslipLineValue(source, item.key);
     if (!includeZero && !ALWAYS_SHOW_LINE_ITEMS.has(item.key) && value === 0) continue;
     lines.push({ key: item.key, label: item.label + suffix, section: item.section, value });

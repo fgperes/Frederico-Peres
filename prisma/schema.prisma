@@ -316,10 +316,11 @@ model Employee {
   importLogId String?
 
   // Dados de payroll (folha de pagamento)
-  maritalStatus         String? // NAO_CASADO | CASADO_UNICO_TITULAR | CASADO_DOIS_TITULARES
-  dependents            Int     @default(0)
-  fiscalRegion          String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
-  mealAllowanceOverride Float? // € / dia; se vazio usa o valor por omissão dos pressupostos
+  maritalStatus String? // NAO_CASADO | CASADO_UNICO_TITULAR | CASADO_DOIS_TITULARES
+  dependents    Int     @default(0)
+  fiscalRegion  String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
+  // Subsídio de alimentação (valor e forma de pagamento) é igual para toda
+  // a empresa — definido só em PayrollSettings, sem exceção por colaborador.
 
   // Regime fiscal do IRS Jovem — isenção decrescente por "ano de
   // rendimentos" desde o início do regime (ver IrsYoungExemption).
@@ -861,7 +862,8 @@ model EmployeeContract {
   endDate            DateTime?
   trialPeriodEndDate DateTime?
   baseSalary         Float?
-  documentName       String?
+  documentName       String? // nome original do ficheiro
+  documentData       String? // conteúdo do ficheiro em data URI (base64), como os anexos do colaborador
   notes              String?
   status             String          @default("ACTIVE") // ACTIVE | ENDED
   createdAt          DateTime        @default(now())
@@ -882,7 +884,6 @@ model PayrollSettings {
   socialSecurityEmployerRate Float    @default(0.2375)
   workAccidentInsuranceRate  Float    @default(0.01)
   mealAllowanceDaily         Float    @default(6)
-  mealAllowanceExemptCap     Float    @default(6)
   overtimeRateFirstHour      Float    @default(1.25)
   overtimeRateAdditional     Float    @default(1.375)
   overtimeRateWeekendHoliday Float    @default(1.5)
@@ -905,6 +906,12 @@ model PayrollSettings {
 model IrsTable {
   id        String       @id @default(cuid())
   year      Int
+  // Portugal pode publicar mais do que uma tabela de IRS no mesmo ano (ex.:
+  // uma atualização a meio do ano) — monthFrom/monthTo (1-12, inclusive)
+  // definem o intervalo de meses em que esta tabela se aplica dentro do
+  // ano. Por omissão cobre o ano inteiro (1-12).
+  monthFrom Int          @default(1)
+  monthTo   Int          @default(12)
   region    String       @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
   tableType String       @default("I") // I | II | III — ver IRS_TABLE_TYPE_LABELS
   label     String? // ex.: "Não casado sem dependentes / casado dois titulares"
@@ -912,7 +919,7 @@ model IrsTable {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  @@unique([year, region, tableType])
+  @@unique([year, region, tableType, monthFrom])
 }
 
 // Escalões progressivos de uma tabela de IRS — taxa marginal aplicada ao
@@ -958,8 +965,8 @@ model FiscalYearConstants {
   id                                String   @id @default(cuid())
   year                              Int      @unique
   ias                               Float // Indexante dos Apoios Sociais
-  mealAllowanceExemptCardDaily      Float    @default(10.46)
-  mealAllowanceExemptCashDaily      Float    @default(6.15)
+  mealAllowanceExemptCardDaily      Float    @default(10.60)
+  mealAllowanceExemptCashDaily      Float    @default(6.60)
   youngExemptionCapAnnualMultiplier Float    @default(55) // × IAS
   youngExemptionCapPaymentsPerYear  Float    @default(14) // ÷ nº pagamentos/ano (12 meses + 2 subsídios)
   createdAt                         DateTime @default(now())
@@ -1015,6 +1022,12 @@ model Payslip {
   absenceDeduction       Float
   otherEarnings          Float
   otherDeductions        Float
+  // Cada rubrica variável (PayrollComponent) individual deste recibo, tal
+  // como estava no momento da geração — para que o recibo mostre "Prémio:
+  // 100€" e "Seguro de saúde: 20€" em vez de um "Outros vencimentos"
+  // agregado, mesmo que a rubrica original seja editada/apagada depois.
+  // JSON: { name, type, amount, category }[]
+  componentsJson         String?
   vacationSubsidy        Float     @default(0)
   christmasSubsidy       Float     @default(0)
   grossTotal             Float

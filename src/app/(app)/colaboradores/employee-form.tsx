@@ -8,7 +8,10 @@ import {
   EDUCATION_LEVELS,
   EDUCATION_LEVEL_LABELS,
   BLOOD_TYPES,
+  MARITAL_STATUSES,
+  MARITAL_STATUS_LABELS,
 } from "@/lib/employee-constants";
+import { FISCAL_REGIONS, FISCAL_REGION_LABELS } from "@/lib/payroll";
 import { SearchableSelect } from "@/components/searchable-select";
 import { SaveBanner } from "@/components/save-banner";
 import { DateField } from "@/components/date-field";
@@ -116,18 +119,30 @@ export function EmployeeForm({
           <Field label="Código ERP" name="erpCode" defaultValue={employee?.erpCode ?? ""} />
           <Field label="IBAN do cartão de refeição" name="mealCardIban" defaultValue={employee?.mealCardIban ?? ""} />
           <Field label="IBAN de despesas" name="expensesIban" defaultValue={employee?.expensesIban ?? ""} />
-          <div>
-            <Field
-              label="Número de filhos"
-              name="childrenCount"
-              type="number"
-              defaultValue={employee?.childrenCount ?? 0}
-            />
-            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-              Informativo. O número de dependentes usado no cálculo de IRS define-se em{" "}
-              <span className="font-medium">Payroll → ficha do colaborador</span>.
-            </p>
-          </div>
+          <Field
+            label="Número de filhos"
+            name="childrenCount"
+            type="number"
+            defaultValue={employee?.childrenCount ?? 0}
+          />
+          <SelectField
+            label="Estado civil (fiscal)"
+            name="maritalStatus"
+            defaultValue={employee?.maritalStatus ?? ""}
+            options={MARITAL_STATUSES.map((s) => ({ value: s, label: MARITAL_STATUS_LABELS[s] }))}
+          />
+          <Field
+            label="Dependentes (para IRS)"
+            name="dependents"
+            type="number"
+            defaultValue={employee?.dependents ?? 0}
+          />
+          <SelectField
+            label="Região fiscal (morada fiscal)"
+            name="fiscalRegion"
+            defaultValue={employee?.fiscalRegion ?? "CONTINENTE"}
+            options={FISCAL_REGIONS.map((r) => ({ value: r, label: FISCAL_REGION_LABELS[r] }))}
+          />
           <Field label="Morada" name="address" defaultValue={employee?.address ?? ""} className="sm:col-span-2" />
         </div>
       </section>

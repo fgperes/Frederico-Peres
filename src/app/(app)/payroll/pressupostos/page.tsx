@@ -1,6 +1,13 @@
 import { requireUser } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
-import { getPayrollSettings, getIrsTables, FISCAL_REGION_LABELS, IRS_TABLE_TYPE_LABELS, type IrsTableType } from "@/lib/payroll";
+import {
+  getPayrollSettings,
+  getIrsTables,
+  getFiscalYearConstants,
+  FISCAL_REGION_LABELS,
+  IRS_TABLE_TYPE_LABELS,
+  type IrsTableType,
+} from "@/lib/payroll";
 import { PageHeader, Card, Badge, LinkButton } from "@/components/ui";
 import { Sliders } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -9,12 +16,18 @@ import { IrsTableImportForm } from "../irs-table-import-form";
 import { PayrollSettingsForm } from "./payroll-settings-form";
 import { CreateIrsTableForm } from "./create-irs-table-form";
 import { UpsertIrsBracketForm } from "./upsert-irs-bracket-form";
+import { FiscalYearConstantsForm } from "./fiscal-year-constants-form";
 
 export default async function PayrollSettingsPage() {
   const user = await requireUser();
   if (!canWrite(user.roles, "payroll")) redirect("/payroll");
 
-  const [settings, irsTables] = await Promise.all([getPayrollSettings(), getIrsTables()]);
+  const currentYear = new Date().getFullYear();
+  const [settings, irsTables, fiscalConstants] = await Promise.all([
+    getPayrollSettings(),
+    getIrsTables(),
+    getFiscalYearConstants(currentYear),
+  ]);
 
   return (
     <div>
@@ -39,6 +52,15 @@ export default async function PayrollSettingsPage() {
         <Card>
           <h2 className="mb-4 text-sm font-semibold text-stone-900">Pressupostos Gerais</h2>
           <PayrollSettingsForm settings={settings} />
+        </Card>
+
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold text-stone-900">Limites de Isenção Fiscal</h2>
+          <p className="mb-4 text-xs text-stone-500">
+            IAS e limites de isenção do ano — iguais para todos os colaboradores. O recibo de cada mês usa
+            automaticamente os valores do ano a que esse recibo pertence.
+          </p>
+          <FiscalYearConstantsForm constants={fiscalConstants} />
         </Card>
 
         <Card>
@@ -71,6 +93,9 @@ export default async function PayrollSettingsPage() {
                 <div>
                   <h2 className="text-sm font-semibold text-stone-900">
                     {table.year} — {FISCAL_REGION_LABELS[table.region] ?? table.region} — Tabela {table.tableType}
+                    {(table.monthFrom !== 1 || table.monthTo !== 12) && (
+                      <Badge color="amber">meses {table.monthFrom}–{table.monthTo}</Badge>
+                    )}
                   </h2>
                   <p className="text-xs text-stone-500">
                     {table.label || IRS_TABLE_TYPE_LABELS[table.tableType as IrsTableType]}

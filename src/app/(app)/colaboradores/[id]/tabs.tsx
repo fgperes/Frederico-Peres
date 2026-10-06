@@ -8,6 +8,7 @@ export function ColaboradorTabs({ employeeId }: { employeeId: string }) {
   const tabs = [
     { href: `/colaboradores/${employeeId}`, label: "Dados" },
     { href: `/colaboradores/${employeeId}/contratos`, label: "Contratos" },
+    { href: `/colaboradores/${employeeId}/payroll`, label: "Payroll" },
     { href: `/colaboradores/${employeeId}/acessos`, label: "Perfis e Acessos" },
     { href: `/colaboradores/${employeeId}/ferias`, label: "Férias" },
     { href: `/colaboradores/${employeeId}/bolsa-horas`, label: "Bolsa de Horas" },

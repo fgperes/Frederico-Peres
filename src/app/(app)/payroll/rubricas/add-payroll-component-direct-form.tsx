@@ -1,21 +1,21 @@
 "use client";
 
 import { useActionState } from "react";
-import { addPayrollComponent, type AddPayrollComponentState } from "./actions";
+import { addPayrollComponentDirect, type AddPayrollComponentDirectState } from "../actions";
 import { SaveBanner } from "@/components/save-banner";
 import { PAYROLL_COMPONENT_CATEGORIES, PAYROLL_COMPONENT_CATEGORY_LABELS } from "@/lib/payroll";
 
-export function AddPayrollComponentForm({
-  employeeId,
+export function AddPayrollComponentDirectForm({
+  employees,
   currentYear,
   currentMonth,
 }: {
-  employeeId: string;
+  employees: { id: string; name: string }[];
   currentYear: number;
   currentMonth: number;
 }) {
-  const [state, formAction, pending] = useActionState<AddPayrollComponentState, FormData>(
-    addPayrollComponent.bind(null, employeeId),
+  const [state, formAction, pending] = useActionState<AddPayrollComponentDirectState, FormData>(
+    addPayrollComponentDirect,
     {}
   );
 
@@ -26,6 +26,17 @@ export function AddPayrollComponentForm({
           <SaveBanner status="error" message={state.error} />
         </div>
       )}
+      {state.success && (
+        <div className="col-span-2">
+          <SaveBanner status="success" message="Rubrica adicionada." />
+        </div>
+      )}
+      <select name="employeeId" required defaultValue="" className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+        <option value="" disabled>Selecione o colaborador…</option>
+        {employees.map((e) => (
+          <option key={e.id} value={e.id}>{e.name}</option>
+        ))}
+      </select>
       <input name="name" placeholder="Nome (ex.: Prémio)" required className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
       <select name="type" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
         <option value="EARNING">Vencimento (+)</option>
@@ -51,7 +62,7 @@ export function AddPayrollComponentForm({
         disabled={pending}
         className="col-span-2 rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900 disabled:opacity-60"
       >
-        {pending ? "A adicionar..." : "Adicionar componente"}
+        {pending ? "A adicionar..." : "Adicionar rubrica"}
       </button>
     </form>
   );

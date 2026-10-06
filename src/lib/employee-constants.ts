@@ -43,3 +43,17 @@ export const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
 export const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const;
 
 export type BloodType = (typeof BLOOD_TYPES)[number];
+
+export const MARITAL_STATUSES = [
+  "NAO_CASADO",
+  "CASADO_UNICO_TITULAR",
+  "CASADO_DOIS_TITULARES",
+] as const;
+
+export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
+
+export const MARITAL_STATUS_LABELS: Record<MaritalStatus, string> = {
+  NAO_CASADO: "Não casado(a)",
+  CASADO_UNICO_TITULAR: "Casado(a) — único titular",
+  CASADO_DOIS_TITULARES: "Casado(a) — dois titulares",
+};
