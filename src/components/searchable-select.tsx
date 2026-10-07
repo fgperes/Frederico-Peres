@@ -98,7 +98,7 @@ export function SearchableSelect({
         />
         <ChevronsUpDown
           size={14}
-          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400"
+          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500"
         />
       </div>
       {open && filtered.length > 0 && (

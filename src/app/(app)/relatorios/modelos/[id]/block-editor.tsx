@@ -82,7 +82,7 @@ export function BlockEditor({
                     type="button"
                     onClick={() => move(i, -1)}
                     disabled={i === 0}
-                    className="rounded p-1 text-stone-400 hover:text-stone-700 disabled:opacity-30 dark:hover:text-stone-200"
+                    className="rounded p-1 text-stone-400 hover:text-stone-700 disabled:opacity-30 dark:hover:text-stone-200 dark:text-stone-500 dark:text-stone-300"
                     title="Mover para cima"
                   >
                     <ChevronUp size={14} />
@@ -91,7 +91,7 @@ export function BlockEditor({
                     type="button"
                     onClick={() => move(i, 1)}
                     disabled={i === blocks.length - 1}
-                    className="rounded p-1 text-stone-400 hover:text-stone-700 disabled:opacity-30 dark:hover:text-stone-200"
+                    className="rounded p-1 text-stone-400 hover:text-stone-700 disabled:opacity-30 dark:hover:text-stone-200 dark:text-stone-500 dark:text-stone-300"
                     title="Mover para baixo"
                   >
                     <ChevronDown size={14} />
@@ -99,7 +99,7 @@ export function BlockEditor({
                   <button
                     type="button"
                     onClick={() => remove(block.id)}
-                    className="rounded p-1 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400"
+                    className="rounded p-1 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 dark:text-stone-500"
                     title="Remover bloco"
                   >
                     <Trash2 size={14} />

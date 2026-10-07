@@ -453,7 +453,7 @@ async function reportContratos(filters: ReportFilters): Promise<ReportResult> {
       c.startDate.toISOString().slice(0, 10),
       c.endDate ? c.endDate.toISOString().slice(0, 10) : "",
       c.contractProfile.weeklyHours,
-      c.baseSalary ? round1(c.baseSalary) : "",
+      c.employee.baseSalary ? round1(c.employee.baseSalary) : "",
       CONTRACT_STATUS_LABELS[c.status] ?? c.status,
     ]),
   };

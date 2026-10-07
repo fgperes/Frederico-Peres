@@ -44,7 +44,7 @@ export default async function CiclosPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                     <tr>
                       <th className="px-4 py-3">Nome</th>
                       <th className="px-4 py-3">Duração</th>
@@ -53,7 +53,7 @@ export default async function CiclosPage() {
                       {canEdit && <th className="px-4 py-3 text-right">Ações</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100">
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                     {cycles.map((c) => (
                       <tr key={c.id} className="hover:bg-stone-50">
                         <td className="px-4 py-3">
@@ -79,13 +79,13 @@ export default async function CiclosPage() {
 
           <Card>
             <div className="mb-3 flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-stone-900">Modelos Pré-Definidos</h2>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Modelos Pré-Definidos</h2>
               <Badge color="blue">{templates.length}</Badge>
             </div>
             {templates.length === 0 ? (
               <EmptyState message="Sem modelos guardados. Abra um ciclo e use 'Guardar como modelo' para o reutilizar no futuro." />
             ) : (
-              <ul className="divide-y divide-stone-100 text-sm">
+              <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
                 {templates.map((t) => (
                   <li key={t.id} className="py-3">
                     <div className="flex items-center justify-between">
@@ -93,7 +93,7 @@ export default async function CiclosPage() {
                         <Link href={`/horarios/ciclos/${t.id}`} className="font-medium text-violet-700 hover:underline">
                           {t.name}
                         </Link>
-                        <span className="ml-2 text-xs text-stone-500">{t.weeks} semanas</span>
+                        <span className="ml-2 text-xs text-stone-500 dark:text-stone-400">{t.weeks} semanas</span>
                       </div>
                       {canEdit && (
                         <div className="flex items-center gap-1">
@@ -111,7 +111,7 @@ export default async function CiclosPage() {
 
         {canEdit && (
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Ciclo</h2>
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Novo Ciclo</h2>
             <CreateCycleForm />
           </Card>
         )}

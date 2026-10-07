@@ -33,7 +33,7 @@ export function DeleteTemplateButton({ templateId, templateName }: { templateId:
         onClick={handleDelete}
         disabled={pending}
         title="Eliminar modelo"
-        className="text-stone-400 hover:text-rose-600 disabled:opacity-60 dark:hover:text-rose-400"
+        className="text-stone-400 hover:text-rose-600 disabled:opacity-60 dark:hover:text-rose-400 dark:text-stone-500"
       >
         <Trash2 size={14} />
       </button>

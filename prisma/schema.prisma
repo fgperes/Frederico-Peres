@@ -319,6 +319,9 @@ model Employee {
   maritalStatus String? // NAO_CASADO | CASADO_UNICO_TITULAR | CASADO_DOIS_TITULARES
   dependents    Int     @default(0)
   fiscalRegion  String  @default("CONTINENTE") // CONTINENTE | ACORES | MADEIRA
+  // Vencimento base — pertence ao colaborador, não ao contrato: um aumento
+  // salarial não implica alterar/criar um novo contrato.
+  baseSalary    Float?
   // Subsídio de alimentação (valor e forma de pagamento) é igual para toda
   // a empresa — definido só em PayrollSettings, sem exceção por colaborador.
 
@@ -861,9 +864,6 @@ model EmployeeContract {
   startDate          DateTime
   endDate            DateTime?
   trialPeriodEndDate DateTime?
-  baseSalary         Float?
-  documentName       String? // nome original do ficheiro
-  documentData       String? // conteúdo do ficheiro em data URI (base64), como os anexos do colaborador
   notes              String?
   status             String          @default("ACTIVE") // ACTIVE | ENDED
   createdAt          DateTime        @default(now())

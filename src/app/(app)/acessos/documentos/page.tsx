@@ -85,7 +85,7 @@ export default async function DocumentosPage() {
                   {branding.clientCompanyName}
                 </span>
               ) : (
-                <span className="text-xs italic text-stone-400">Sem empresa cliente configurada</span>
+                <span className="text-xs italic text-stone-400 dark:text-stone-500">Sem empresa cliente configurada</span>
               )}
             </div>
           </div>

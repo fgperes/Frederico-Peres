@@ -287,9 +287,14 @@ async function main() {
           Math.random() < 0.3 && employee.hireDate
             ? new Date(employee.hireDate.getTime() + 90 * 24 * 60 * 60 * 1000)
             : null,
-        baseSalary: Math.round((900 + Math.random() * 2600) * 100) / 100,
         status: "ACTIVE",
       },
+    });
+
+    // Vencimento base pertence ao colaborador, não ao contrato.
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: { baseSalary: Math.round((900 + Math.random() * 2600) * 100) / 100 },
     });
   }
 

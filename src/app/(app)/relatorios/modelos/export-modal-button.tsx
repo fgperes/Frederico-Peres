@@ -27,7 +27,7 @@ export function ExportModalButton({
         type="button"
         onClick={() => setOpen(true)}
         title="Exportar"
-        className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400"
+        className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 dark:text-stone-500"
       >
         <FileDown size={14} />
       </button>

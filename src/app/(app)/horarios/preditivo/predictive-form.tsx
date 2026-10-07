@@ -17,14 +17,14 @@ export function PredictiveForm({ departments }: { departments: Department[] }) {
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
           Semana (qualquer data dessa semana)
         </label>
         <DateField name="week" required inputClassName="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Departamento</label>
-        <select name="departmentId" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Departamento</label>
+        <select name="departmentId" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700">
           <option value="">Todos</option>
           {departments.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
@@ -32,10 +32,10 @@ export function PredictiveForm({ departments }: { departments: Department[] }) {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
           Capacidade de atendimento por colaborador (unid. de procura)
         </label>
-        <input name="capacityPerEmployee" type="number" defaultValue={10} min={1} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
+        <input name="capacityPerEmployee" type="number" defaultValue={10} min={1} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700" />
       </div>
       <button
         type="submit"
@@ -46,18 +46,18 @@ export function PredictiveForm({ departments }: { departments: Department[] }) {
       </button>
 
       {state.error && (
-        <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">{state.error}</p>
+        <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{state.error}</p>
       )}
 
       {state.result && (
-        <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-xs">
-          <p className="mb-2 font-medium text-stone-800">
+        <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-xs dark:border-stone-800">
+          <p className="mb-2 font-medium text-stone-800 dark:text-stone-200">
             {state.result.createdShifts} turnos criados em modo rascunho.
           </p>
           {state.result.windows.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[420px] text-left">
-                <thead className="text-stone-500">
+                <thead className="text-stone-500 dark:text-stone-400">
                   <tr>
                     <th className="py-1">Dia</th>
                     <th className="py-1">Turno</th>
@@ -67,7 +67,7 @@ export function PredictiveForm({ departments }: { departments: Department[] }) {
                 </thead>
                 <tbody>
                   {state.result.windows.map((w, i) => (
-                    <tr key={i} className={w.assigned < w.required ? "text-amber-700" : "text-stone-700"}>
+                    <tr key={i} className={w.assigned < w.required ? "text-amber-700 dark:text-amber-400" : "text-stone-700 dark:text-stone-300"}>
                       <td className="py-1">{w.day}</td>
                       <td className="py-1">{w.window}</td>
                       <td className="py-1">{w.required}</td>

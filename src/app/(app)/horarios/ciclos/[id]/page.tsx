@@ -91,11 +91,11 @@ export default async function CycleDetailPage({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 overflow-x-auto">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-stone-900">
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
               Padrão do Ciclo
             </h2>
             {canEdit && (
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-stone-500 dark:text-stone-400">
                 Arraste pelo ícone para reordenar semanas
               </p>
             )}
@@ -111,7 +111,7 @@ export default async function CycleDetailPage({
 
         {canEdit && !cycle.isTemplate && (
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
               Gerar Escalas
             </h2>
             <GenerateButton cycleId={cycle.id} />

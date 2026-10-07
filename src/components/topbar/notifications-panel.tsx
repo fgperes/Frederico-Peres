@@ -16,7 +16,7 @@ export function NotificationsPanel({
       </div>
       {items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-          <Bell size={20} className="text-stone-400" />
+          <Bell size={20} className="text-stone-400 dark:text-stone-500" />
           <p className="text-xs text-stone-500 dark:text-stone-400">Sem notificações novas.</p>
         </div>
       ) : (

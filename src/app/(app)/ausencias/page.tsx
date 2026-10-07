@@ -216,11 +216,11 @@ export default async function AusenciasPage({
           {canManage && (
             <>
               <Card>
-                <h2 className="mb-3 text-sm font-semibold text-stone-900">Pedidos Pendentes de Aprovação</h2>
+                <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Pedidos Pendentes de Aprovação</h2>
                 {pendingApprovals.length === 0 ? (
                   <EmptyState message="Sem pedidos pendentes." />
                 ) : (
-                  <ul className="divide-y divide-stone-100 text-sm">
+                  <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
                     {pendingApprovals.map((a) => {
                       const overlapCount = pendingApprovals.filter(
                         (o) =>
@@ -237,7 +237,7 @@ export default async function AusenciasPage({
                                 {a.employee.firstName} {a.employee.lastName}
                               </span>{" "}
                               — {a.absenceType.name} ({a.days}d)
-                              <div className="text-xs text-stone-500">
+                              <div className="text-xs text-stone-500 dark:text-stone-400">
                                 {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate.toLocaleDateString("pt-PT")}
                                 {a.reason && ` · ${a.reason}`}
                               </div>
@@ -268,17 +268,17 @@ export default async function AusenciasPage({
               </Card>
 
               <Card>
-                <h2 className="mb-3 text-sm font-semibold text-stone-900">Calendário de Equipa (mês atual)</h2>
+                <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Calendário de Equipa (mês atual)</h2>
                 {teamCalendar.length === 0 ? (
                   <EmptyState message="Sem ausências este mês." />
                 ) : (
-                  <ul className="divide-y divide-stone-100 text-sm">
+                  <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
                     {teamCalendar.map((a) => (
                       <li key={a.id} className="flex items-center justify-between py-2">
                         <span>
                           {a.employee.firstName} {a.employee.lastName} — {a.absenceType.name}
                         </span>
-                        <span className="text-xs text-stone-500">
+                        <span className="text-xs text-stone-500 dark:text-stone-400">
                           {a.startDate.toLocaleDateString("pt-PT")} — {a.endDate.toLocaleDateString("pt-PT")}
                         </span>
                         <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>
@@ -289,20 +289,20 @@ export default async function AusenciasPage({
               </Card>
 
               <Card>
-                <h2 className="mb-3 text-sm font-semibold text-stone-900">Relatório de Absentismo ({year})</h2>
+                <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Relatório de Absentismo ({year})</h2>
                 {reportByType.length === 0 ? (
                   <EmptyState message="Sem dados." />
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[360px] text-left text-sm">
-                      <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                      <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                         <tr>
                           <th className="py-2">Tipo</th>
                           <th className="py-2">Pedidos</th>
                           <th className="py-2">Dias totais</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-stone-100">
+                      <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                         {reportByType.map((r) => (
                           <tr key={r.name}>
                             <td className="py-2">{r.name}</td>
@@ -322,13 +322,13 @@ export default async function AusenciasPage({
         {targetEmployeeId && (
           <div className="space-y-6 lg:col-span-1">
             <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900">
+              <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
                 {isSelf ? "Meus Pedidos" : `Pedidos de ${employeeName}`}
               </h2>
               {absenceSummaries.length === 0 ? (
                 <EmptyState message="Sem pedidos submetidos." />
               ) : (
-                <ul className="divide-y divide-stone-100 text-sm">
+                <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
                   {absenceSummaries.slice(0, 15).map((a) => (
                     <li key={a.id} className="py-2">
                       <div className="flex items-center justify-between">
@@ -337,7 +337,7 @@ export default async function AusenciasPage({
                         </span>
                         <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>
                       </div>
-                      <div className="text-xs text-stone-500">
+                      <div className="text-xs text-stone-500 dark:text-stone-400">
                         {new Date(`${a.startDate}T00:00:00`).toLocaleDateString("pt-PT")} —{" "}
                         {new Date(`${a.endDate}T00:00:00`).toLocaleDateString("pt-PT")}
                       </div>

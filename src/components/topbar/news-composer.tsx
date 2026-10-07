@@ -133,7 +133,7 @@ export function NewsComposer({ roles }: { roles: { key: string; label: string }[
           </div>
 
           <div className="flex items-center gap-2">
-            <input id="notifyUsers" type="checkbox" name="notifyUsers" className="h-4 w-4 rounded border-stone-300" />
+            <input id="notifyUsers" type="checkbox" name="notifyUsers" className="h-4 w-4 rounded border-stone-300 dark:border-stone-700" />
             <label htmlFor="notifyUsers" className="text-sm text-stone-700 dark:text-stone-300">
               Notificar destinatários (cria tarefa/aviso)
             </label>
@@ -148,7 +148,7 @@ export function NewsComposer({ roles }: { roles: { key: string; label: string }[
                   name="targetAll"
                   checked={targetAll}
                   onChange={(e) => setTargetAll(e.target.checked)}
-                  className="h-4 w-4 rounded border-stone-300"
+                  className="h-4 w-4 rounded border-stone-300 dark:border-stone-700"
                 />
                 Todos
               </label>
@@ -160,7 +160,7 @@ export function NewsComposer({ roles }: { roles: { key: string; label: string }[
                       name="targetRoles"
                       value={r.key}
                       disabled={targetAll}
-                      className="h-4 w-4 rounded border-stone-300 disabled:opacity-40"
+                      className="h-4 w-4 rounded border-stone-300 disabled:opacity-40 dark:border-stone-700"
                     />
                     {r.label}
                   </label>

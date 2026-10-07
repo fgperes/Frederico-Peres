@@ -118,7 +118,7 @@ export function CycleAssignmentPanel({
         </p>
         <ul className="space-y-1.5 text-sm">
           {assignments.length === 0 && (
-            <li className="text-xs text-stone-500">Sem colaboradores associados ainda.</li>
+            <li className="text-xs text-stone-500 dark:text-stone-400">Sem colaboradores associados ainda.</li>
           )}
           {assignments.map((a) => (
             <li
@@ -145,14 +145,14 @@ export function CycleAssignmentPanel({
       </div>
 
       {canEdit && (
-        <div className="space-y-3 lg:border-l lg:border-stone-200 lg:pl-6 dark:lg:border-stone-800">
+        <div className="space-y-3 lg:border-l lg:border-stone-200 lg:pl-6 dark:lg:border-stone-800 dark:border-stone-800">
           <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
             Associar colaboradores
           </p>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
-              <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-stone-400" />
+              <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -176,7 +176,7 @@ export function CycleAssignmentPanel({
 
           <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-stone-200 dark:border-stone-800">
             {filteredDepartments.length === 0 && (
-              <p className="px-3 py-4 text-center text-xs text-stone-400">Sem colaboradores para associar.</p>
+              <p className="px-3 py-4 text-center text-xs text-stone-400 dark:text-stone-500">Sem colaboradores para associar.</p>
             )}
             {filteredDepartments.map((dept) => {
               const isExpanded = expanded.has(dept.id);
@@ -193,7 +193,7 @@ export function CycleAssignmentPanel({
                       {dept.name}
                       {selectedInDept > 0 && <Badge color="blue">{selectedInDept} selecionado(s)</Badge>}
                     </span>
-                    <span className="flex items-center gap-2 text-xs text-stone-500">
+                    <span className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
                       {dept.employees.length} disponíve{dept.employees.length === 1 ? "l" : "is"}
                       {isExpanded ? <Minus size={14} /> : <Plus size={14} />}
                     </span>
@@ -216,7 +216,7 @@ export function CycleAssignmentPanel({
                             onChange={() => toggleEmployee(e.id)}
                           />
                           {e.firstName} {e.lastName}
-                          <span className="text-xs text-stone-400">({e.weeklyHours}h/semana)</span>
+                          <span className="text-xs text-stone-400 dark:text-stone-500">({e.weeklyHours}h/semana)</span>
                         </label>
                       ))}
                     </div>

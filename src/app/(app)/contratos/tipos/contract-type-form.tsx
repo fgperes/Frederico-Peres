@@ -14,8 +14,8 @@ export function ContractTypeForm() {
     <form action={formAction} className="space-y-3">
       {state.error && <SaveBanner status="error" message={state.error} />}
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Nome</label>
-        <input name="label" required placeholder="ex.: Estágio Profissional" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Nome</label>
+        <input name="label" required placeholder="ex.: Estágio Profissional" className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700" />
       </div>
       <button
         type="submit"

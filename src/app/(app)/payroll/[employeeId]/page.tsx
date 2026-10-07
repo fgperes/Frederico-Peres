@@ -43,23 +43,21 @@ export default async function EmployeePayrollPage({
       <PageHeader
         icon={Banknote}
         title={`Payroll — ${employee.firstName} ${employee.lastName}`}
-        description={
-          contract
-            ? `Salário base: ${contract.baseSalary?.toFixed(2) ?? "—"} € · ${contract.contractProfile.weeklyHours}h/semana`
-            : "Sem contrato ativo"
-        }
+        description={`Salário base: ${employee.baseSalary?.toFixed(2) ?? "—"} €${
+          contract ? ` · ${contract.contractProfile.weeklyHours}h/semana` : " · Sem contrato ativo"
+        }`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">Histórico de Recibos</h2>
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Histórico de Recibos</h2>
             {employee.payslips.length === 0 ? (
               <EmptyState message="Sem recibos gerados ainda." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+                  <thead className="border-b border-stone-200 text-xs uppercase text-stone-500 dark:text-stone-400 dark:border-stone-800">
                     <tr>
                       <th className="py-2">Período</th>
                       <th className="py-2">Bruto</th>
@@ -68,7 +66,7 @@ export default async function EmployeePayrollPage({
                       <th className="py-2"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100">
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                     {employee.payslips.map((p) => (
                       <tr key={p.id}>
                         <td className="py-2">
@@ -105,8 +103,8 @@ export default async function EmployeePayrollPage({
                   redirect(`/payroll/${employeeId}/${year}/${month}`);
                 }} className="flex items-end gap-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-stone-600">Mês</label>
-                    <select name="month" defaultValue={now.getMonth() + 1} className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+                    <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Mês</label>
+                    <select name="month" defaultValue={now.getMonth() + 1} className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700">
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                         <option key={m} value={m}>
                           {new Date(2000, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" })}
@@ -115,8 +113,8 @@ export default async function EmployeePayrollPage({
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-stone-600">Ano</label>
-                    <input name="year" type="number" defaultValue={now.getFullYear()} className="w-24 rounded-md border border-stone-300 px-2 py-1.5 text-sm" />
+                    <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Ano</label>
+                    <input name="year" type="number" defaultValue={now.getFullYear()} className="w-24 rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700" />
                   </div>
                   <button type="submit" className="rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700">
                     Ver / Gerar recibo
@@ -127,11 +125,11 @@ export default async function EmployeePayrollPage({
           </Card>
 
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">Componentes Variáveis</h2>
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Componentes Variáveis</h2>
             {employee.payrollComponents.length === 0 ? (
               <EmptyState message="Sem componentes adicionadas." />
             ) : (
-              <ul className="mb-4 divide-y divide-stone-100 text-sm">
+              <ul className="mb-4 divide-y divide-stone-100 text-sm dark:divide-stone-800">
                 {employee.payrollComponents.map((c) => (
                   <li key={c.id} className="flex items-center justify-between py-2">
                     <div>
@@ -140,7 +138,7 @@ export default async function EmployeePayrollPage({
                         {c.type === "EARNING" ? "+" : "−"}
                         {c.amount.toFixed(2)} €
                       </Badge>
-                      <span className="ml-2 text-xs text-stone-400">
+                      <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">
                         {c.recurring ? "recorrente" : `pontual ${c.applyMonth}/${c.applyYear}`}
                       </span>
                     </div>
@@ -167,7 +165,7 @@ export default async function EmployeePayrollPage({
 
         <Card>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-stone-900">Dados de Payroll</h2>
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Dados de Payroll</h2>
             <Link
               href={`/colaboradores/${employee.id}/payroll`}
               className="text-xs font-medium text-violet-700 hover:underline"
@@ -198,7 +196,7 @@ export default async function EmployeePayrollPage({
               value={subsidyModeLabel(employee.christmasSubsidyMode, employee.christmasSubsidyMonths)}
             />
           </dl>
-          <p className="mt-3 text-xs text-stone-500">
+          <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
             Estado civil, dependentes e região fiscal estão na ficha do colaborador.
           </p>
         </Card>
@@ -210,8 +208,8 @@ export default async function EmployeePayrollPage({
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-stone-500">{label}</dt>
-      <dd className="text-stone-900">{value}</dd>
+      <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">{label}</dt>
+      <dd className="text-stone-900 dark:text-stone-100">{value}</dd>
     </div>
   );
 }

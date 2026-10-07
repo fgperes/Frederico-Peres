@@ -19,42 +19,42 @@ export function ContractProfileForm({
     <form action={formAction} className="space-y-4">
       {state.error && <SaveBanner status="error" message={state.error} />}
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Nome do contrato</label>
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Nome do contrato</label>
         <input
           name="name"
           required
           placeholder="ex.: Full-time SEM_TERMO 40h"
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Tipo de contrato</label>
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Tipo de contrato</label>
           <ContractTypeSelect contractTypes={contractTypes} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Horas semanais</label>
-          <input name="weeklyHours" type="number" step="0.5" defaultValue={40} required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Horas semanais</label>
+          <input name="weeklyHours" type="number" step="0.5" defaultValue={40} required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Folgas semanais (mín. legal: 1)</label>
-          <input name="weeklyRestDays" type="number" step="1" min={1} max={7} defaultValue={2} required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm" />
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Folgas semanais (mín. legal: 1)</label>
+          <input name="weeklyRestDays" type="number" step="1" min={1} max={7} defaultValue={2} required className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700" />
         </div>
       </div>
 
       <div className="flex flex-wrap gap-6">
-        <label className="flex items-center gap-2 text-sm text-stone-700">
-          <input name="worksWeekends" type="checkbox" defaultChecked className="h-4 w-4 rounded border-stone-300 text-violet-600 focus:ring-violet-500" />
+        <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+          <input name="worksWeekends" type="checkbox" defaultChecked className="h-4 w-4 rounded border-stone-300 text-violet-600 focus:ring-violet-500 dark:border-stone-700" />
           Pode trabalhar aos fins de semana
         </label>
-        <label className="flex items-center gap-2 text-sm text-stone-700">
-          <input name="worksHolidays" type="checkbox" defaultChecked className="h-4 w-4 rounded border-stone-300 text-violet-600 focus:ring-violet-500" />
+        <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+          <input name="worksHolidays" type="checkbox" defaultChecked className="h-4 w-4 rounded border-stone-300 text-violet-600 focus:ring-violet-500 dark:border-stone-700" />
           Pode trabalhar em feriados
         </label>
       </div>
 
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-stone-500 dark:text-stone-400">
         Depois de criado, só o nome e o estado ativo/inativo podem ser alterados. Para atribuir este contrato a um
         colaborador, faça-o a partir da ficha do colaborador.
       </p>

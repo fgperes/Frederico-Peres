@@ -28,14 +28,14 @@ export default async function TiposContratoPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                   <tr>
                     <th className="px-4 py-3">Nome</th>
                     <th className="px-4 py-3">Origem</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                   {types.map((t) => (
                     <tr key={t.key}>
                       <td className="px-4 py-3 font-medium">{t.label}</td>
@@ -56,7 +56,7 @@ export default async function TiposContratoPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Tipo</h2>
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Novo Tipo</h2>
           <ContractTypeForm />
         </Card>
       </div>

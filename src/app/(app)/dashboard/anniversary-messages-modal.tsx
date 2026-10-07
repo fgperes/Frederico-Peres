@@ -69,7 +69,7 @@ export function AnniversaryMessagesModal({
           {messages.map((m) => (
             <li key={m.id} className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
               <p className="text-sm text-stone-700 dark:text-stone-300">{m.body}</p>
-              <p className="mt-1.5 text-[11px] text-stone-400">
+              <p className="mt-1.5 text-[11px] text-stone-400 dark:text-stone-500">
                 {m.authorName} · {formatDateTime(m.createdAt)}
               </p>
             </li>

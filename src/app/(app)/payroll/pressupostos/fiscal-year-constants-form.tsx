@@ -28,16 +28,16 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-stone-600">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">{label}</label>
       <input
         name={name}
         type="number"
         step={step}
         defaultValue={defaultValue}
         required
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
       />
-      {hint && <p className="mt-0.5 text-xs text-stone-400">{hint}</p>}
+      {hint && <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">{hint}</p>}
     </div>
   );
 }
@@ -53,8 +53,8 @@ export function FiscalYearConstantsForm({ constants }: { constants: FiscalYearCo
       {state.error && <SaveBanner status="error" message={state.error} />}
       <input type="hidden" name="year" value={constants.year} />
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Ano</label>
-        <p className="text-sm text-stone-900">{constants.year}</p>
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Ano</label>
+        <p className="text-sm text-stone-900 dark:text-stone-100">{constants.year}</p>
       </div>
       <Field label="IAS (€)" name="ias" defaultValue={constants.ias} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -69,7 +69,7 @@ export function FiscalYearConstantsForm({ constants }: { constants: FiscalYearCo
           defaultValue={constants.mealAllowanceExemptCashDaily}
         />
       </div>
-      <p className="text-xs text-stone-400">
+      <p className="text-xs text-stone-400 dark:text-stone-500">
         Acima destes valores por dia, o excesso do subsídio de alimentação passa a estar sujeito a IRS e Segurança Social.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

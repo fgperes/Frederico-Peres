@@ -155,12 +155,12 @@ export function ClockWidget({
         ))}
       </div>
       {buttons.some((b) => b.hint) && (
-        <p className="mt-2 text-xs text-stone-500">
+        <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
           {buttons.find((b) => b.hint)?.hint}
         </p>
       )}
       {!compact && (
-        <p className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-500">
+        <p className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
           <MapPin size={13} />
           A localização é pedida ao browser e associada ao registo, se autorizada.
         </p>

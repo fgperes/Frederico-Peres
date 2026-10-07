@@ -15,7 +15,7 @@ export function GenerateButton({ cycleId }: { cycleId: string }) {
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="cycleId" value={cycleId} />
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
           Horizonte (semanas)
         </label>
         <input
@@ -24,7 +24,7 @@ export function GenerateButton({ cycleId }: { cycleId: string }) {
           defaultValue={4}
           min={1}
           max={26}
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
         />
       </div>
       <button
@@ -43,7 +43,7 @@ export function GenerateButton({ cycleId }: { cycleId: string }) {
         </p>
       )}
       {state.error && (
-        <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
           {state.error}
         </p>
       )}

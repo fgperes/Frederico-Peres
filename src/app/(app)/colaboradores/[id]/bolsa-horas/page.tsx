@@ -83,7 +83,7 @@ export default async function ColaboradorBolsaHorasPage({
                   <td className="px-4 py-3">{SOURCE_LABELS[m.source] ?? m.source}</td>
                   <td className="px-4 py-3 text-stone-600 dark:text-stone-400">
                     {m.reason ?? "—"}
-                    <span className="block text-xs text-stone-400">por {m.createdBy.name}</span>
+                    <span className="block text-xs text-stone-400 dark:text-stone-500">por {m.createdBy.name}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <Badge color={m.minutes >= 0 ? "green" : "red"}>
@@ -93,7 +93,7 @@ export default async function ColaboradorBolsaHorasPage({
                   </td>
                   <td className="px-4 py-3">
                     {m.reversedAt ? (
-                      <span className="text-xs text-stone-400">
+                      <span className="text-xs text-stone-400 dark:text-stone-500">
                         Anulado{m.reversedBy ? ` por ${m.reversedBy.name}` : ""}
                       </span>
                     ) : (

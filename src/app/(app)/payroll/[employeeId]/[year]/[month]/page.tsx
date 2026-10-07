@@ -81,7 +81,7 @@ export default async function PayslipDetailPage({
       />
 
       {breakdown.belowMinimumWage && (
-        <Card className="mb-6 border-rose-200 bg-rose-50">
+        <Card className="mb-6 border-rose-200 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10">
           <p className="text-sm text-rose-800">
             ⚠ O salário base está abaixo do salário mínimo nacional configurado
             nos pressupostos. Verifique o contrato deste colaborador.
@@ -90,21 +90,21 @@ export default async function PayslipDetailPage({
       )}
 
       <Card className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-stone-900">Vencimentos</h2>
+        <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Vencimentos</h2>
         <Rows rows={earningsLines.map((l) => [l.label, l.value] as [string, number])} />
 
-        <h2 className="mb-3 mt-6 text-sm font-semibold text-stone-900">Descontos</h2>
+        <h2 className="mb-3 mt-6 text-sm font-semibold text-stone-900 dark:text-stone-100">Descontos</h2>
         <Rows rows={deductionLines.map((l) => [l.label, l.value] as [string, number])} />
 
-        <div className="mt-6 space-y-1 border-t border-stone-200 pt-4 text-right">
-          <p className="text-sm text-stone-600">Total bruto: <span className="font-medium text-stone-900">{fmt(breakdown.grossTotal)}</span></p>
-          <p className="text-lg font-semibold text-stone-900">Total líquido: {fmt(breakdown.netTotal)}</p>
-          <p className="text-xs text-stone-400">Custo total para a empresa: {fmt(breakdown.employerCost)}</p>
+        <div className="mt-6 space-y-1 border-t border-stone-200 pt-4 text-right dark:border-stone-800">
+          <p className="text-sm text-stone-600 dark:text-stone-400">Total bruto: <span className="font-medium text-stone-900 dark:text-stone-100">{fmt(breakdown.grossTotal)}</span></p>
+          <p className="text-lg font-semibold text-stone-900 dark:text-stone-100">Total líquido: {fmt(breakdown.netTotal)}</p>
+          <p className="text-xs text-stone-400 dark:text-stone-500">Custo total para a empresa: {fmt(breakdown.employerCost)}</p>
         </div>
       </Card>
 
-      <Card className="mb-6 border-stone-200 bg-stone-50">
-        <p className="text-xs text-stone-500">
+      <Card className="mb-6 border-stone-200 bg-stone-50 dark:border-stone-800">
+        <p className="text-xs text-stone-500 dark:text-stone-400">
           Horas trabalhadas no período: {breakdown.workedHours.toFixed(1)}h em {breakdown.workedDays} dia(s) ·
           Estimativa calculada a partir de picagens, horário publicado e contrato ativo. Não substitui um
           processamento de salários certificado.
@@ -162,11 +162,11 @@ export default async function PayslipDetailPage({
 function Rows({ rows }: { rows: ([string, number] | null)[] }) {
   const visible = rows.filter((r): r is [string, number] => r !== null);
   return (
-    <ul className="divide-y divide-stone-100 text-sm">
+    <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
       {visible.map(([label, value]) => (
         <li key={label} className="flex items-center justify-between py-2">
-          <span className="text-stone-600">{label}</span>
-          <span className={value < 0 ? "text-rose-600" : "text-stone-900"}>{fmt(value)}</span>
+          <span className="text-stone-600 dark:text-stone-400">{label}</span>
+          <span className={value < 0 ? "text-rose-600 dark:text-rose-400" : "text-stone-900 dark:text-stone-100"}>{fmt(value)}</span>
         </li>
       ))}
     </ul>

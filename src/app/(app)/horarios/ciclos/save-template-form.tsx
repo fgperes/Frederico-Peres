@@ -38,7 +38,7 @@ export function SaveTemplateForm({ cycleId }: { cycleId: string }) {
           required
           autoFocus
           placeholder="Nome do modelo"
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
         />
         <Button type="submit" disabled={pending}>
           {pending ? "A guardar…" : "Guardar"}
@@ -46,7 +46,7 @@ export function SaveTemplateForm({ cycleId }: { cycleId: string }) {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-sm text-stone-500 hover:text-stone-700"
+          className="text-sm text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:text-stone-300"
         >
           Cancelar
         </button>

@@ -169,14 +169,7 @@ export async function assignEmployeeContract(
     const contractProfileId = String(formData.get("contractProfileId"));
     const startDateRaw = String(formData.get("startDate") ?? "");
     const trialPeriodEndDateRaw = String(formData.get("trialPeriodEndDate") ?? "");
-    const baseSalaryRaw = String(formData.get("baseSalary") ?? "");
-    const documentName = String(formData.get("documentName") ?? "").trim() || null;
-    const documentData = String(formData.get("documentData") ?? "").trim() || null;
     const notes = String(formData.get("notes") ?? "").trim() || null;
-
-    if (documentData && documentData.length > 3_000_000) {
-      throw new Error("Documento contratual demasiado grande (máximo 2MB).");
-    }
 
     if (!employeeId || !contractProfileId || !startDateRaw) {
       throw new Error("Selecione o colaborador, o contrato e a data de início.");
@@ -202,9 +195,6 @@ export async function assignEmployeeContract(
         contractProfileId,
         startDate,
         trialPeriodEndDate: trialPeriodEndDateRaw ? new Date(trialPeriodEndDateRaw) : null,
-        baseSalary: baseSalaryRaw ? Number(baseSalaryRaw) : null,
-        documentName,
-        documentData,
         notes,
         status: "ACTIVE",
       },

@@ -35,7 +35,7 @@ export function EditMappingButton({
         type="button"
         onClick={() => setOpen(true)}
         title="Editar mapeamento de campos"
-        className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400"
+        className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 dark:text-stone-500"
       >
         <Settings2 size={15} />
       </button>

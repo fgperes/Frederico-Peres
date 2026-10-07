@@ -30,23 +30,23 @@ export default async function PayslipLayoutPage() {
         <Card>
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">Título do documento</label>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Título do documento</label>
               <input
                 name="documentTitle"
                 defaultValue={layout.documentTitle}
                 required
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">Nota de rodapé</label>
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Nota de rodapé</label>
               <textarea
                 name="footerNote"
                 rows={3}
                 defaultValue={layout.footerNote}
-                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
               />
-              <p className="mt-1 text-xs text-stone-400">
+              <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">
                 Aparece no fundo do PDF e da pré-visualização do recibo.
               </p>
             </div>
@@ -54,15 +54,15 @@ export default async function PayslipLayoutPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">Linhas do recibo</h2>
-          <p className="mb-4 text-xs text-stone-500">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">Linhas do recibo</h2>
+          <p className="mb-4 text-xs text-stone-500 dark:text-stone-400">
             A ordem é dada pelo número &quot;Ordem&quot; (mais baixo aparece primeiro), independentemente da secção. Linhas
             desmarcadas nunca aparecem; Salário base, Segurança Social e IRS aparecem sempre que visíveis, mesmo a
             0 €. As restantes só aparecem quando têm valor.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500">
+              <thead className="border-b border-stone-200 text-xs uppercase text-stone-500 dark:text-stone-400 dark:border-stone-800">
                 <tr>
                   <th className="w-20 py-2">Ordem</th>
                   <th className="py-2">Secção</th>
@@ -70,7 +70,7 @@ export default async function PayslipLayoutPage() {
                   <th className="w-20 py-2">Visível</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                 {layout.lineItems.map((item, i) => (
                   <tr key={item.key}>
                     <td className="py-2">
@@ -78,16 +78,16 @@ export default async function PayslipLayoutPage() {
                         name={`order_${item.key}`}
                         type="number"
                         defaultValue={i}
-                        className="w-16 rounded-md border border-stone-300 px-2 py-1 text-sm"
+                        className="w-16 rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700"
                       />
                     </td>
-                    <td className="py-2 text-xs text-stone-500">{SECTION_LABELS[item.section] ?? item.section}</td>
+                    <td className="py-2 text-xs text-stone-500 dark:text-stone-400">{SECTION_LABELS[item.section] ?? item.section}</td>
                     <td className="py-2">
                       <input
                         name={`label_${item.key}`}
                         defaultValue={item.label}
                         required
-                        className="w-full rounded-md border border-stone-300 px-2 py-1 text-sm"
+                        className="w-full rounded-md border border-stone-300 px-2 py-1 text-sm dark:border-stone-700"
                       />
                     </td>
                     <td className="py-2 text-center">

@@ -160,6 +160,17 @@ export async function createEmployee(
       if (exists) throw new Error(`Já existe um colaborador com o número ${data.employeeNumber}.`);
     }
 
+    const contractDocumentName = String(formData.get("contractDocumentName") ?? "").trim();
+    const contractDocumentData = String(formData.get("contractDocumentData") ?? "").trim();
+    if (!contractDocumentData) {
+      throw new Error("O contrato de trabalho é obrigatório.");
+    }
+    if (contractDocumentData.length > 3_000_000) {
+      throw new Error("Contrato de trabalho demasiado grande (máximo aprox. 2MB).");
+    }
+    const contractMimeMatch = contractDocumentData.match(/^data:([^;]+);base64,/);
+    const contractMimeType = contractMimeMatch?.[1] ?? "application/octet-stream";
+
     const employee = await prisma.employee.create({
       data: {
         employeeNumber: toNullable(data.employeeNumber),
@@ -211,6 +222,17 @@ export async function createEmployee(
         skills: toNullable(data.skills),
         hireDate: data.hireDate ? new Date(data.hireDate) : null,
         status: "ACTIVE",
+      },
+    });
+
+    await prisma.employeeDocument.create({
+      data: {
+        employeeId: employee.id,
+        name: "Contrato de trabalho",
+        type: contractMimeType,
+        fileName: contractDocumentName || "contrato_de_trabalho",
+        fileData: contractDocumentData,
+        uploadedById: user.id,
       },
     });
 

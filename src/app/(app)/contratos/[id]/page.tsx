@@ -64,7 +64,7 @@ export default async function ContractProfileDetailPage({
 
       {canEdit && (
         <Card className="mb-6">
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Renomear</h2>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">Renomear</h2>
           <RenameProfileForm profileId={profile.id} name={profile.name} />
           <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
             O tipo de contrato, as horas semanais, as folgas semanais e os fins de semana/feriados não podem ser

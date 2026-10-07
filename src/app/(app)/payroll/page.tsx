@@ -30,7 +30,6 @@ export default async function PayrollPage({
     prisma.employee.findMany({
       where: { ...scope, status: "ACTIVE" },
       include: {
-        employeeContracts: { where: { status: "ACTIVE" }, take: 1 },
         user: { select: { avatarKey: true, avatarImage: true } },
       },
       orderBy: { firstName: "asc" },
@@ -81,8 +80,8 @@ export default async function PayrollPage({
       <Card className="mb-6">
         <form method="get" className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600">Mês</label>
-            <select name="month" defaultValue={month} className="rounded-md border border-stone-300 px-3 py-1.5 text-sm">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Mês</label>
+            <select name="month" defaultValue={month} className="rounded-md border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
                   {new Date(2000, m - 1, 1).toLocaleDateString("pt-PT", { month: "long" })}
@@ -91,12 +90,12 @@ export default async function PayrollPage({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600">Ano</label>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Ano</label>
             <input
               name="year"
               type="number"
               defaultValue={year}
-              className="w-24 rounded-md border border-stone-300 px-3 py-1.5 text-sm"
+              className="w-24 rounded-md border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700"
             />
           </div>
           <button type="submit" className="rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
@@ -105,7 +104,7 @@ export default async function PayrollPage({
           {canEdit && (
             <a
               href={`/api/payroll/export?year=${year}&month=${month}`}
-              className="ml-auto flex items-center gap-1.5 rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
+              className="ml-auto flex items-center gap-1.5 rounded-md border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:text-stone-300 dark:border-stone-700"
             >
               <FileSpreadsheet size={14} /> Exportar período (Excel)
             </a>
@@ -129,7 +128,7 @@ export default async function PayrollPage({
                 id: e.id,
                 firstName: e.firstName,
                 lastName: e.lastName,
-                baseSalary: e.employeeContracts[0]?.baseSalary ?? null,
+                baseSalary: e.baseSalary ?? null,
                 hasPayslip: !!payslip,
                 netTotal: payslip?.netTotal ?? null,
                 avatarKey: e.user?.avatarKey,

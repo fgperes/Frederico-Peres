@@ -105,19 +105,19 @@ export default async function PicagensPage() {
 
       {user.employeeId && (
         <Card className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
             Relógio de Ponto
           </h2>
           {mealStatus && <ClockWidget status={mealStatus} />}
 
           <div className="mt-6">
-            <h3 className="mb-2 text-xs font-semibold uppercase text-stone-500">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400">
               Registos recentes
             </h3>
             {myEntries.length === 0 ? (
               <EmptyState message="Sem registos ainda." />
             ) : (
-              <ul className="divide-y divide-stone-100 text-sm">
+              <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
                 {myEntries.map((entry) => (
                   <li key={entry.id} className="py-2">
                     <div className="flex items-center justify-between">
@@ -125,7 +125,7 @@ export default async function PicagensPage() {
                         {TYPE_LABELS[entry.type]} —{" "}
                         {formatDateTime(entry.timestamp)}
                         {entry.terminalType && entry.terminalType !== "WEB" && (
-                          <span className="ml-1.5 text-xs text-stone-400">
+                          <span className="ml-1.5 text-xs text-stone-400 dark:text-stone-500">
                             ({TERMINAL_LABELS[entry.terminalType] ?? entry.terminalType})
                           </span>
                         )}
@@ -149,7 +149,7 @@ export default async function PicagensPage() {
                       <JustifyForm entryId={entry.id} />
                     )}
                     {entry.justification && (
-                      <p className="mt-1 text-xs text-stone-500">
+                      <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
                         Justificação: {entry.justification}
                       </p>
                     )}
@@ -164,13 +164,13 @@ export default async function PicagensPage() {
       {canEdit && (
         <>
           <Card className="mb-6">
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
               Desvios por Aprovar
             </h2>
             {deviationQueue.length === 0 ? (
               <EmptyState message="Sem desvios pendentes de aprovação." />
             ) : (
-              <ul className="divide-y divide-stone-100 text-sm">
+              <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
                 {deviationQueue.map((entry) => (
                   <li key={entry.id} className="flex items-center justify-between py-2">
                     <div>
@@ -179,7 +179,7 @@ export default async function PicagensPage() {
                       </span>{" "}
                       — {TYPE_LABELS[entry.type]} ·{" "}
                       <Badge color="amber">{entry.deviationType}</Badge>
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-stone-500 dark:text-stone-400">
                         {formatDateTime(entry.timestamp)} —{" "}
                         {entry.justification ?? "sem justificação"}
                       </p>
@@ -210,7 +210,7 @@ export default async function PicagensPage() {
           </Card>
 
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
               Relatório Semanal de Assiduidade
             </h2>
             {weeklyReport.length === 0 ? (
@@ -218,7 +218,7 @@ export default async function PicagensPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                  <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                     <tr>
                       <th className="py-2">Colaborador</th>
                       <th className="py-2">Horas trabalhadas</th>
@@ -226,7 +226,7 @@ export default async function PicagensPage() {
                       <th className="py-2">Banco de horas</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100">
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                     {weeklyReport.map((r, i) => {
                       const diff = r.worked - r.contracted;
                       return (

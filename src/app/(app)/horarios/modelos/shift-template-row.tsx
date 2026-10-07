@@ -58,16 +58,16 @@ export function ShiftTemplateRow({
         <td colSpan={7} className="px-4 py-3">
           <form action={handleSave} className="flex flex-wrap items-end gap-2">
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-stone-600">Nome</label>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600 dark:text-stone-400">Nome</label>
               <input
                 name="name"
                 required
                 defaultValue={template.name}
-                className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-stone-600">Início</label>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600 dark:text-stone-400">Início</label>
               <TimeField
                 name="startTime"
                 required
@@ -76,7 +76,7 @@ export function ShiftTemplateRow({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-stone-600">Fim</label>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600 dark:text-stone-400">Fim</label>
               <TimeField
                 name="endTime"
                 required
@@ -85,17 +85,17 @@ export function ShiftTemplateRow({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-stone-600">Pausa (min)</label>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600 dark:text-stone-400">Pausa (min)</label>
               <input
                 name="breakMins"
                 type="number"
                 min={0}
                 defaultValue={template.breakMins}
-                className="w-20 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-20 rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-stone-600">Hora de almoço</label>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600 dark:text-stone-400">Hora de almoço</label>
               <TimeField
                 name="breakStart"
                 defaultValue={template.breakStart ?? ""}
@@ -103,12 +103,12 @@ export function ShiftTemplateRow({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-stone-600">Cor</label>
+              <label className="mb-1 block text-[11px] font-medium text-stone-600 dark:text-stone-400">Cor</label>
               <input
                 name="color"
                 type="color"
                 defaultValue={template.color}
-                className="h-9 w-14 rounded-md border border-stone-300"
+                className="h-9 w-14 rounded-md border border-stone-300 dark:border-stone-700"
               />
             </div>
             <button
@@ -121,7 +121,7 @@ export function ShiftTemplateRow({
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded-md border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-white"
+              className="rounded-md border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-white dark:text-stone-400 dark:border-stone-700"
             >
               Cancelar
             </button>
@@ -156,7 +156,7 @@ export function ShiftTemplateRow({
               type="button"
               onClick={() => setEditing(true)}
               title="Editar"
-              className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700"
+              className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700 dark:text-stone-400"
             >
               <Pencil size={14} />
             </button>
@@ -166,12 +166,12 @@ export function ShiftTemplateRow({
                 onClick={handleDelete}
                 disabled={pending}
                 title="Apagar"
-                className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
+                className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60 dark:text-stone-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
               >
                 <Trash2 size={14} />
               </button>
             ) : (
-              <span className="px-1.5 text-[11px] text-stone-400" title="Modelo em uso — não pode ser apagado">
+              <span className="px-1.5 text-[11px] text-stone-400 dark:text-stone-500" title="Modelo em uso — não pode ser apagado">
                 Em uso
               </span>
             )}

@@ -28,7 +28,7 @@ export default async function ImportarColaboradoresPage() {
         action={
           <a
             href="/api/templates/colaboradores"
-            className="rounded-md border border-stone-300 px-3 py-2 text-sm hover:bg-white"
+            className="rounded-md border border-stone-300 px-3 py-2 text-sm hover:bg-white dark:border-stone-700"
           >
             Descarregar template
           </a>
@@ -37,7 +37,7 @@ export default async function ImportarColaboradoresPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
             Novo Ficheiro
           </h2>
           <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20">
@@ -49,8 +49,8 @@ export default async function ImportarColaboradoresPage() {
         </Card>
 
         <Card className="p-0">
-          <div className="border-b border-stone-200 px-6 py-4">
-            <h2 className="text-sm font-semibold text-stone-900">
+          <div className="border-b border-stone-200 px-6 py-4 dark:border-stone-800">
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
               Histórico de Importações
             </h2>
           </div>
@@ -59,12 +59,12 @@ export default async function ImportarColaboradoresPage() {
               <EmptyState message="Sem importações registadas." />
             </div>
           ) : (
-            <ul className="divide-y divide-stone-100 text-sm">
+            <ul className="divide-y divide-stone-100 text-sm dark:divide-stone-800">
               {imports.map((log) => (
                 <li key={log.id} className="flex items-center justify-between px-6 py-3">
                   <div>
-                    <div className="font-medium text-stone-800">{log.fileName}</div>
-                    <div className="text-xs text-stone-500">
+                    <div className="font-medium text-stone-800 dark:text-stone-200">{log.fileName}</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400">
                       {log.totalRows} linhas · {log.errorRows} erros ·{" "}
                       {log.user?.name} · {formatDateTime(log.createdAt)}
                     </div>

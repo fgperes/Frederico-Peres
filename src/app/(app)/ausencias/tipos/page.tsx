@@ -38,7 +38,7 @@ export default async function TiposAusenciaPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                   <tr>
                     <th className="px-4 py-3">Nome</th>
                     <th className="px-4 py-3">Código SS</th>
@@ -50,7 +50,7 @@ export default async function TiposAusenciaPage() {
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                   {types.map((t) => (
                     <tr key={t.id}>
                       <td className="px-4 py-3 font-medium">{t.name}</td>
@@ -104,8 +104,8 @@ export default async function TiposAusenciaPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-stone-900">Tipo de Ausência</h2>
-          <p className="mb-3 text-xs text-stone-500">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Tipo de Ausência</h2>
+          <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
             Crie um novo tipo ou clique no lápis numa linha da tabela para configurar um já existente —
             incluindo se exige documento comprovativo obrigatório.
           </p>
