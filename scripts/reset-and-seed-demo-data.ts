@@ -629,12 +629,27 @@ async function main() {
       employeeId,
       contractProfileId,
       startDate: dateOnly(c.startDate),
-      baseSalary: c.baseSalary,
       trialPeriodEndDate: emptyToNull(c.trialPeriodEndDate) ? dateOnly(c.trialPeriodEndDate as string) : null,
       status: "ACTIVE" as const,
     };
   });
   await createManyChunked("Contratos", contractRows, (batch) => prisma.employeeContract.createMany({ data: batch }));
+
+  // Vencimento base pertence ao colaborador, não ao contrato — atualiza-se
+  // à parte, a partir do mesmo dataset de contratos atribuídos.
+  const baseSalaryRows = dataset.contratos_atribuidos.map((c) => ({
+    employeeId: employeeIdByNumber.get(c.employeeNumber)!,
+    baseSalary: c.baseSalary,
+  }));
+  await createManyChunked(
+    "Vencimentos base",
+    baseSalaryRows,
+    (batch) =>
+      Promise.all(
+        batch.map((r) => prisma.employee.update({ where: { id: r.employeeId }, data: { baseSalary: r.baseSalary } }))
+      ),
+    50
+  );
 
   // Agrupa as linhas (ciclo, weekIndex, dayOfWeek) do JSON por nome de ciclo
   // para reconstruir o padrão de cada um.

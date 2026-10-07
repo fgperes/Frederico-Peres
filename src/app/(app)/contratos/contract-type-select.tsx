@@ -16,7 +16,7 @@ export function ContractTypeSelect({
         required
         defaultValue={contractTypes[0]?.key}
         onChange={(e) => setCreating(e.target.value === "__new__")}
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
       >
         {contractTypes.map((t) => (
           <option key={t.key} value={t.key}>
@@ -30,7 +30,7 @@ export function ContractTypeSelect({
           name="newContractTypeLabel"
           required
           placeholder="ex.: Estágio Profissional"
-          className="mt-2 w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          className="mt-2 w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
         />
       )}
     </div>

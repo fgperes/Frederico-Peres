@@ -74,7 +74,7 @@ export default async function DashboardPage() {
       {(todaysAnniversaries.length > 0 || userIsSystemAdmin) && (
         <Card className="mb-8">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-            <Cake size={16} className="text-stone-500" />
+            <Cake size={16} className="text-stone-500 dark:text-stone-400" />
             Aniversários de hoje
           </h2>
           <AnniversaryWidget
@@ -117,7 +117,7 @@ function AbsencesCard({
   return (
     <Card>
       <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-        <CalendarDays size={16} className="text-stone-500" />
+        <CalendarDays size={16} className="text-stone-500 dark:text-stone-400" />
         Ausências e Férias
       </h2>
       {!hasToday && !hasUpcoming ? (
@@ -193,7 +193,7 @@ async function NewsSection({ roles }: { roles: string[] }) {
   return (
     <Card className="mb-8">
       <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-        <Megaphone size={16} className="text-stone-500" />
+        <Megaphone size={16} className="text-stone-500 dark:text-stone-400" />
         Notícias
       </h2>
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -201,13 +201,13 @@ async function NewsSection({ roles }: { roles: string[] }) {
           <li key={n.id} className="py-3 first:pt-0 last:pb-0">
             <div className="mb-1 flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{n.subject}</p>
-              <span className="shrink-0 text-[11px] text-stone-400">{formatDateTime(n.createdAt)}</span>
+              <span className="shrink-0 text-[11px] text-stone-400 dark:text-stone-500">{formatDateTime(n.createdAt)}</span>
             </div>
             <div
               className="prose prose-sm max-w-none text-sm text-stone-700 dark:text-stone-300"
               dangerouslySetInnerHTML={{ __html: n.bodyHtml }}
             />
-            <p className="mt-1 text-[11px] text-stone-400">por {n.author.name}</p>
+            <p className="mt-1 text-[11px] text-stone-400 dark:text-stone-500">por {n.author.name}</p>
           </li>
         ))}
       </ul>
@@ -460,7 +460,7 @@ function ManagementDashboardBody({
       <div className="mb-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-            <Building2 size={16} className="text-stone-500" />
+            <Building2 size={16} className="text-stone-500 dark:text-stone-400" />
             Colaboradores por departamento
           </h2>
           {data.deptBars.length === 0 ? (
@@ -501,7 +501,7 @@ function ManagementDashboardBody({
       <div className="mb-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-            <Cake size={16} className="text-stone-500" />
+            <Cake size={16} className="text-stone-500 dark:text-stone-400" />
             Aniversários deste mês
           </h2>
           {data.monthlyEntries.length === 0 ? (
@@ -520,7 +520,7 @@ function ManagementDashboardBody({
         {data.canAcessos && (
           <Card>
             <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
-              <Activity size={16} className="text-stone-500" />
+              <Activity size={16} className="text-stone-500 dark:text-stone-400" />
               Atividade recente (auditoria)
             </h2>
             {data.recentAudit.length === 0 ? (

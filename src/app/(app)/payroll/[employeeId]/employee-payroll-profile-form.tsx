@@ -29,12 +29,12 @@ function SubsidyModeFields({
   const [mode, setMode] = useState(defaultMode ?? "");
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-stone-600">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">{label}</label>
       <select
         name={`${prefix}SubsidyMode`}
         value={mode}
         onChange={(e) => setMode(e.target.value)}
-        className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+        className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
       >
         <option value="">Usar definição global</option>
         <option value="DUODECIMOS">Duodécimos mensais</option>
@@ -45,7 +45,7 @@ function SubsidyModeFields({
           name={`${prefix}SubsidyMonths`}
           defaultValue={defaultMonths ?? ""}
           placeholder="ex.: 6 ou 5,11"
-          className="mt-1.5 w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+          className="mt-1.5 w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
         />
       )}
     </div>
@@ -57,24 +57,24 @@ export function EmployeePayrollProfileForm({ employee }: { employee: Employee })
 
   return (
     <form action={updateEmployeePayrollProfile.bind(null, employee.id)} className="space-y-3">
-      <label className="flex items-center gap-2 text-sm text-stone-700">
+      <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
         <input
           type="checkbox"
           name="adseBeneficiary"
           defaultChecked={employee.adseBeneficiary}
-          className="rounded border-stone-300"
+          className="rounded border-stone-300 dark:border-stone-700"
         />
         Beneficiário ADSE
       </label>
 
       <div>
-        <label className="flex items-center gap-2 text-sm text-stone-700">
+        <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
           <input
             type="checkbox"
             name="youngTaxRegime"
             checked={youngTaxRegime}
             onChange={(e) => setYoungTaxRegime(e.target.checked)}
-            className="rounded border-stone-300"
+            className="rounded border-stone-300 dark:border-stone-700"
           />
           Regime do IRS Jovem
         </label>
@@ -86,13 +86,13 @@ export function EmployeePayrollProfileForm({ employee }: { employee: Employee })
             max={2100}
             defaultValue={employee.youngTaxRegimeStartYear ?? new Date().getFullYear()}
             placeholder="Ano de início do regime"
-            className="mt-1.5 w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+            className="mt-1.5 w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
           />
         )}
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Desconto judicial (%, opcional)</label>
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Desconto judicial (%, opcional)</label>
         <input
           name="judicialDeductionPercent"
           type="number"
@@ -101,7 +101,7 @@ export function EmployeePayrollProfileForm({ employee }: { employee: Employee })
           max={100}
           defaultValue={employee.judicialDeductionPercent ?? ""}
           placeholder="Sem desconto judicial"
-          className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+          className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
         />
       </div>
 

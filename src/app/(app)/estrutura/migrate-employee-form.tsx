@@ -26,7 +26,7 @@ export function MigrateEmployeeForm({
 
   return (
     <div className="flex items-center gap-1.5">
-      <ArrowRightLeft size={12} className="shrink-0 text-stone-400" />
+      <ArrowRightLeft size={12} className="shrink-0 text-stone-400 dark:text-stone-500" />
       <select
         defaultValue=""
         disabled={pending}

@@ -55,7 +55,7 @@ export function MessagesPanel({
         <div className="max-h-80 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-              <MessageCircle size={20} className="text-stone-400" />
+              <MessageCircle size={20} className="text-stone-400 dark:text-stone-500" />
               <p className="text-xs text-stone-500 dark:text-stone-400">Sem mensagens recebidas.</p>
             </div>
           ) : (
@@ -73,7 +73,7 @@ export function MessagesPanel({
                     {!m.readAt && <span className="h-1.5 w-1.5 rounded-full bg-violet-600" />}
                   </div>
                   <p className="mt-0.5 line-clamp-2 text-stone-600 dark:text-stone-400">{m.body}</p>
-                  <p className="mt-0.5 text-xs text-stone-400">
+                  <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
                     {formatDateTime(new Date(m.createdAt))}
                   </p>
                 </li>
@@ -112,7 +112,7 @@ export function MessagesPanel({
                 className="w-full resize-none rounded-lg border border-stone-300 px-2.5 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
               />
               {state.error && (
-                <p className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">{state.error}</p>
+                <p className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{state.error}</p>
               )}
               {state.success && (
                 <p className="rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-700">

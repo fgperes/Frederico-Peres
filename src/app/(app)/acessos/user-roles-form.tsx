@@ -44,7 +44,7 @@ export function UserRolesForm({
                 name="roles"
                 value={role.key}
                 defaultChecked={currentRoles.includes(role.key)}
-                className="rounded border-stone-300"
+                className="rounded border-stone-300 dark:border-stone-700"
               />
               {role.label}
             </label>

@@ -42,12 +42,12 @@ export default async function FeriadosPage() {
           ) : (
             years.map((year) => (
               <Card key={year} className="p-0">
-                <div className="border-b border-stone-200 px-6 py-4">
-                  <h3 className="text-sm font-semibold text-stone-900">Feriados {year}</h3>
+                <div className="border-b border-stone-200 px-6 py-4 dark:border-stone-800">
+                  <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Feriados {year}</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] text-left text-sm">
-                    <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                    <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                       <tr>
                         <th className="px-4 py-3">Data</th>
                         <th className="px-4 py-3">Descrição</th>
@@ -55,7 +55,7 @@ export default async function FeriadosPage() {
                         <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-stone-100">
+                    <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                       {byYear.get(year)!.map((h) => (
                         <tr key={h.id}>
                           <td className="px-4 py-3">{h.date.toLocaleDateString("pt-PT")}</td>
@@ -65,7 +65,7 @@ export default async function FeriadosPage() {
                               {h.scope === "NATIONAL" ? "Nacional" : "Regional"}
                             </Badge>
                             {h.scope === "REGIONAL" && h.municipalities.length > 0 && (
-                              <span className="ml-2 text-xs text-stone-500">{h.municipalities.join(", ")}</span>
+                              <span className="ml-2 text-xs text-stone-500 dark:text-stone-400">{h.municipalities.join(", ")}</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -87,12 +87,12 @@ export default async function FeriadosPage() {
 
         <div className="space-y-6">
           <Card>
-            <h2 className="mb-3 text-sm font-semibold text-stone-900">Novo Feriado</h2>
+            <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Novo Feriado</h2>
             <HolidayForm />
           </Card>
           <Card>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-stone-900">Importar por Excel</h2>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Importar por Excel</h2>
               <a
                 href="/api/templates/feriados"
                 className="flex items-center gap-1 text-xs font-medium text-violet-700 hover:underline"
@@ -100,7 +100,7 @@ export default async function FeriadosPage() {
                 <Download size={12} /> Descarregar template
               </a>
             </div>
-            <p className="mb-3 text-xs text-stone-500">
+            <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
               A coluna <code>municipalities</code> aceita vários concelhos separados por vírgula (só para
               feriados REGIONAL) — a folha &quot;Concelhos&quot; do template lista os nomes válidos por distrito.
             </p>

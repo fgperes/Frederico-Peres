@@ -398,6 +398,35 @@ export async function importIrsTableAction(
   return { success: true, imported: brackets.length };
 }
 
+export type UpdateBaseSalaryState = { error?: string; success?: boolean };
+
+// Vencimento base — pertence ao colaborador, não ao contrato: um aumento
+// salarial altera só este valor, sem criar/alterar nenhum EmployeeContract.
+export async function updateEmployeeBaseSalary(
+  employeeId: string,
+  _prev: UpdateBaseSalaryState,
+  formData: FormData
+): Promise<UpdateBaseSalaryState> {
+  try {
+    const user = await assertCanWrite();
+    const baseSalaryRaw = String(formData.get("baseSalary") ?? "").trim();
+    const baseSalary = baseSalaryRaw ? Number(baseSalaryRaw) : null;
+    if (baseSalary !== null && !(baseSalary >= 0)) {
+      throw new Error("Vencimento base inválido.");
+    }
+
+    await prisma.employee.update({ where: { id: employeeId }, data: { baseSalary } });
+
+    await logAudit({ userId: user.id, action: "UPDATE", entity: "EmployeeBaseSalary", entityId: employeeId });
+    revalidatePath(`/payroll/${employeeId}`);
+    revalidatePath(`/colaboradores/${employeeId}`);
+    revalidatePath(`/colaboradores/${employeeId}/payroll`);
+    return { success: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível guardar o vencimento base." };
+  }
+}
+
 export async function updateEmployeePayrollProfile(employeeId: string, formData: FormData) {
   const user = await assertCanWrite();
 

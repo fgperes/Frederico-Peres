@@ -401,7 +401,7 @@ export async function computePayslipBreakdown(
   ]);
 
   const contract = employee.employeeContracts[0];
-  const baseSalary = contract?.baseSalary ?? 0;
+  const baseSalary = employee.baseSalary ?? 0;
   const contractedWeeklyHours = contract?.contractProfile.weeklyHours ?? employee.weeklyHours;
 
   const periodStart = new Date(year, month - 1, 1);

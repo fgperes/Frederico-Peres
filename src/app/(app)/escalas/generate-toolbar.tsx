@@ -97,7 +97,7 @@ export function GenerateToolbar({
             onClick={() => setParamsExpanded((v) => !v)}
             className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
           >
-            <SlidersHorizontal size={14} className="text-stone-400" />
+            <SlidersHorizontal size={14} className="text-stone-400 dark:text-stone-500" />
             {selected.size > 0 ? `${selected.size} colaborador(es)` : "Definir colaboradores"} · {from} a {to}
             <ChevronDown size={13} className={`text-stone-400 transition-transform ${paramsExpanded ? "rotate-180" : ""}`} />
           </button>
@@ -146,9 +146,9 @@ export function GenerateToolbar({
                   onClick={() => setPickerOpen((v) => !v)}
                   className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
                 >
-                  <Users size={14} className="text-stone-400" />
+                  <Users size={14} className="text-stone-400 dark:text-stone-500" />
                   {selected.size > 0 ? `${selected.size} selecionado(s)` : "Selecionar"}
-                  <ChevronDown size={13} className="text-stone-400" />
+                  <ChevronDown size={13} className="text-stone-400 dark:text-stone-500" />
                 </button>
                 {employees.length > 0 && (
                   <button
@@ -172,7 +172,7 @@ export function GenerateToolbar({
               )}
             </div>
 
-            <p className="mb-1.5 self-end text-[11px] text-stone-400">Intervalo mínimo: 1 semana.</p>
+            <p className="mb-1.5 self-end text-[11px] text-stone-400 dark:text-stone-500">Intervalo mínimo: 1 semana.</p>
           </div>
         )}
 

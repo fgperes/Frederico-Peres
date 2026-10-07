@@ -32,7 +32,7 @@ export default async function PreditivoPage() {
         {isAdmin && <SubscriptionToggle enabled={subscription.predictiveEnabled} />}
 
         <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <Lock className="text-stone-400" size={32} />
+          <Lock className="text-stone-400 dark:text-stone-500" size={32} />
           <p className="text-sm font-medium text-stone-600 dark:text-stone-300">
             Módulo não subscrito. Contacte o suporte técnico.
           </p>
@@ -64,10 +64,10 @@ export default async function PreditivoPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card>
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
             Carregar Dados de Procura
           </h2>
-          <p className="mb-3 text-xs text-stone-500">
+          <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
             {demandCount} registos de procura carregados.{" "}
             <a href="/api/templates/procura" className="text-violet-700 hover:underline">
               Descarregar template
@@ -77,13 +77,13 @@ export default async function PreditivoPage() {
 
           {imports.length > 0 && (
             <div className="mt-4 border-t border-stone-100 pt-3">
-              <h3 className="mb-2 text-xs font-semibold text-stone-700">
+              <h3 className="mb-2 text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Importações recentes
               </h3>
               <ul className="space-y-1.5 text-xs">
                 {imports.map((log) => (
                   <li key={log.id} className="flex items-center justify-between">
-                    <span className="text-stone-600">
+                    <span className="text-stone-600 dark:text-stone-400">
                       {log.fileName} ({log.totalRows} linhas)
                     </span>
                     <span className="flex items-center gap-2">
@@ -106,10 +106,10 @@ export default async function PreditivoPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
             Motor Preditivo (modelo estatístico — médias móveis)
           </h2>
-          <p className="mb-3 text-xs text-stone-500">
+          <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
             Gera uma proposta de horário com base na média de procura histórica
             por dia da semana, respeitando disponibilidade, horas contratuais e
             ausências aprovadas. A proposta é criada em modo rascunho para

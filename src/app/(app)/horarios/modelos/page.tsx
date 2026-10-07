@@ -35,7 +35,7 @@ export default async function ModelosTurnoPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[480px] text-left text-sm">
-                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+                <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                   <tr>
                     <th className="px-4 py-3">Nome</th>
                     <th className="px-4 py-3">Início</th>
@@ -46,7 +46,7 @@ export default async function ModelosTurnoPage() {
                     {canEdit && <th className="px-4 py-3 text-right">Ações</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                   {templates.map((t) => (
                     <ShiftTemplateRow
                       key={t.id}
@@ -64,17 +64,17 @@ export default async function ModelosTurnoPage() {
         {canEdit && (
           <div className="space-y-6">
             <Card>
-              <h2 className="mb-3 text-sm font-semibold text-stone-900">
+              <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
                 Novo Modelo de Turno
               </h2>
               <CreateTemplateForm />
             </Card>
 
             <Card>
-              <h2 className="mb-1 text-sm font-semibold text-stone-900">
+              <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
                 Importar por Excel
               </h2>
-              <p className="mb-3 text-xs text-stone-500">
+              <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
                 <a href="/api/templates/modelos-turno" className="text-violet-600 hover:underline">
                   Descarregar template
                 </a>{" "}

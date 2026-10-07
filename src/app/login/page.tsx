@@ -134,7 +134,7 @@ function LoginForm() {
               <div className="relative">
                 <Building2
                   size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400"
                 />
                 <input
                   type="text"
@@ -156,7 +156,7 @@ function LoginForm() {
               <div className="relative">
                 <Mail
                   size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400"
                 />
                 <input
                   type="email"
@@ -176,7 +176,7 @@ function LoginForm() {
               <div className="relative">
                 <Lock
                   size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400"
                 />
                 <input
                   type="password"
@@ -190,7 +190,7 @@ function LoginForm() {
             </div>
 
             {error && (
-              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-600/20">
+              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:bg-rose-500/10 dark:text-rose-400 dark:ring-rose-500/20">
                 {error}
               </p>
             )}

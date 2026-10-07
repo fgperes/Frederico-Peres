@@ -20,16 +20,16 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-stone-600">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">{label}</label>
       <input
         name={name}
         type="number"
         step={step}
         defaultValue={defaultValue}
         required
-        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+        className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
       />
-      {hint && <p className="mt-0.5 text-xs text-stone-400">{hint}</p>}
+      {hint && <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">{hint}</p>}
     </div>
   );
 }
@@ -69,16 +69,16 @@ export function PayrollSettingsForm({ settings }: { settings: PayrollSettings })
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Subsídio de alimentação (€/dia)" name="mealAllowanceDaily" defaultValue={settings.mealAllowanceDaily} />
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Forma de pagamento</label>
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Forma de pagamento</label>
           <select
             name="mealAllowancePaymentMethod"
             defaultValue={settings.mealAllowancePaymentMethod}
-            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
           >
             <option value="CARD">Cartão de refeição</option>
             <option value="CASH">Transferência/numerário</option>
           </select>
-          <p className="mt-0.5 text-xs text-stone-400">
+          <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
             Define o limite diário de isenção fiscal a aplicar (diferente por lei entre as duas formas).
           </p>
         </div>
@@ -114,22 +114,22 @@ export function PayrollSettingsForm({ settings }: { settings: PayrollSettings })
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de férias</label>
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Subsídio de férias</label>
           <select
             name="vacationSubsidyMode"
             defaultValue={settings.vacationSubsidyMode}
-            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
           >
             <option value="LUMP_SUM_JUNE">Pagamento único em junho</option>
             <option value="MONTHLY_DUODECIMOS">Duodécimos mensais</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Subsídio de Natal</label>
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Subsídio de Natal</label>
           <select
             name="christmasSubsidyMode"
             defaultValue={settings.christmasSubsidyMode}
-            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
           >
             <option value="LUMP_SUM_DECEMBER">Pagamento único em dezembro</option>
             <option value="MONTHLY_DUODECIMOS">Duodécimos mensais</option>

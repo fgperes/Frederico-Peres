@@ -27,7 +27,7 @@ export function HourlyBarChart({
       </div>
 
       {hours.length === 0 ? (
-        <p className="py-8 text-center text-sm text-stone-400">Sem turnos nem picagens neste dia.</p>
+        <p className="py-8 text-center text-sm text-stone-400 dark:text-stone-500">Sem turnos nem picagens neste dia.</p>
       ) : (
         <div className="overflow-x-auto">
           <div className="flex w-full items-end justify-center gap-2 border-b border-stone-200 pb-1 dark:border-stone-800" style={{ minWidth: hours.length * 44 }}>

@@ -62,17 +62,17 @@ export function ImportPayrollComponentsForm() {
   return (
     <div className="space-y-3">
       <form action={formAction} className="space-y-3">
-        {state.error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{state.error}</p>}
+        {state.error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{state.error}</p>}
         <div>
-          <label className="mb-1 block text-xs font-medium text-stone-600">Ficheiro Excel (.xlsx)</label>
+          <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Ficheiro Excel (.xlsx)</label>
           <input
             name="file"
             type="file"
             accept=".xlsx,.xls"
             required
-            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
           />
-          <p className="mt-1 text-xs text-stone-400">
+          <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">
             Colunas: Nº Colaborador (ou Email), Rubrica, Tipo (Vencimento/Desconto), Categoria (Sujeito a IRS e SS /
             Sujeito só a IRS / Isento), Valor, Recorrente (Sim/Não), Ano e Mês (só se não recorrente).{" "}
             <a href="/api/templates/payroll-rubricas" className="text-violet-700 hover:underline">
@@ -88,14 +88,14 @@ export function ImportPayrollComponentsForm() {
           {pending ? "A importar..." : "Importar rubricas"}
         </button>
         {state.created !== undefined && !state.duplicates && (
-          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-500/10 dark:text-green-400">
             {state.created} rubrica(s) criada(s).
           </p>
         )}
       </form>
 
       {resolvedCount !== null && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-500/10 dark:text-green-400">
           {resolvedCount} rubrica(s) substituída(s). As restantes mantiveram o valor atual.
         </p>
       )}
@@ -107,18 +107,18 @@ export function ImportPayrollComponentsForm() {
         widthClassName="max-w-2xl"
       >
         <div className="space-y-4">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-stone-600 dark:text-stone-400">
             {state.created ? `${state.created} rubrica(s) nova(s) já foram criadas. ` : ""}
             Estas {duplicates?.length} já existem para o mesmo colaborador, rubrica e período — escolha quais
             substituir pelo valor novo.
           </p>
 
-          <label className="flex items-center gap-2 border-b border-stone-200 pb-3 text-sm font-medium text-stone-700">
+          <label className="flex items-center gap-2 border-b border-stone-200 pb-3 text-sm font-medium text-stone-700 dark:text-stone-300 dark:border-stone-800">
             <input
               type="checkbox"
               checked={applyToAll}
               onChange={(e) => toggleAll(e.target.checked)}
-              className="rounded border-stone-300"
+              className="rounded border-stone-300 dark:border-stone-700"
             />
             Aplicar a todos (substituir)
           </label>
@@ -127,19 +127,19 @@ export function ImportPayrollComponentsForm() {
             {duplicates?.map((d) => (
               <label
                 key={d.key}
-                className="flex items-start gap-3 rounded-md border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50"
+                className="flex items-start gap-3 rounded-md border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 dark:border-stone-800"
               >
                 <input
                   type="checkbox"
                   checked={!!decisions[d.key]}
                   onChange={(e) => toggleOne(d.key, e.target.checked)}
-                  className="mt-0.5 rounded border-stone-300"
+                  className="mt-0.5 rounded border-stone-300 dark:border-stone-700"
                 />
                 <div>
-                  <p className="font-medium text-stone-900">
+                  <p className="font-medium text-stone-900 dark:text-stone-100">
                     {d.employeeName} — {d.name}
                   </p>
-                  <p className="text-xs text-stone-500">
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
                     {PAYROLL_COMPONENT_CATEGORY_LABELS[d.category]} ·{" "}
                     {d.recurring ? "recorrente" : `${d.applyMonth}/${d.applyYear}`} · atual: {d.existingAmount.toFixed(2)} € →
                     novo: {d.newAmount.toFixed(2)} €
@@ -149,11 +149,11 @@ export function ImportPayrollComponentsForm() {
             ))}
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-stone-200 pt-3">
+          <div className="flex justify-end gap-2 border-t border-stone-200 pt-3 dark:border-stone-800">
             <button
               type="button"
               onClick={() => setDuplicates(null)}
-              className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-50"
+              className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-50 dark:text-stone-400 dark:border-stone-700"
             >
               Ignorar duplicados
             </button>

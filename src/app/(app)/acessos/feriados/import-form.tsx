@@ -11,13 +11,13 @@ export function HolidayImportForm() {
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600">Ficheiro Excel (.xlsx)</label>
+        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Ficheiro Excel (.xlsx)</label>
         <input
           name="file"
           type="file"
           accept=".xlsx,.xls"
           required
-          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700"
         />
       </div>
       <button
@@ -29,12 +29,12 @@ export function HolidayImportForm() {
       </button>
 
       {state.error && (
-        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{state.error}</p>
+        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{state.error}</p>
       )}
 
       {state.result && (
-        <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm">
-          <p className="font-medium text-stone-800">
+        <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm dark:border-stone-800">
+          <p className="font-medium text-stone-800 dark:text-stone-200">
             {state.result.created} de {state.result.total} feriados importados.
           </p>
           {state.result.errorReport.length > 0 && (

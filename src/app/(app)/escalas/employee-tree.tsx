@@ -69,7 +69,7 @@ export function EmployeeTree({
   return (
     <div>
       <div className="relative mb-2">
-        <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-stone-400" />
+        <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -79,9 +79,9 @@ export function EmployeeTree({
       </div>
       <div className="max-h-64 overflow-y-auto rounded-md border border-stone-200 p-1.5 dark:border-stone-700">
         <label className="flex items-center gap-1.5 border-b border-stone-100 px-1 pb-1 text-xs font-medium text-stone-800 dark:border-stone-800 dark:text-stone-200">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5 rounded border-stone-300" />
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5 rounded border-stone-300 dark:border-stone-700" />
           Todos
-          <span className="ml-auto font-normal text-stone-400">{selected.size} selecionado(s)</span>
+          <span className="ml-auto font-normal text-stone-400 dark:text-stone-500">{selected.size} selecionado(s)</span>
         </label>
 
         {[...groups.entries()].map(([deptKey, deptEmployees]) => {
@@ -94,7 +94,7 @@ export function EmployeeTree({
                   type="checkbox"
                   checked={deptAllSelected}
                   onChange={() => toggleDept(deptEmployees)}
-                  className="h-3 w-3 rounded border-stone-300"
+                  className="h-3 w-3 rounded border-stone-300 dark:border-stone-700"
                 />
                 {dept?.name ?? "Sem departamento"}
               </label>
@@ -105,7 +105,7 @@ export function EmployeeTree({
                       type="checkbox"
                       checked={selected.has(e.id)}
                       onChange={() => toggleOne(e.id)}
-                      className="h-3.5 w-3.5 rounded border-stone-300"
+                      className="h-3.5 w-3.5 rounded border-stone-300 dark:border-stone-700"
                     />
                     {e.name}
                   </label>
@@ -116,7 +116,7 @@ export function EmployeeTree({
         })}
 
         {filteredEmployees.length === 0 && (
-          <p className="py-3 text-center text-xs text-stone-400">Sem colaboradores para &quot;{search}&quot;.</p>
+          <p className="py-3 text-center text-xs text-stone-400 dark:text-stone-500">Sem colaboradores para &quot;{search}&quot;.</p>
         )}
       </div>
     </div>

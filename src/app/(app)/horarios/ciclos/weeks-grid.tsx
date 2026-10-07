@@ -122,7 +122,7 @@ export function WeeksGrid({
       <div className={pending || savePending ? "pointer-events-none opacity-60 transition-opacity" : ""}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[700px] text-left text-sm">
-          <thead className="text-xs uppercase text-stone-500">
+          <thead className="text-xs uppercase text-stone-500 dark:text-stone-400">
             <tr>
               {canEdit && <th className="w-6 px-1 py-2"></th>}
               <th className="px-2 py-2">Semana</th>
@@ -134,7 +134,7 @@ export function WeeksGrid({
               {canEdit && <th className="px-2 py-2 text-right">Ações</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {weekIndices.map((weekIndex, position) => (
               <tr
                 key={weekIndex}
@@ -162,7 +162,7 @@ export function WeeksGrid({
                     <GripVertical size={15} />
                   </td>
                 )}
-                <td className="px-2 py-2 font-medium text-stone-700">
+                <td className="px-2 py-2 font-medium text-stone-700 dark:text-stone-300">
                   Semana {position + 1}
                 </td>
                 {Array.from({ length: 7 }, (_, dayOfWeek) => (
@@ -175,7 +175,7 @@ export function WeeksGrid({
                         templates={templates}
                       />
                     ) : (
-                      <span className="text-xs text-stone-500">
+                      <span className="text-xs text-stone-500 dark:text-stone-400">
                         {templates.find((t) => t.id === cells.get(cellKey(weekIndex, dayOfWeek)))?.name ?? "Folga"}
                       </span>
                     )}
@@ -189,7 +189,7 @@ export function WeeksGrid({
                         title={structuralDisabled ? "Grave as alterações do padrão primeiro" : "Duplicar semana"}
                         disabled={structuralDisabled}
                         onClick={() => run(() => duplicateWeek(cycleId, weekIndex))}
-                        className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                        className="rounded-md p-1.5 text-stone-500 hover:bg-stone-100 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:text-stone-400"
                       >
                         <Copy size={14} />
                       </button>
@@ -203,7 +203,7 @@ export function WeeksGrid({
                               run(() => removeWeek(cycleId, weekIndex));
                             }
                           }}
-                          className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                          className="rounded-md p-1.5 text-stone-500 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:text-stone-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -224,7 +224,7 @@ export function WeeksGrid({
             disabled={structuralDisabled}
             onClick={() => run(() => addWeek(cycleId))}
             title={structuralDisabled ? "Grave as alterações do padrão primeiro" : undefined}
-            className="flex items-center gap-1.5 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-sm font-medium text-stone-600 hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-300 disabled:hover:text-stone-600"
+            className="flex items-center gap-1.5 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-sm font-medium text-stone-600 hover:border-violet-400 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-300 disabled:hover:text-stone-600 dark:text-stone-400 dark:border-stone-700"
           >
             <Plus size={15} />
             Adicionar semana
@@ -236,7 +236,7 @@ export function WeeksGrid({
                 type="button"
                 disabled={savePending}
                 onClick={handleDiscard}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-stone-500 hover:text-stone-700 disabled:opacity-50"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-stone-500 hover:text-stone-700 disabled:opacity-50 dark:text-stone-400 dark:text-stone-300"
               >
                 Descartar
               </button>

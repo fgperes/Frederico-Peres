@@ -70,13 +70,13 @@ export default async function ContratosPage({
       />
 
       {expiring.length > 0 && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
+        <Card className="mb-6 border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-amber-800">
               Contratos a expirar nos próximos {horizonDays} dias (CT-04/CT-06)
             </h2>
             <form method="get" className="flex items-center gap-2">
-              <select name="horizon" defaultValue={horizonDays} className="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs">
+              <select name="horizon" defaultValue={horizonDays} className="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs dark:border-amber-700 dark:bg-stone-800 dark:text-stone-100">
                 {[15, 30, 60, 90].map((h) => (
                   <option key={h} value={h}>{h} dias</option>
                 ))}

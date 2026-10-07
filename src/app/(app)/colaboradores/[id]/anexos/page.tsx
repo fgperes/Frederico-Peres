@@ -5,6 +5,7 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { ColaboradorTabs } from "../tabs";
 import { UploadDocumentForm } from "./upload-document-form";
+import { UploadContractAddendumForm } from "./upload-contract-addendum-form";
 import { deleteEmployeeDocument } from "./actions";
 import { notFound } from "next/navigation";
 import { User, FileText, Trash2, Download } from "lucide-react";
@@ -45,6 +46,9 @@ export default async function ColaboradorAnexosPage({
             Adicionar anexo
           </h2>
           <UploadDocumentForm employeeId={employee.id} />
+          <div className="mt-4 border-t border-stone-100 pt-4 dark:border-stone-800">
+            <UploadContractAddendumForm employeeId={employee.id} />
+          </div>
         </Card>
       )}
 

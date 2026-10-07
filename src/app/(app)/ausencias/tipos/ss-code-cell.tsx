@@ -47,7 +47,7 @@ export function SsCodeCell({ absenceTypeId, code }: { absenceTypeId: string; cod
       onClick={() => setEditing(true)}
       className="group flex items-center gap-1 text-stone-700 hover:text-violet-700 dark:text-stone-300 dark:hover:text-violet-400"
     >
-      {code ?? <span className="italic text-stone-400">definir</span>}
+      {code ?? <span className="italic text-stone-400 dark:text-stone-500">definir</span>}
       <Pencil size={11} className="opacity-0 group-hover:opacity-100" />
     </button>
   );

@@ -18,7 +18,7 @@ export function PatternCell({
       value={value ?? ""}
       disabled={disabled}
       onChange={(e) => onChange(e.currentTarget.value || null)}
-      className="w-full rounded border border-stone-200 px-1 py-1 text-xs disabled:opacity-60"
+      className="w-full rounded border border-stone-200 px-1 py-1 text-xs disabled:opacity-60 dark:border-stone-800"
     >
       <option value="">Folga</option>
       {templates.map((t) => (

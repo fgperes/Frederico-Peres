@@ -40,7 +40,7 @@ export function UseTemplateForm({
           }
         });
       }}
-      className="mt-2 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3"
+      className="mt-2 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3 dark:border-stone-800"
     >
       <input type="hidden" name="templateId" value={templateId} />
       <input
@@ -48,7 +48,7 @@ export function UseTemplateForm({
         required
         defaultValue={templateName}
         placeholder="Nome do novo ciclo"
-        className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+        className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
       />
       <DateField
         name="startDate"
@@ -66,13 +66,13 @@ export function UseTemplateForm({
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-md border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-white"
+          className="rounded-md border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-white dark:text-stone-400 dark:border-stone-700"
         >
           Cancelar
         </button>
       </div>
       {error && (
-        <p className="rounded-md bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{error}</p>
+        <p className="rounded-md bg-rose-50 px-2 py-1.5 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>
       )}
     </form>
   );

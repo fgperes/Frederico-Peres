@@ -34,7 +34,7 @@ export function ToggleNewsButton({
           checked={canPublishNews}
           disabled={pending}
           onChange={handleChange}
-          className="h-4 w-4 rounded border-stone-300 disabled:opacity-60"
+          className="h-4 w-4 rounded border-stone-300 disabled:opacity-60 dark:border-stone-700"
         />
         Pode publicar notícias
       </label>

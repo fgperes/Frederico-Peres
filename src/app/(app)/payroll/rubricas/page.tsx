@@ -36,16 +36,16 @@ export default async function PayrollRubricasPage() {
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">Importar por Excel</h2>
-          <p className="mb-4 text-xs text-stone-500">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">Importar por Excel</h2>
+          <p className="mb-4 text-xs text-stone-500 dark:text-stone-400">
             Para várias rubricas de uma vez, para vários colaboradores.
           </p>
           <ImportPayrollComponentsForm />
         </Card>
 
         <Card>
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">Adicionar uma rubrica</h2>
-          <p className="mb-4 text-xs text-stone-500">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">Adicionar uma rubrica</h2>
+          <p className="mb-4 text-xs text-stone-500 dark:text-stone-400">
             Para uma rubrica de um só colaborador, sem precisar de Excel.
           </p>
           <AddPayrollComponentDirectForm
@@ -57,7 +57,7 @@ export default async function PayrollRubricasPage() {
       </div>
 
       <Card className="p-0">
-        <h2 className="px-4 pt-4 text-sm font-semibold text-stone-900">Últimas rubricas carregadas</h2>
+        <h2 className="px-4 pt-4 text-sm font-semibold text-stone-900 dark:text-stone-100">Últimas rubricas carregadas</h2>
         {components.length === 0 ? (
           <div className="p-6">
             <EmptyState message="Sem rubricas carregadas ainda." />
@@ -65,7 +65,7 @@ export default async function PayrollRubricasPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="mt-3 w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+              <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
                 <tr>
                   <th className="px-4 py-3">Colaborador</th>
                   <th className="px-4 py-3">Rubrica</th>
@@ -75,7 +75,7 @@ export default async function PayrollRubricasPage() {
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                 {components.map((c) => (
                   <tr key={c.id}>
                     <td className="px-4 py-3">{c.employee.firstName} {c.employee.lastName}</td>

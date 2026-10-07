@@ -105,7 +105,7 @@ export function AnswerForm({
                           onChange={() => setValues((v) => ({ ...v, [q.id]: { selectedOptionId: o.id } }))}
                           className="h-4 w-4 border-stone-300 text-violet-600 focus:ring-violet-500 dark:border-stone-600"
                         />
-                        {o.label} <span className="text-xs text-stone-400">({o.points} pts)</span>
+                        {o.label} <span className="text-xs text-stone-400 dark:text-stone-500">({o.points} pts)</span>
                       </label>
                     ))}
                   </div>

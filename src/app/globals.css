@@ -6,11 +6,13 @@
 :root {
   --background: #faf9f7;
   --foreground: #1c1917;
+  color-scheme: light;
 }
 
 .dark {
   --background: #0c0a09;
   --foreground: #f5f5f4;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -62,6 +64,44 @@ body {
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
+  }
+
+  /* Fundo/texto por omissão para qualquer <input>/<select>/<textarea> "em
+     bruto" que não defina as suas próprias classes de cor (a maioria dos
+     formulários da app) — um utilitário Tailwind (ex.: bg-white, text-stone-900)
+     tem sempre mais especificidade do que estes seletores de elemento, por
+     isso nunca substitui uma cor já escolhida explicitamente, só preenche o
+     que faltava. Sem isto, no tema escuro um campo sem dark:bg-* mantém o
+     fundo branco por omissão do browser enquanto o texto/opções herdam
+     cores claras de um antepassado — exatamente o "texto branco em caixa
+     branca" reportado nos dropdowns. Os tipos nativos (checkbox, radio,
+     file, submit/button) ficam de fora — têm o seu próprio estilo. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="image"]),
+  select,
+  textarea {
+    background-color: #ffffff;
+    color: #1c1917;
+    border-color: #d6d3d1;
+  }
+
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="image"]),
+  .dark select,
+  .dark textarea {
+    background-color: #1c1917;
+    color: #f5f5f4;
+    border-color: #44403c;
+  }
+
+  /* As opções de um <select> são desenhadas pelo sistema operativo, não
+     pelo motor de renderização da página — sem isto seguem sempre as cores
+     por omissão do SO (normalmente claras), nunca as da app. */
+  select option {
+    background-color: #ffffff;
+    color: #1c1917;
+  }
+  .dark select option {
+    background-color: #1c1917;
+    color: #f5f5f4;
   }
 
   input:focus-visible,

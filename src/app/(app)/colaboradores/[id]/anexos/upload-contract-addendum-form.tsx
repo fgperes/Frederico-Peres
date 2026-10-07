@@ -1,14 +1,17 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Paperclip } from "lucide-react";
+import { FileSignature } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/client-files";
 import { uploadEmployeeDocument } from "./actions";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2MB
+const LABEL = "Adenda contratual";
 
-export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
-  const [label, setLabel] = useState("");
+// Carregar uma nova versão do contrato de trabalho (ex.: aumento salarial,
+// mudança de funções) não substitui o "Contrato de trabalho" original —
+// entra em Anexos como uma entrada nova, sempre com esta etiqueta fixa.
+export function UploadContractAddendumForm({ employeeId }: { employeeId: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -18,10 +21,6 @@ export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
     e.preventDefault();
     setError(null);
 
-    if (!label.trim()) {
-      setError("Indique uma etiqueta para o anexo.");
-      return;
-    }
     if (!file) {
       setError("Escolha um ficheiro.");
       return;
@@ -33,7 +32,7 @@ export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
 
     const dataUrl = await readFileAsDataUrl(file);
     const formData = new FormData();
-    formData.set("label", label.trim());
+    formData.set("label", LABEL);
     formData.set("fileName", file.name);
     formData.set("fileData", dataUrl);
 
@@ -44,11 +43,10 @@ export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
             setError(result.error);
             return;
           }
-          setLabel("");
           setFile(null);
           if (fileInputRef.current) fileInputRef.current.value = "";
         })
-        .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar o anexo."));
+        .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar a adenda."));
     });
   }
 
@@ -56,19 +54,7 @@ export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-          Etiqueta
-        </label>
-        <input
-          type="text"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Ex.: Cartão de Cidadão atualizado"
-          className="w-64 rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-          Ficheiro
+          Nova versão do contrato (adenda)
         </label>
         <input
           ref={fileInputRef}
@@ -80,10 +66,10 @@ export function UploadDocumentForm({ employeeId }: { employeeId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="flex items-center gap-1.5 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
+        className="flex items-center gap-1.5 rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
       >
-        <Paperclip size={14} />
-        {pending ? "A carregar..." : "Adicionar anexo"}
+        <FileSignature size={14} />
+        {pending ? "A carregar..." : `Carregar como "${LABEL}"`}
       </button>
       {error && <p className="w-full text-sm text-rose-600 dark:text-rose-400">{error}</p>}
     </form>

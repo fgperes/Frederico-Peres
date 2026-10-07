@@ -16,7 +16,7 @@ export function TasksPanel({ tasks }: { tasks: TaskItem[] }) {
       </div>
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-          <ListTodo size={20} className="text-stone-400" />
+          <ListTodo size={20} className="text-stone-400 dark:text-stone-500" />
           <p className="text-xs text-stone-500 dark:text-stone-400">Sem tarefas pendentes.</p>
         </div>
       ) : (
@@ -31,7 +31,7 @@ export function TasksPanel({ tasks }: { tasks: TaskItem[] }) {
                 {task.description && (
                   <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{task.description}</p>
                 )}
-                <p className="mt-0.5 text-[11px] text-stone-400">
+                <p className="mt-0.5 text-[11px] text-stone-400 dark:text-stone-500">
                   {formatDateTime(task.createdAt)}
                 </p>
               </div>

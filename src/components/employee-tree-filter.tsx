@@ -214,7 +214,7 @@ export function EmployeeTreeFilter({
             className="z-50 flex flex-col overflow-hidden rounded-md border border-stone-300 bg-white text-sm shadow-lg dark:border-stone-700 dark:bg-stone-800"
           >
           <div className="relative shrink-0 border-b border-stone-100 p-2 dark:border-stone-700">
-            <Search size={13} className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-stone-400" />
+            <Search size={13} className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
             <input
               type="text"
               value={query}
@@ -226,7 +226,7 @@ export function EmployeeTreeFilter({
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {visibleEmployees.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-stone-500">Sem colaboradores para &quot;{query}&quot;.</p>
+              <p className="px-2 py-3 text-xs text-stone-500 dark:text-stone-400">Sem colaboradores para &quot;{query}&quot;.</p>
             ) : (
               <>
                 {departments
@@ -276,7 +276,7 @@ export function EmployeeTreeFilter({
                                           type="checkbox"
                                           checked={selected.has(e.id)}
                                           onChange={() => toggleOne(e.id)}
-                                          className="h-3.5 w-3.5 rounded border-stone-300 text-violet-600 focus:ring-violet-500"
+                                          className="h-3.5 w-3.5 rounded border-stone-300 text-violet-600 focus:ring-violet-500 dark:border-stone-700"
                                         />
                                         {e.name}
                                       </label>
@@ -295,7 +295,7 @@ export function EmployeeTreeFilter({
                                 type="checkbox"
                                 checked={selected.has(e.id)}
                                 onChange={() => toggleOne(e.id)}
-                                className="h-3.5 w-3.5 rounded border-stone-300 text-violet-600 focus:ring-violet-500"
+                                className="h-3.5 w-3.5 rounded border-stone-300 text-violet-600 focus:ring-violet-500 dark:border-stone-700"
                               />
                               {e.name}
                             </label>
@@ -318,7 +318,7 @@ export function EmployeeTreeFilter({
                             type="checkbox"
                             checked={selected.has(e.id)}
                             onChange={() => toggleOne(e.id)}
-                            className="h-3.5 w-3.5 rounded border-stone-300 text-violet-600 focus:ring-violet-500"
+                            className="h-3.5 w-3.5 rounded border-stone-300 text-violet-600 focus:ring-violet-500 dark:border-stone-700"
                           />
                           {e.name}
                         </label>

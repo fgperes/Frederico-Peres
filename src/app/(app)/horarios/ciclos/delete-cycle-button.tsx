@@ -44,7 +44,7 @@ export function DeleteCycleButton({
         onClick={handleDelete}
         disabled={pending}
         title="Apagar ciclo"
-        className="rounded-md p-2 text-stone-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
+        className="rounded-md p-2 text-stone-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60 dark:text-stone-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
       >
         <Trash2 size={16} />
       </button>

@@ -6,8 +6,8 @@ import { PageHeader, Card } from "@/components/ui";
 import { ColaboradorTabs } from "../tabs";
 import { notFound, redirect } from "next/navigation";
 import { User } from "lucide-react";
-import Link from "next/link";
 import { EmployeePayrollProfileForm } from "@/app/(app)/payroll/[employeeId]/employee-payroll-profile-form";
+import { BaseSalaryForm } from "@/app/(app)/payroll/[employeeId]/base-salary-form";
 
 function subsidyModeLabel(mode: string | null, months: string | null): string {
   if (mode === "DUODECIMOS") return "Duodécimos mensais";
@@ -27,14 +27,10 @@ export default async function ColaboradorPayrollPage({
 
   const employee = await prisma.employee.findFirst({
     where: { AND: [{ id }, scope] },
-    include: {
-      employeeContracts: { where: { status: "ACTIVE" }, take: 1, include: { contractProfile: true } },
-    },
   });
   if (!employee) notFound();
 
   const canEdit = canWrite(user.roles, "payroll");
-  const contract = employee.employeeContracts[0];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -50,15 +46,15 @@ export default async function ColaboradorPayrollPage({
         <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
           Vencimento Base
         </h2>
-        <p className="text-sm text-stone-900 dark:text-stone-100">
-          {contract?.baseSalary ? `${contract.baseSalary.toFixed(2)} €` : "—"}
-        </p>
-        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Definido por contrato — ver/alterar em{" "}
-          <Link href={`/colaboradores/${employee.id}/contratos`} className="text-violet-700 hover:underline dark:text-violet-400">
-            Contratos
-          </Link>
-          .
+        {canEdit ? (
+          <BaseSalaryForm employeeId={employee.id} baseSalary={employee.baseSalary} />
+        ) : (
+          <p className="text-sm text-stone-900 dark:text-stone-100">
+            {employee.baseSalary ? `${employee.baseSalary.toFixed(2)} €` : "—"}
+          </p>
+        )}
+        <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+          Pertence ao colaborador — um aumento salarial altera só este valor, sem precisar de um novo contrato.
         </p>
       </Card>
 

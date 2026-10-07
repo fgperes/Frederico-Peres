@@ -355,7 +355,7 @@ export function TemplateForm({
               >
                 <div className="mb-3 flex items-center gap-2">
                   {!isUsed && (
-                    <span className="cursor-grab text-stone-400 active:cursor-grabbing">
+                    <span className="cursor-grab text-stone-400 active:cursor-grabbing dark:text-stone-500">
                       <GripVertical size={16} />
                     </span>
                   )}
@@ -410,7 +410,7 @@ export function TemplateForm({
                     >
                       <div className="mb-3 flex items-start gap-2">
                         {!isUsed && (
-                          <span className="mt-2 cursor-grab text-stone-400 active:cursor-grabbing">
+                          <span className="mt-2 cursor-grab text-stone-400 active:cursor-grabbing dark:text-stone-500">
                             <GripVertical size={15} />
                           </span>
                         )}

@@ -56,7 +56,7 @@ export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }
             // eslint-disable-next-line @next/next/no-img-element -- data URI, não é um asset otimizável pelo next/image
             <img src={logo} alt="Logótipo da empresa cliente" className="max-h-14 max-w-[7.5rem] object-contain" />
           ) : (
-            <span className="text-[11px] text-stone-400">Sem logótipo</span>
+            <span className="text-[11px] text-stone-400 dark:text-stone-500">Sem logótipo</span>
           )}
         </div>
         <div className="flex flex-col gap-2">

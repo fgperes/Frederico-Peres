@@ -44,12 +44,12 @@ export function LocationButton({
             className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3 dark:border-stone-800">
               <div>
-                <p className="text-sm font-semibold text-stone-900">
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                   Local da picagem
                 </p>
-                <p className="text-xs text-stone-500">
+                <p className="text-xs text-stone-500 dark:text-stone-400">
                   {latitude.toFixed(5)}, {longitude.toFixed(5)}
                   {accuracy ? ` · precisão ±${Math.round(accuracy)}m` : ""}
                 </p>
@@ -57,7 +57,7 @@ export function LocationButton({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100"
+                className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100 dark:text-stone-400"
               >
                 <X size={16} />
               </button>
@@ -67,7 +67,7 @@ export function LocationButton({
               src={embedUrl}
               className="h-80 w-full border-0"
             />
-            <div className="border-t border-stone-200 px-4 py-2.5 text-right">
+            <div className="border-t border-stone-200 px-4 py-2.5 text-right dark:border-stone-800">
               <a
                 href={externalUrl}
                 target="_blank"

@@ -81,7 +81,7 @@ export function CreateUserForm({ roles }: { roles: { key: Role; label: string }[
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {roles.map((role) => (
                 <label key={role.key} className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                  <input type="checkbox" name="roles" value={role.key} className="rounded border-stone-300" />
+                  <input type="checkbox" name="roles" value={role.key} className="rounded border-stone-300 dark:border-stone-700" />
                   {role.label}
                 </label>
               ))}

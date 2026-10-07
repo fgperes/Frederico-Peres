@@ -15,7 +15,10 @@ import { FISCAL_REGIONS, FISCAL_REGION_LABELS } from "@/lib/payroll";
 import { SearchableSelect } from "@/components/searchable-select";
 import { SaveBanner } from "@/components/save-banner";
 import { DateField } from "@/components/date-field";
+import { readFileAsDataUrl } from "@/lib/client-files";
 import type { EmployeeFormState } from "./actions";
+
+const MAX_CONTRACT_FILE_BYTES = 2 * 1024 * 1024; // 2MB
 
 export function EmployeeForm({
   action,
@@ -40,6 +43,33 @@ export function EmployeeForm({
   const [createUser, setCreateUser] = useState(false);
   const showCreateUserOption = canCreateUser && !employee?.userId;
   const [state, formAction, pending] = useActionState(action, {});
+
+  const [contractDocumentName, setContractDocumentName] = useState("");
+  const [contractDocumentData, setContractDocumentData] = useState("");
+  const [contractFileError, setContractFileError] = useState<string | null>(null);
+  const [readingContractFile, setReadingContractFile] = useState(false);
+
+  async function handleContractFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    setContractFileError(null);
+    if (!file) {
+      setContractDocumentName("");
+      setContractDocumentData("");
+      return;
+    }
+    if (file.size > MAX_CONTRACT_FILE_BYTES) {
+      setContractFileError("Contrato de trabalho demasiado grande (máximo 2MB).");
+      e.target.value = "";
+      setContractDocumentName("");
+      setContractDocumentData("");
+      return;
+    }
+    setReadingContractFile(true);
+    const dataUrl = await readFileAsDataUrl(file);
+    setContractDocumentName(file.name);
+    setContractDocumentData(dataUrl);
+    setReadingContractFile(false);
+  }
 
   return (
     <form action={formAction} className="space-y-8">
@@ -89,7 +119,7 @@ export function EmployeeForm({
                   name="idDocumentNoExpiry"
                   checked={noExpiry}
                   onChange={(e) => setNoExpiry(e.target.checked)}
-                  className="rounded border-stone-300"
+                  className="rounded border-stone-300 dark:border-stone-700"
                 />
                 Vitalício
               </label>
@@ -299,6 +329,32 @@ export function EmployeeForm({
         </div>
       </section>
 
+      {!employee && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
+            Documentos
+          </h2>
+          {contractFileError && <SaveBanner status="error" message={contractFileError} />}
+          <input type="hidden" name="contractDocumentName" value={contractDocumentName} />
+          <input type="hidden" name="contractDocumentData" value={contractDocumentData} />
+          <div className="max-w-sm">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Contrato de trabalho
+            </label>
+            <input
+              type="file"
+              required
+              accept=".pdf,.doc,.docx,image/*"
+              onChange={handleContractFileChange}
+              className="w-full text-sm text-stone-600 file:mr-3 file:rounded-md file:border file:border-stone-300 file:bg-white file:px-3 file:py-1.5 file:text-sm dark:text-stone-400 dark:file:border-stone-700 dark:file:bg-stone-800 dark:file:text-stone-100 dark:border-stone-700"
+            />
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              {readingContractFile ? "A processar ficheiro..." : "Obrigatório — PDF, Word ou imagem, máximo 2MB. Fica guardado em Anexos como \"Contrato de trabalho\"."}
+            </p>
+          </div>
+        </section>
+      )}
+
       {showCreateUserOption && (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
@@ -310,7 +366,7 @@ export function EmployeeForm({
               name="createUser"
               checked={createUser}
               onChange={(e) => setCreateUser(e.target.checked)}
-              className="rounded border-stone-300"
+              className="rounded border-stone-300 dark:border-stone-700"
             />
             Criar também utilizador de acesso para este colaborador
           </label>
@@ -334,7 +390,7 @@ export function EmployeeForm({
       <div className="flex justify-end gap-3">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || readingContractFile}
           className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
         >
           {pending ? "A guardar..." : "Guardar"}

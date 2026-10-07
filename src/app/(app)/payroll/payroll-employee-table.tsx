@@ -70,13 +70,13 @@ export function PayrollEmployeeTable({
     <div>
       {dialog}
       {canEdit && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-stone-50/60 px-4 py-3">
-          <label className="flex items-center gap-2 text-xs font-medium text-stone-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-stone-50/60 px-4 py-3 dark:border-stone-800">
+          <label className="flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-400">
             <input
               type="checkbox"
               checked={allSelected}
               onChange={(e) => toggleAll(e.target.checked)}
-              className="rounded border-stone-300"
+              className="rounded border-stone-300 dark:border-stone-700"
             />
             Selecionar todos ({selected.size} selecionado{selected.size === 1 ? "" : "s"})
           </label>
@@ -91,14 +91,14 @@ export function PayrollEmployeeTable({
         </div>
       )}
       {result && (
-        <div className="border-b border-stone-200 bg-green-50 px-4 py-2 text-xs text-green-700">
+        <div className="border-b border-stone-200 bg-green-50 px-4 py-2 text-xs text-green-700 dark:border-stone-800 dark:bg-green-500/10 dark:text-green-400">
           {result.created} recibo(s) gerado(s).
           {result.failed && result.failed.length > 0 && ` ${result.failed.length} falhou(aram).`}
         </div>
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500">
+          <thead className="border-b border-stone-200 bg-stone-50/60 text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400 dark:border-stone-800">
             <tr>
               {canEdit && <th className="w-8 px-4 py-3"></th>}
               <th className="px-4 py-3">Colaborador</th>
@@ -107,7 +107,7 @@ export function PayrollEmployeeTable({
               <th className="px-4 py-3">Líquido</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {employees.map((e) => (
               <tr key={e.id} className="hover:bg-stone-50">
                 {canEdit && (
@@ -116,7 +116,7 @@ export function PayrollEmployeeTable({
                       type="checkbox"
                       checked={selected.has(e.id)}
                       onChange={(ev) => toggleOne(e.id, ev.target.checked)}
-                      className="rounded border-stone-300"
+                      className="rounded border-stone-300 dark:border-stone-700"
                     />
                   </td>
                 )}

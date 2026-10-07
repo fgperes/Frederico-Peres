@@ -24,9 +24,9 @@ export function CreateIrsTableForm() {
         placeholder="Ano"
         required
         defaultValue={new Date().getFullYear()}
-        className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+        className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
       />
-      <select name="region" defaultValue="CONTINENTE" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+      <select name="region" defaultValue="CONTINENTE" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700">
         {FISCAL_REGIONS.map((r) => (
           <option key={r} value={r}>{FISCAL_REGION_LABELS[r]}</option>
         ))}
@@ -34,18 +34,18 @@ export function CreateIrsTableForm() {
       <select
         name="tableType"
         defaultValue="I"
-        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
       >
         {IRS_TABLE_TYPES.map((t) => (
           <option key={t} value={t}>{IRS_TABLE_TYPE_LABELS[t]}</option>
         ))}
       </select>
-      <select name="monthFrom" defaultValue="1" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+      <select name="monthFrom" defaultValue="1" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700">
         {MONTHS.map((m) => (
           <option key={m} value={m}>Desde {MONTH_LABELS[m - 1]}</option>
         ))}
       </select>
-      <select name="monthTo" defaultValue="12" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+      <select name="monthTo" defaultValue="12" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700">
         {MONTHS.map((m) => (
           <option key={m} value={m}>Até {MONTH_LABELS[m - 1]}</option>
         ))}
@@ -53,7 +53,7 @@ export function CreateIrsTableForm() {
       <input
         name="label"
         placeholder="Descrição (opcional)"
-        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+        className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
       />
       <button
         type="submit"

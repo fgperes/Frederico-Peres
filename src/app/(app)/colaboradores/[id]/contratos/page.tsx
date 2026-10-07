@@ -69,7 +69,7 @@ export default async function ColaboradorContratosPage({
         </div>
 
         {!active ? (
-          <EmptyState message="Sem contrato ativo. Atribua um contrato abaixo para definir vínculo, horas semanais e vencimento base." />
+          <EmptyState message="Sem contrato ativo. Atribua um contrato abaixo para definir vínculo e horas semanais." />
         ) : (
           <>
             <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
@@ -85,26 +85,6 @@ export default async function ColaboradorContratosPage({
                 label="Fim período experimental"
                 value={active.trialPeriodEndDate ? active.trialPeriodEndDate.toLocaleDateString("pt-PT") : "—"}
               />
-              <Info
-                label="Vencimento base (para o Payroll)"
-                value={active.baseSalary ? `${active.baseSalary.toFixed(2)} €` : "—"}
-              />
-              <div>
-                <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">Documento</dt>
-                <dd className="mt-0.5 text-stone-900 dark:text-stone-100">
-                  {active.documentData ? (
-                    <a
-                      href={active.documentData}
-                      download={active.documentName ?? "documento_contratual"}
-                      className="text-violet-700 hover:underline dark:text-violet-400"
-                    >
-                      {active.documentName ?? "Descarregar"}
-                    </a>
-                  ) : (
-                    active.documentName ?? "—"
-                  )}
-                </dd>
-              </div>
               {active.notes && <Info label="Notas" value={active.notes} className="sm:col-span-2" />}
             </dl>
 
@@ -119,7 +99,12 @@ export default async function ColaboradorContratosPage({
         )}
 
         <p className="mt-4 text-xs text-stone-500 dark:text-stone-400">
-          A remuneração variável (prémios, comissões) continua a ser gerida no separador Payroll.
+          O vencimento base e a remuneração variável (prémios, comissões) são geridos no separador Payroll. O
+          contrato de trabalho e as adendas ficam em{" "}
+          <Link href={`/colaboradores/${employee.id}/anexos`} className="text-violet-700 hover:underline dark:text-violet-400">
+            Anexos
+          </Link>
+          .
         </p>
       </Card>
 

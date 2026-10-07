@@ -73,7 +73,7 @@ export function EditActualTimesCell({
             onChange={setStart}
             inputClassName="w-14 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
           />
-          <span className="text-xs text-stone-400">→</span>
+          <span className="text-xs text-stone-400 dark:text-stone-500">→</span>
           <TimeField
             value={end}
             onChange={setEnd}

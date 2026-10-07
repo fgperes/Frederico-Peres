@@ -26,7 +26,7 @@ export function ViewAsSwitcher({
 
   if (currentViewAs) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-800 ring-1 ring-inset ring-amber-600/20">
+      <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-800 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20">
         <Eye size={15} />
         <span>
           A pré-visualizar como <strong>{currentViewAsLabel ?? currentViewAs}</strong>
@@ -46,12 +46,12 @@ export function ViewAsSwitcher({
 
   return (
     <div className="flex items-center gap-2">
-      <Eye size={15} className="text-stone-400" />
+      <Eye size={15} className="text-stone-400 dark:text-stone-500" />
       <select
         disabled={pending}
         defaultValue=""
         onChange={(e) => handleChange(e.target.value)}
-        className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-stone-600 disabled:opacity-60"
+        className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-stone-600 disabled:opacity-60 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300"
       >
         <option value="">Ver como...</option>
         {previewableRoles.map((role) => (
