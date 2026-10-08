@@ -273,8 +273,12 @@ export type IrsBracketRow = {
 // parcela a abater (fixa, ou calculada dinamicamente nos escalões mais
 // baixos: taxa × coeficiente × (limiar - rendimento)) e o acréscimo por
 // dependente multiplicado pelo nº de dependentes.
-export function computeIrsFlatRate(taxableGross: number, dependents: number, brackets: IrsBracketRow[]): number {
-  if (taxableGross <= 0 || brackets.length === 0) return 0;
+export function computeIrsFlatRate(
+  taxableGross: number,
+  dependents: number,
+  brackets: IrsBracketRow[]
+): { tax: number; rate: number } {
+  if (taxableGross <= 0 || brackets.length === 0) return { tax: 0, rate: 0 };
 
   const sorted = [...brackets].sort((a, b) => (a.upToGross ?? Infinity) - (b.upToGross ?? Infinity));
   const bracket = sorted.find((b) => taxableGross < (b.upToGross ?? Infinity)) ?? sorted[sorted.length - 1];
@@ -285,7 +289,7 @@ export function computeIrsFlatRate(taxableGross: number, dependents: number, bra
       : (bracket.deduction ?? 0);
 
   const tax = taxableGross * bracket.rate - deduction - dependents * bracket.dependentAddition;
-  return Math.max(0, tax);
+  return { tax: Math.max(0, tax), rate: bracket.rate };
 }
 
 export async function getFiscalYearConstants(year: number) {
@@ -393,7 +397,9 @@ export type PayslipBreakdown = {
   grossTaxable: number;
   grossTotal: number;
   socialSecurityEmployee: number;
+  socialSecurityRate: number;
   irsWithholding: number;
+  irsRate: number;
   adseDeduction: number;
   judicialDeduction: number;
   netTotal: number;
@@ -695,8 +701,15 @@ export async function computePayslipBreakdown(
   const extraIrsBase = Math.max(0, lumpSumAmount);
   const extraSsBase = extraIrsBase;
 
-  let irsOrdinary = computeIrsFlatRate(ordinaryIrsBase, employee.dependents, irsBrackets);
-  let irsExtra = extraIrsBase > 0 ? computeIrsFlatRate(extraIrsBase, employee.dependents, irsBrackets) : 0;
+  const ordinaryIrs = computeIrsFlatRate(ordinaryIrsBase, employee.dependents, irsBrackets);
+  const extraIrs =
+    extraIrsBase > 0 ? computeIrsFlatRate(extraIrsBase, employee.dependents, irsBrackets) : { tax: 0, rate: 0 };
+  let irsOrdinary = ordinaryIrs.tax;
+  let irsExtra = extraIrs.tax;
+  // Taxa "oficial" mostrada no recibo — a do escalão do rendimento
+  // ordinário (mensal), tal como os recibos portugueses habitualmente
+  // mostram uma única "Taxa de retenção na fonte".
+  const irsRate = ordinaryIrs.rate;
 
   // IRS Jovem — isenção decrescente por "ano de rendimentos" desde o
   // início do regime, aplicada separadamente ao rendimento ordinário e ao
@@ -716,7 +729,8 @@ export async function computePayslipBreakdown(
   }
   const irsWithholding = irsOrdinary + irsExtra;
 
-  const socialSecurityEmployee = (ordinarySsBase + extraSsBase) * settings.socialSecurityEmployeeRate;
+  const socialSecurityRate = settings.socialSecurityEmployeeRate;
+  const socialSecurityEmployee = (ordinarySsBase + extraSsBase) * socialSecurityRate;
   const adseDeduction = employee.adseBeneficiary ? baseSalary * settings.adseEmployeeRate : 0;
 
   const grossTaxable = ordinaryIrsBase + extraIrsBase;
@@ -754,7 +768,9 @@ export async function computePayslipBreakdown(
     grossTaxable,
     grossTotal,
     socialSecurityEmployee,
+    socialSecurityRate,
     irsWithholding,
+    irsRate,
     adseDeduction,
     judicialDeduction,
     netTotal,
@@ -790,7 +806,9 @@ export function toPayslipRecord(b: PayslipBreakdown) {
     christmasSubsidy: b.christmasSubsidy,
     grossTotal: b.grossTotal,
     socialSecurityEmployee: b.socialSecurityEmployee,
+    socialSecurityRate: b.socialSecurityRate,
     irsWithholding: b.irsWithholding,
+    irsRate: b.irsRate,
     adseDeduction: b.adseDeduction,
     judicialDeduction: b.judicialDeduction,
     netTotal: b.netTotal,
@@ -917,12 +935,23 @@ type PayslipLineSource = {
   absenceDeductionDays: number;
   absenceDeduction: number;
   socialSecurityEmployee: number;
+  socialSecurityRate: number;
   irsWithholding: number;
+  irsRate: number;
   adseDeduction: number;
   judicialDeduction: number;
   otherDeductions: number;
   componentsJson?: string | null;
 };
+
+// Formata uma taxa (fração, ex.: 0.1136) como percentagem compacta sem
+// zeros desnecessários (11.36% em vez de 11.360000000000001%, 11% em vez
+// de 11.00%) — mesmo estilo usado em Pressupostos para os escalões de IRS.
+function formatRateSuffix(rate: number): string {
+  if (rate <= 0) return "";
+  const pct = Number((rate * 100).toFixed(2));
+  return ` (${pct}%)`;
+}
 
 function parsePayslipComponents(json: string | null | undefined): PayslipComponentSnapshot[] {
   if (!json) return [];
@@ -957,9 +986,9 @@ function payslipLineValue(source: PayslipLineSource, key: PayslipLineItemKey): {
         suffix: source.absenceDeductionDays > 0 ? ` (${source.absenceDeductionDays.toFixed(1)}d)` : "",
       };
     case "socialSecurityEmployee":
-      return { value: -source.socialSecurityEmployee, suffix: "" };
+      return { value: -source.socialSecurityEmployee, suffix: formatRateSuffix(source.socialSecurityRate) };
     case "irsWithholding":
-      return { value: -source.irsWithholding, suffix: "" };
+      return { value: -source.irsWithholding, suffix: formatRateSuffix(source.irsRate) };
     case "adseDeduction":
       return { value: -source.adseDeduction, suffix: "" };
     case "judicialDeduction":

@@ -1032,7 +1032,12 @@ model Payslip {
   christmasSubsidy       Float     @default(0)
   grossTotal             Float
   socialSecurityEmployee Float
+  // Taxas aplicadas no momento da geração — mostradas no recibo junto do
+  // valor (ex.: "Segurança Social (trabalhador) (11%)"). Recibos gerados
+  // antes desta funcionalidade ficam a 0 e não mostram a percentagem.
+  socialSecurityRate     Float     @default(0)
   irsWithholding         Float
+  irsRate                Float     @default(0)
   adseDeduction          Float     @default(0)
   judicialDeduction      Float     @default(0)
   netTotal               Float
