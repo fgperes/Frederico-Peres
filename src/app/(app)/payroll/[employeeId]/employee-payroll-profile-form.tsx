@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { updateEmployeePayrollProfile } from "../actions";
+import { useActionState, useState } from "react";
+import { updateEmployeePayrollProfile, type UpdateEmployeePayrollProfileState } from "../actions";
+import { SaveBanner } from "@/components/save-banner";
+import { DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT } from "@/lib/payroll";
 
 type Employee = {
   id: string;
@@ -14,6 +16,18 @@ type Employee = {
   christmasSubsidyMode: string | null;
   christmasSubsidyMonths: string | null;
 };
+
+// Pré-visualização apenas — a tabela oficial usada no recibo pode ter sido
+// personalizada em Payroll → Pressupostos para o ano em questão.
+function previewExemptionLabel(startYear: number | null): string | null {
+  if (!startYear) return null;
+  const currentYear = new Date().getFullYear();
+  const yearOfBenefit = currentYear - startYear + 1;
+  if (yearOfBenefit < 1) return `Regime começa em ${startYear} — ainda não aplicável este ano.`;
+  if (yearOfBenefit > 10) return `${yearOfBenefit}.º ano — regime já caducado (máximo de 10 anos).`;
+  const percent = DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT[yearOfBenefit] ?? 0.25;
+  return `${yearOfBenefit}.º ano de isenção em ${currentYear} — ${Math.round(percent * 100)}% isento de IRS (até ao limite de 55× IAS/ano).`;
+}
 
 function SubsidyModeFields({
   prefix,
@@ -53,10 +67,18 @@ function SubsidyModeFields({
 }
 
 export function EmployeePayrollProfileForm({ employee }: { employee: Employee }) {
+  const [state, formAction, pending] = useActionState<UpdateEmployeePayrollProfileState, FormData>(
+    updateEmployeePayrollProfile.bind(null, employee.id),
+    {}
+  );
   const [youngTaxRegime, setYoungTaxRegime] = useState(employee.youngTaxRegime);
+  const [startYear, setStartYear] = useState<number | null>(employee.youngTaxRegimeStartYear);
 
   return (
-    <form action={updateEmployeePayrollProfile.bind(null, employee.id)} className="space-y-3">
+    <form action={formAction} className="space-y-3">
+      {state.error && <SaveBanner status="error" message={state.error} />}
+      {state.success && <SaveBanner status="success" message="Dados de payroll atualizados." />}
+
       <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
         <input
           type="checkbox"
@@ -79,15 +101,31 @@ export function EmployeePayrollProfileForm({ employee }: { employee: Employee })
           Regime do IRS Jovem
         </label>
         {youngTaxRegime && (
-          <input
-            name="youngTaxRegimeStartYear"
-            type="number"
-            min={2000}
-            max={2100}
-            defaultValue={employee.youngTaxRegimeStartYear ?? new Date().getFullYear()}
-            placeholder="Ano de início do regime"
-            className="mt-1.5 w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
-          />
+          <div className="mt-1.5">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Ano em que começou a receber rendimentos (1.º ano do regime)
+            </label>
+            <input
+              name="youngTaxRegimeStartYear"
+              type="number"
+              min={2000}
+              max={2100}
+              value={startYear ?? ""}
+              onChange={(e) => setStartYear(e.target.value ? Number(e.target.value) : null)}
+              placeholder="ex.: 2024"
+              className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700"
+            />
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              Este ano define o &quot;ano de rendimentos&quot; do regime, que determina a % de isenção: 1.º ano
+              100%, 2.º–4.º 75%, 5.º–7.º 50%, 8.º–10.º 25% (máximo 10 anos, até aos 35 anos de idade).
+              {previewExemptionLabel(startYear) && (
+                <>
+                  {" "}
+                  <strong>{previewExemptionLabel(startYear)}</strong>
+                </>
+              )}
+            </p>
+          </div>
         )}
       </div>
 
@@ -120,9 +158,10 @@ export function EmployeePayrollProfileForm({ employee }: { employee: Employee })
 
       <button
         type="submit"
-        className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700"
+        disabled={pending}
+        className="w-full rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
       >
-        Guardar
+        {pending ? "A guardar..." : "Guardar"}
       </button>
     </form>
   );

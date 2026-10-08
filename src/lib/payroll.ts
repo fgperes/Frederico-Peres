@@ -259,7 +259,11 @@ export async function getFiscalYearConstants(year: number) {
   return prisma.fiscalYearConstants.create({ data: { year, ias: 509.26 } });
 }
 
-const DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT: Record<number, number> = {
+// Tabela oficial do IRS Jovem (art.º 12.º-B do CIRS, regime em vigor desde
+// 2025): 1.º ano 100%, 2.º-4.º 75%, 5.º-7.º 50%, 8.º-10.º 25%. Exportada
+// também para pré-visualização no formulário — a AT pode publicar valores
+// específicos por ano em IrsYoungExemption, usados em vez deste default.
+export const DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT: Record<number, number> = {
   1: 1.0,
   2: 0.75,
   3: 0.75,
