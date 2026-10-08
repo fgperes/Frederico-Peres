@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { addPayrollComponentDirect, type AddPayrollComponentDirectState } from "../actions";
 import { SaveBanner } from "@/components/save-banner";
+import { SearchableSelect } from "@/components/searchable-select";
 import { PAYROLL_COMPONENT_CATEGORIES, PAYROLL_COMPONENT_CATEGORY_LABELS } from "@/lib/payroll";
 
 export function AddPayrollComponentDirectForm({
@@ -31,12 +32,14 @@ export function AddPayrollComponentDirectForm({
           <SaveBanner status="success" message="Rubrica adicionada." />
         </div>
       )}
-      <select name="employeeId" required defaultValue="" className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700">
-        <option value="" disabled>Selecione o colaborador…</option>
-        {employees.map((e) => (
-          <option key={e.id} value={e.id}>{e.name}</option>
-        ))}
-      </select>
+      <div className="col-span-2">
+        <SearchableSelect
+          name="employeeId"
+          required
+          placeholder="Selecione o colaborador…"
+          options={employees.map((e) => ({ value: e.id, label: e.name }))}
+        />
+      </div>
       <input name="name" placeholder="Nome (ex.: Prémio)" required className="col-span-2 rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700" />
       <select name="type" className="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700">
         <option value="EARNING">Vencimento (+)</option>

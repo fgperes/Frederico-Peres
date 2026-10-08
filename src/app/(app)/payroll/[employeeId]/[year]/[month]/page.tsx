@@ -99,7 +99,6 @@ export default async function PayslipDetailPage({
         <div className="mt-6 space-y-1 border-t border-stone-200 pt-4 text-right dark:border-stone-800">
           <p className="text-sm text-stone-600 dark:text-stone-400">Total bruto: <span className="font-medium text-stone-900 dark:text-stone-100">{fmt(breakdown.grossTotal)}</span></p>
           <p className="text-lg font-semibold text-stone-900 dark:text-stone-100">Total líquido: {fmt(breakdown.netTotal)}</p>
-          <p className="text-xs text-stone-400 dark:text-stone-500">Custo total para a empresa: {fmt(breakdown.employerCost)}</p>
         </div>
       </Card>
 

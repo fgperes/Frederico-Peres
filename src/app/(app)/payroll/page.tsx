@@ -6,11 +6,12 @@ import { PageHeader, Card, StatCard, LinkButton, EmptyState } from "@/components
 import { Banknote, Sliders, LayoutTemplate, ListPlus, Users, FileCheck2, Clock3, FileSpreadsheet } from "lucide-react";
 import { redirect } from "next/navigation";
 import { PayrollEmployeeTable } from "./payroll-employee-table";
+import { SearchableSelect } from "@/components/searchable-select";
 
 export default async function PayrollPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; employeeId?: string }>;
 }) {
   const user = await requireUser();
 
@@ -23,10 +24,11 @@ export default async function PayrollPage({
   const now = new Date();
   const year = Number(params.year ?? now.getFullYear());
   const month = Number(params.month ?? now.getMonth() + 1);
+  const employeeIdFilter = params.employeeId ?? "";
   const canEdit = canWrite(user.roles, "payroll");
 
   const scope = await employeeScopeWhere(user);
-  const [employees, payslips] = await Promise.all([
+  const [allEmployees, payslips] = await Promise.all([
     prisma.employee.findMany({
       where: { ...scope, status: "ACTIVE" },
       include: {
@@ -36,11 +38,12 @@ export default async function PayrollPage({
     }),
     prisma.payslip.findMany({ where: { year, month } }),
   ]);
+  const employees = employeeIdFilter ? allEmployees.filter((e) => e.id === employeeIdFilter) : allEmployees;
 
   const payslipByEmployee = new Map(payslips.map((p) => [p.employeeId, p]));
   const generatedCount = employees.filter((e) => payslipByEmployee.has(e.id)).length;
   const pendingCount = employees.length - generatedCount;
-  const netTotal = payslips.reduce((sum, p) => sum + p.netTotal, 0);
+  const netTotal = employees.reduce((sum, e) => sum + (payslipByEmployee.get(e.id)?.netTotal ?? 0), 0);
 
   return (
     <div>
@@ -96,6 +99,18 @@ export default async function PayrollPage({
               type="number"
               defaultValue={year}
               className="w-24 rounded-md border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700"
+            />
+          </div>
+          <div className="w-64">
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Colaborador</label>
+            <SearchableSelect
+              name="employeeId"
+              defaultValue={employeeIdFilter}
+              placeholder="Todos os colaboradores"
+              options={[
+                { value: "", label: "Todos os colaboradores" },
+                ...allEmployees.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName}` })),
+              ]}
             />
           </div>
           <button type="submit" className="rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">

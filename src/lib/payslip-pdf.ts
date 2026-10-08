@@ -244,10 +244,6 @@ export async function buildPayslipPdfDoc(data: PayslipPdfData): Promise<any> {
   doc.text(fmt(data.netTotal), liquidBoxX + liquidBoxWidth / 2, ytdBoxY + 13, { align: "center" });
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(130);
-  doc.text(`Custo total para a empresa (informativo): ${fmt(data.employerCost)}`, MARGIN, ytdBoxY + ytdBoxHeight + 6);
-
   doc.setFontSize(7);
   doc.setTextColor(150);
   doc.text(doc.splitTextToSize(data.footerNote, CONTENT_WIDTH), MARGIN, 285);
