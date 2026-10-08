@@ -427,44 +427,71 @@ export async function updateEmployeeBaseSalary(
   }
 }
 
-export async function updateEmployeePayrollProfile(employeeId: string, formData: FormData) {
-  const user = await assertCanWrite();
+export type UpdateEmployeePayrollProfileState = { error?: string; success?: boolean };
 
-  const youngTaxRegime = formData.get("youngTaxRegime") === "on";
-  const youngTaxRegimeStartYearRaw = String(formData.get("youngTaxRegimeStartYear") ?? "").trim();
-  const youngTaxRegimeStartYear = youngTaxRegimeStartYearRaw ? Number(youngTaxRegimeStartYearRaw) : null;
-  const adseBeneficiary = formData.get("adseBeneficiary") === "on";
-  const judicialDeductionPercentRaw = String(formData.get("judicialDeductionPercent") ?? "").trim();
-  const judicialDeductionPercent = judicialDeductionPercentRaw ? Number(judicialDeductionPercentRaw) : null;
-  const vacationSubsidyMode = String(formData.get("vacationSubsidyMode") ?? "") || null;
-  const vacationSubsidyMonths = String(formData.get("vacationSubsidyMonths") ?? "").trim() || null;
-  const christmasSubsidyMode = String(formData.get("christmasSubsidyMode") ?? "") || null;
-  const christmasSubsidyMonths = String(formData.get("christmasSubsidyMonths") ?? "").trim() || null;
+export async function updateEmployeePayrollProfile(
+  employeeId: string,
+  _prev: UpdateEmployeePayrollProfileState,
+  formData: FormData
+): Promise<UpdateEmployeePayrollProfileState> {
+  try {
+    const user = await assertCanWrite();
 
-  if (youngTaxRegime && !youngTaxRegimeStartYear) {
-    throw new Error("Indique o ano de início do regime do IRS Jovem.");
+    const youngTaxRegime = formData.get("youngTaxRegime") === "on";
+    const youngTaxRegimeStartYearRaw = String(formData.get("youngTaxRegimeStartYear") ?? "").trim();
+    const youngTaxRegimeStartYear = youngTaxRegimeStartYearRaw ? Number(youngTaxRegimeStartYearRaw) : null;
+    const adseBeneficiary = formData.get("adseBeneficiary") === "on";
+    const judicialDeductionPercentRaw = String(formData.get("judicialDeductionPercent") ?? "").trim();
+    const judicialDeductionPercent = judicialDeductionPercentRaw ? Number(judicialDeductionPercentRaw) : null;
+    const vacationSubsidyMode = String(formData.get("vacationSubsidyMode") ?? "") || null;
+    const vacationSubsidyMonths = String(formData.get("vacationSubsidyMonths") ?? "").trim() || null;
+    const christmasSubsidyMode = String(formData.get("christmasSubsidyMode") ?? "") || null;
+    const christmasSubsidyMonths = String(formData.get("christmasSubsidyMonths") ?? "").trim() || null;
+
+    if (youngTaxRegime && !youngTaxRegimeStartYear) {
+      throw new Error("Indique o ano em que começou a receber rendimentos para o regime do IRS Jovem.");
+    }
+    if (judicialDeductionPercent !== null && !(judicialDeductionPercent >= 0 && judicialDeductionPercent <= 100)) {
+      throw new Error("Percentagem de desconto judicial tem de estar entre 0% e 100%.");
+    }
+
+    // IRS Jovem (art.º 12.º-B do CIRS): só aplicável até aos 35 anos — valida
+    // a idade do colaborador no ano em que o regime começou (31 de dezembro
+    // desse ano), tal como a AT verifica a elegibilidade por ano fiscal.
+    if (youngTaxRegime && youngTaxRegimeStartYear) {
+      const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { birthDate: true } });
+      if (employee?.birthDate) {
+        const ageAtYearEnd = youngTaxRegimeStartYear - employee.birthDate.getFullYear();
+        if (ageAtYearEnd > 35) {
+          throw new Error(
+            `O IRS Jovem só é aplicável até aos 35 anos — este colaborador já teria ${ageAtYearEnd} anos em ${youngTaxRegimeStartYear}.`
+          );
+        }
+      }
+    }
+
+    await prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        youngTaxRegime,
+        youngTaxRegimeStartYear: youngTaxRegime ? youngTaxRegimeStartYear : null,
+        adseBeneficiary,
+        judicialDeductionPercent,
+        vacationSubsidyMode,
+        vacationSubsidyMonths,
+        christmasSubsidyMode,
+        christmasSubsidyMonths,
+      },
+    });
+
+    await logAudit({ userId: user.id, action: "UPDATE", entity: "EmployeePayrollProfile", entityId: employeeId });
+    revalidatePath(`/payroll/${employeeId}`);
+    revalidatePath(`/colaboradores/${employeeId}`);
+    revalidatePath(`/colaboradores/${employeeId}/payroll`);
+    return { success: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Não foi possível guardar os dados de payroll." };
   }
-  if (judicialDeductionPercent !== null && !(judicialDeductionPercent >= 0 && judicialDeductionPercent <= 100)) {
-    throw new Error("Percentagem de desconto judicial tem de estar entre 0% e 100%.");
-  }
-
-  await prisma.employee.update({
-    where: { id: employeeId },
-    data: {
-      youngTaxRegime,
-      youngTaxRegimeStartYear: youngTaxRegime ? youngTaxRegimeStartYear : null,
-      adseBeneficiary,
-      judicialDeductionPercent,
-      vacationSubsidyMode,
-      vacationSubsidyMonths,
-      christmasSubsidyMode,
-      christmasSubsidyMonths,
-    },
-  });
-
-  await logAudit({ userId: user.id, action: "UPDATE", entity: "EmployeePayrollProfile", entityId: employeeId });
-  revalidatePath(`/payroll/${employeeId}`);
-  revalidatePath(`/colaboradores/${employeeId}`);
 }
 
 export type AddPayrollComponentState = { error?: string };

@@ -121,25 +121,45 @@ export async function getIrsTables() {
   });
 }
 
-async function seedIrsTablesForYear(year: number) {
-  if (year !== 2026) return [] as Awaited<ReturnType<typeof getIrsTables>>;
+// Rótulo da tabela simplificada criada quando não há nenhuma tabela
+// carregada — identifica-a para nunca ficar a ocupar o lugar de uma
+// tabela oficial depois desta estar disponível (ver ensureOfficial2026Tables).
+const DEFAULT_TABLE_LABEL = "Tabela por omissão (simplificada)";
+
+// Garante que as 9 tabelas oficiais de 2026 existem. Se o primeiro recibo
+// de 2026 alguma vez foi gerado antes de as tabelas oficiais terem sido
+// semeadas, a tabela simplificada (sem parcelas a abater, só uma taxa
+// marginal) pode ter ficado criada exatamente no lugar (ano+região+tabela)
+// de uma oficial — sem esta substituição, essa tabela errada aplicava-se
+// para sempre, mesmo já estando o código com as tabelas oficiais.
+async function ensureOfficial2026Tables(tables: Awaited<ReturnType<typeof getIrsTables>>) {
   const { IRS_TABLES_2026 } = await import("./irs-tables-2026-seed");
-  const created = [];
-  for (const t of IRS_TABLES_2026) {
-    created.push(
+  let changed = false;
+  for (const official of IRS_TABLES_2026) {
+    const existing = tables.find(
+      (t) => t.year === 2026 && t.region === official.region && t.tableType === official.tableType && t.monthFrom === 1
+    );
+    if (!existing) {
       await prisma.irsTable.create({
         data: {
-          year: t.year,
-          region: t.region,
-          tableType: t.tableType,
-          label: t.label,
-          brackets: { createMany: { data: t.brackets } },
+          year: official.year,
+          region: official.region,
+          tableType: official.tableType,
+          label: official.label,
+          brackets: { createMany: { data: official.brackets } },
         },
-        include: { brackets: { orderBy: { order: "asc" } } },
-      })
-    );
+      });
+      changed = true;
+    } else if (existing.label === DEFAULT_TABLE_LABEL) {
+      await prisma.irsBracket.deleteMany({ where: { irsTableId: existing.id } });
+      await prisma.irsTable.update({
+        where: { id: existing.id },
+        data: { label: official.label, brackets: { createMany: { data: official.brackets } } },
+      });
+      changed = true;
+    }
   }
-  return created;
+  return changed ? getIrsTables() : tables;
 }
 
 // Escolhe a tabela de IRS a aplicar a um recibo: a combinação exata
@@ -156,22 +176,16 @@ async function seedIrsTablesForYear(year: number) {
 export async function getIrsBracketsFor(year: number, month: number, region: string, tableType: IrsTableType) {
   let tables = await getIrsTables();
 
-  if (tables.length === 0 && year === 2026) {
-    tables = await seedIrsTablesForYear(2026);
+  if (year === 2026) {
+    tables = await ensureOfficial2026Tables(tables);
   }
 
+  // Sem nenhuma tabela carregada (nenhum ano) — nunca persiste o escalão
+  // simplificado: devolvê-lo apenas em memória evita que fique a ocupar
+  // para sempre o lugar de uma tabela oficial que venha a ser semeada
+  // mais tarde (ver ensureOfficial2026Tables).
   if (tables.length === 0) {
-    const seeded = await prisma.irsTable.create({
-      data: {
-        year,
-        region: "CONTINENTE",
-        tableType: "I",
-        label: "Tabela por omissão (simplificada)",
-        brackets: { createMany: { data: DEFAULT_IRS_BRACKETS } },
-      },
-      include: { brackets: { orderBy: { order: "asc" } } },
-    });
-    return seeded.brackets;
+    return DEFAULT_IRS_BRACKETS;
   }
 
   const inMonth = (t: (typeof tables)[number]) => t.monthFrom <= month && month <= t.monthTo;
@@ -259,7 +273,11 @@ export async function getFiscalYearConstants(year: number) {
   return prisma.fiscalYearConstants.create({ data: { year, ias: 509.26 } });
 }
 
-const DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT: Record<number, number> = {
+// Tabela oficial do IRS Jovem (art.º 12.º-B do CIRS, regime em vigor desde
+// 2025): 1.º ano 100%, 2.º-4.º 75%, 5.º-7.º 50%, 8.º-10.º 25%. Exportada
+// também para pré-visualização no formulário — a AT pode publicar valores
+// específicos por ano em IrsYoungExemption, usados em vez deste default.
+export const DEFAULT_YOUNG_EXEMPTION_BY_YEAR_OF_BENEFIT: Record<number, number> = {
   1: 1.0,
   2: 0.75,
   3: 0.75,
@@ -535,10 +553,19 @@ export async function computePayslipBreakdown(
   }
 
   // O subsídio de alimentação conta os dias a partir do nº de dias
-  // trabalhado em escala (turnos escalados no período) — só cai para os
-  // dias com picagem (workedDays) quando não há nenhum turno escalado,
-  // para não ficar a 0€ só por faltarem dados de escala.
-  const mealAllowanceDays = shiftHoursByDay.size > 0 ? shiftHoursByDay.size : workedDays;
+  // trabalhado em escala (turnos escalados no período); sem turnos
+  // escalados, cai para os dias com picagem (workedDays); e sem nenhum dos
+  // dois (colaborador sem dados de escala nem de picagens no período —
+  // ex.: funções de gestão sem picagem obrigatória), assume os dias úteis
+  // configurados em Pressupostos, tal como o salário base também é sempre
+  // pago por inteiro independentemente de dados de assiduidade — descontam-se
+  // só os dias de ausência não remunerada já identificados no período.
+  const mealAllowanceDays =
+    shiftHoursByDay.size > 0
+      ? shiftHoursByDay.size
+      : workedDays > 0
+        ? workedDays
+        : Math.max(0, settings.workingDaysPerMonth - absenceDeductionDays);
   const mealAllowanceDaily = settings.mealAllowanceDaily;
   const mealAllowanceTotal = mealAllowanceDays * mealAllowanceDaily;
   const mealAllowanceExemptCapDaily =
