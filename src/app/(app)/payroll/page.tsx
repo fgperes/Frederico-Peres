@@ -5,13 +5,19 @@ import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, StatCard, LinkButton, EmptyState } from "@/components/ui";
 import { Banknote, Sliders, LayoutTemplate, ListPlus, Users, FileCheck2, Clock3, FileSpreadsheet } from "lucide-react";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { PayrollEmployeeTable } from "./payroll-employee-table";
-import { SearchableSelect } from "@/components/searchable-select";
+import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
+
+function parseIdList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 export default async function PayrollPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; employeeId?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; employees?: string }>;
 }) {
   const user = await requireUser();
 
@@ -24,11 +30,12 @@ export default async function PayrollPage({
   const now = new Date();
   const year = Number(params.year ?? now.getFullYear());
   const month = Number(params.month ?? now.getMonth() + 1);
-  const employeeIdFilter = params.employeeId ?? "";
   const canEdit = canWrite(user.roles, "payroll");
 
   const scope = await employeeScopeWhere(user);
-  const [allEmployees, payslips] = await Promise.all([
+  const [departments, teams, allEmployees, payslips] = await Promise.all([
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({
       where: { ...scope, status: "ACTIVE" },
       include: {
@@ -38,7 +45,9 @@ export default async function PayrollPage({
     }),
     prisma.payslip.findMany({ where: { year, month } }),
   ]);
-  const employees = employeeIdFilter ? allEmployees.filter((e) => e.id === employeeIdFilter) : allEmployees;
+  const selectedEmployees = new Set(parseIdList(params.employees));
+  const hasEmployeeFilter = selectedEmployees.size > 0;
+  const employees = hasEmployeeFilter ? allEmployees.filter((e) => selectedEmployees.has(e.id)) : allEmployees;
 
   const payslipByEmployee = new Map(payslips.map((p) => [p.employeeId, p]));
   const generatedCount = employees.filter((e) => payslipByEmployee.has(e.id)).length;
@@ -101,21 +110,33 @@ export default async function PayrollPage({
               className="w-24 rounded-md border border-stone-300 px-3 py-1.5 text-sm dark:border-stone-700"
             />
           </div>
-          <div className="w-64">
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Colaborador</label>
-            <SearchableSelect
-              name="employeeId"
-              defaultValue={employeeIdFilter}
-              placeholder="Todos os colaboradores"
-              options={[
-                { value: "", label: "Todos os colaboradores" },
-                ...allEmployees.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName}` })),
-              ]}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Departamento / Equipa / Colaborador
+            </label>
+            <EmployeeTreeFilter
+              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+              teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+              employees={allEmployees.map((e) => ({
+                id: e.id,
+                name: `${e.firstName} ${e.lastName}`,
+                departmentId: e.departmentId,
+                teamId: e.teamId,
+              }))}
+              initialSelected={Array.from(selectedEmployees)}
             />
           </div>
           <button type="submit" className="rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
             Aplicar
           </button>
+          {hasEmployeeFilter && (
+            <Link
+              href={`/payroll?year=${year}&month=${month}`}
+              className="text-xs text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+            >
+              Limpar filtro
+            </Link>
+          )}
           {canEdit && (
             <a
               href={`/api/payroll/export?year=${year}&month=${month}`}
