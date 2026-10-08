@@ -4,31 +4,40 @@ import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { ListPlus } from "lucide-react";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { removePayrollComponent } from "../actions";
 import { PAYROLL_COMPONENT_CATEGORY_LABELS, taxFlagsToCategory } from "@/lib/payroll";
 import { ImportPayrollComponentsForm } from "./import-payroll-components-form";
 import { AddPayrollComponentDirectForm } from "./add-payroll-component-direct-form";
-import { RubricasEmployeeFilter } from "./employee-filter";
+import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
+
+function parseIdList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 export default async function PayrollRubricasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ employeeId?: string }>;
+  searchParams: Promise<{ employees?: string }>;
 }) {
   const user = await requireUser();
   if (!canWrite(user.roles, "payroll")) redirect("/payroll");
 
-  const { employeeId: employeeIdFilter } = await searchParams;
+  const params = await searchParams;
+  const selectedEmployees = parseIdList(params.employees);
 
-  const [components, employees] = await Promise.all([
+  const [components, departments, teams, employees] = await Promise.all([
     prisma.payrollComponent.findMany({
-      where: employeeIdFilter ? { employeeId: employeeIdFilter } : undefined,
+      where: selectedEmployees.length > 0 ? { employeeId: { in: selectedEmployees } } : undefined,
       include: { employee: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
     prisma.employee.findMany({
-      select: { id: true, firstName: true, lastName: true },
+      select: { id: true, firstName: true, lastName: true, departmentId: true, teamId: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     }),
   ]);
@@ -67,13 +76,35 @@ export default async function PayrollRubricasPage({
       <Card className="p-0">
         <div className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4">
           <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Últimas rubricas carregadas</h2>
-          <RubricasEmployeeFilter
-            defaultValue={employeeIdFilter ?? ""}
-            options={[
-              { value: "", label: "Todos os colaboradores" },
-              ...employees.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName}` })),
-            ]}
-          />
+          <form method="get" className="flex items-end gap-2">
+            <div className="w-64">
+              <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+                Departamento / Equipa / Colaborador
+              </label>
+              <EmployeeTreeFilter
+                departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+                teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+                employees={employees.map((e) => ({
+                  id: e.id,
+                  name: `${e.firstName} ${e.lastName}`,
+                  departmentId: e.departmentId,
+                  teamId: e.teamId,
+                }))}
+                initialSelected={selectedEmployees}
+              />
+            </div>
+            <button type="submit" className="rounded-md bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-900">
+              Filtrar
+            </button>
+            {selectedEmployees.length > 0 && (
+              <Link
+                href="/payroll/rubricas"
+                className="px-1 text-xs text-stone-500 underline hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+              >
+                Limpar
+              </Link>
+            )}
+          </form>
         </div>
         {components.length === 0 ? (
           <div className="p-6">
