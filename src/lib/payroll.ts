@@ -121,17 +121,18 @@ export async function getIrsTables() {
   });
 }
 
-// Rótulo da tabela simplificada criada quando não há nenhuma tabela
-// carregada — identifica-a para nunca ficar a ocupar o lugar de uma
-// tabela oficial depois desta estar disponível (ver ensureOfficial2026Tables).
-const DEFAULT_TABLE_LABEL = "Tabela por omissão (simplificada)";
+// Uma tabela "real" tem sempre mais escalões do que o fallback simplificado
+// (10-12, com parcelas a abater próprias) — usado para nunca confiar numa
+// tabela de 2026 com a forma do fallback (poucos escalões, sem parcela a
+// abater dinâmica), seja qual for o motivo de lá estar (nome editado,
+// importação incompleta, etc.): só o Nº de escalões é um sinal fiável.
+function looksLikeRealTable(brackets: { length: number }): boolean {
+  return brackets.length > DEFAULT_IRS_BRACKETS.length;
+}
 
-// Garante que as 9 tabelas oficiais de 2026 existem. Se o primeiro recibo
-// de 2026 alguma vez foi gerado antes de as tabelas oficiais terem sido
-// semeadas, a tabela simplificada (sem parcelas a abater, só uma taxa
-// marginal) pode ter ficado criada exatamente no lugar (ano+região+tabela)
-// de uma oficial — sem esta substituição, essa tabela errada aplicava-se
-// para sempre, mesmo já estando o código com as tabelas oficiais.
+// Garante que as 9 tabelas oficiais de 2026 existem com os escalões
+// corretos — por precaução apenas (ver nota em getIrsBracketsFor sobre o
+// cálculo em si nunca depender disto ficar correto na base de dados).
 async function ensureOfficial2026Tables(tables: Awaited<ReturnType<typeof getIrsTables>>) {
   const { IRS_TABLES_2026 } = await import("./irs-tables-2026-seed");
   let changed = false;
@@ -150,7 +151,7 @@ async function ensureOfficial2026Tables(tables: Awaited<ReturnType<typeof getIrs
         },
       });
       changed = true;
-    } else if (existing.label === DEFAULT_TABLE_LABEL) {
+    } else if (!looksLikeRealTable(existing.brackets)) {
       await prisma.irsBracket.deleteMany({ where: { irsTableId: existing.id } });
       await prisma.irsTable.update({
         where: { id: existing.id },
@@ -173,11 +174,76 @@ async function ensureOfficial2026Tables(tables: Awaited<ReturnType<typeof getIrs
 // ainda carregada, semeia as 9 tabelas oficiais (ver
 // irs-tables-2026-seed.ts); para outros anos sem nada carregado, cai num
 // escalão único simplificado.
+type IrsTableRow = Awaited<ReturnType<typeof getIrsTables>>[number];
+
+// Aplica a cascata de prioridade (ano+mês+região+tabela exatos → Continente
+// no mesmo ano+mês → qualquer mês desse ano+região → Continente desse ano
+// qualquer mês → ano anterior mais recente dessa região → idem Continente →
+// tabela mais antiga de todas) a um conjunto de tabelas já filtrado.
+function matchIrsTable(
+  tables: IrsTableRow[],
+  year: number,
+  month: number,
+  region: string,
+  tableType: IrsTableType
+): IrsTableRow | undefined {
+  if (tables.length === 0) return undefined;
+  const inMonth = (t: IrsTableRow) => t.monthFrom <= month && month <= t.monthTo;
+
+  const exact = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType && inMonth(t));
+  if (exact) return exact;
+
+  const sameYearContinente = tables.find(
+    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType && inMonth(t)
+  );
+  if (sameYearContinente) return sameYearContinente;
+
+  const sameYearAnyMonth = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType);
+  if (sameYearAnyMonth) return sameYearAnyMonth;
+
+  const sameYearContinenteAnyMonth = tables.find(
+    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType
+  );
+  if (sameYearContinenteAnyMonth) return sameYearContinenteAnyMonth;
+
+  const candidatesForRegion = tables
+    .filter((t) => t.region === region && t.tableType === tableType && t.year <= year)
+    .sort((a, b) => b.year - a.year);
+  if (candidatesForRegion[0]) return candidatesForRegion[0];
+
+  const candidatesContinente = tables
+    .filter((t) => t.region === "CONTINENTE" && t.tableType === tableType && t.year <= year)
+    .sort((a, b) => b.year - a.year);
+  if (candidatesContinente[0]) return candidatesContinente[0];
+
+  const oldestFirst = [...tables].sort((a, b) => a.year - b.year);
+  return oldestFirst[0];
+}
+
 export async function getIrsBracketsFor(year: number, month: number, region: string, tableType: IrsTableType) {
   let tables = await getIrsTables();
 
   if (year === 2026) {
+    // Corrige (best-effort) qualquer tabela de 2026 que não pareça real na
+    // base de dados — não é o que garante o cálculo correto abaixo, só
+    // mantém a listagem em Pressupostos consistente com o que é usado.
     tables = await ensureOfficial2026Tables(tables);
+
+    // O cálculo de 2026 nunca confia apenas no que está na base de dados:
+    // procura primeiro só entre tabelas com cara de oficiais (muitos
+    // escalões) e, não encontrando nenhuma, usa diretamente as tabelas
+    // oficiais incluídas no código (irs-tables-2026-seed.ts) — garante a
+    // retenção correta mesmo que a base de dados tenha ficado com uma
+    // tabela de 2026 errada por algum motivo que a reparação acima não
+    // tenha apanhado.
+    const realMatch = matchIrsTable(tables.filter((t) => looksLikeRealTable(t.brackets)), year, month, region, tableType);
+    if (realMatch) return realMatch.brackets;
+
+    const { IRS_TABLES_2026 } = await import("./irs-tables-2026-seed");
+    const officialMatch =
+      IRS_TABLES_2026.find((t) => t.region === region && t.tableType === tableType) ??
+      IRS_TABLES_2026.find((t) => t.region === "CONTINENTE" && t.tableType === tableType);
+    if (officialMatch) return officialMatch.brackets;
   }
 
   // Sem nenhuma tabela carregada (nenhum ano) — nunca persiste o escalão
@@ -188,39 +254,8 @@ export async function getIrsBracketsFor(year: number, month: number, region: str
     return DEFAULT_IRS_BRACKETS;
   }
 
-  const inMonth = (t: (typeof tables)[number]) => t.monthFrom <= month && month <= t.monthTo;
-
-  const exact = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType && inMonth(t));
-  if (exact) return exact.brackets;
-
-  const sameYearContinente = tables.find(
-    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType && inMonth(t)
-  );
-  if (sameYearContinente) return sameYearContinente.brackets;
-
-  const sameYearAnyMonth = tables.find((t) => t.year === year && t.region === region && t.tableType === tableType);
-  if (sameYearAnyMonth) return sameYearAnyMonth.brackets;
-
-  const sameYearContinenteAnyMonth = tables.find(
-    (t) => t.year === year && t.region === "CONTINENTE" && t.tableType === tableType
-  );
-  if (sameYearContinenteAnyMonth) return sameYearContinenteAnyMonth.brackets;
-
-  const candidatesForRegion = tables
-    .filter((t) => t.region === region && t.tableType === tableType && t.year <= year)
-    .sort((a, b) => b.year - a.year);
-  if (candidatesForRegion[0]) return candidatesForRegion[0].brackets;
-
-  const candidatesContinente = tables
-    .filter((t) => t.region === "CONTINENTE" && t.tableType === tableType && t.year <= year)
-    .sort((a, b) => b.year - a.year);
-  if (candidatesContinente[0]) return candidatesContinente[0].brackets;
-
-  // Nenhuma tabela igual ou anterior ao ano pedido, para esta tabela —
-  // usa a mais antiga disponível (qualquer tabela/região), para nunca
-  // ficar sem retenção nenhuma calculada.
-  const oldestFirst = [...tables].sort((a, b) => a.year - b.year);
-  return oldestFirst[0].brackets;
+  const match = matchIrsTable(tables, year, month, region, tableType);
+  return match ? match.brackets : DEFAULT_IRS_BRACKETS;
 }
 
 export type IrsBracketRow = {
