@@ -8,13 +8,21 @@ import { removePayrollComponent } from "../actions";
 import { PAYROLL_COMPONENT_CATEGORY_LABELS, taxFlagsToCategory } from "@/lib/payroll";
 import { ImportPayrollComponentsForm } from "./import-payroll-components-form";
 import { AddPayrollComponentDirectForm } from "./add-payroll-component-direct-form";
+import { RubricasEmployeeFilter } from "./employee-filter";
 
-export default async function PayrollRubricasPage() {
+export default async function PayrollRubricasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ employeeId?: string }>;
+}) {
   const user = await requireUser();
   if (!canWrite(user.roles, "payroll")) redirect("/payroll");
 
+  const { employeeId: employeeIdFilter } = await searchParams;
+
   const [components, employees] = await Promise.all([
     prisma.payrollComponent.findMany({
+      where: employeeIdFilter ? { employeeId: employeeIdFilter } : undefined,
       include: { employee: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -57,10 +65,19 @@ export default async function PayrollRubricasPage() {
       </div>
 
       <Card className="p-0">
-        <h2 className="px-4 pt-4 text-sm font-semibold text-stone-900 dark:text-stone-100">Últimas rubricas carregadas</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Últimas rubricas carregadas</h2>
+          <RubricasEmployeeFilter
+            defaultValue={employeeIdFilter ?? ""}
+            options={[
+              { value: "", label: "Todos os colaboradores" },
+              ...employees.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName}` })),
+            ]}
+          />
+        </div>
         {components.length === 0 ? (
           <div className="p-6">
-            <EmptyState message="Sem rubricas carregadas ainda." />
+            <EmptyState message="Sem rubricas carregadas para este filtro." />
           </div>
         ) : (
           <div className="overflow-x-auto">
