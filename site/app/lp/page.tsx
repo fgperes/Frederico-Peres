@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Calendar, FileText, Receipt, Search, ShieldCheck, MapPin, Headset, TrendingUp, ArrowRight, Mail } from "lucide-react";
-import { Header } from "@/components/header";
+import { Logo } from "@/components/logo";
 import { Footer } from "@/components/footer";
 import { TeamIllustration } from "@/components/illustrations";
 import { ContactForm } from "@/components/contact-form";
@@ -58,6 +58,22 @@ const VALUE_PROPS = [
 const CONTACT_CHANNELS = [
   { icon: Mail, title: "Email", description: "geral@people4people.pt" },
 ];
+
+function LpHeader() {
+  return (
+    <header className="sticky top-0 z-20 border-b border-stone-200 bg-[#faf9f7]/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Logo />
+        <a
+          href="#contacto"
+          className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
+        >
+          Pedir uma demonstração
+        </a>
+      </div>
+    </header>
+  );
+}
 
 function Hero() {
   return (
@@ -208,7 +224,7 @@ function Contacto() {
 export default function LandingPage() {
   return (
     <main>
-      <Header />
+      <LpHeader />
       <Hero />
       <Pain />
       <Modulos />
