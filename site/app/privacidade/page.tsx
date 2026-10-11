@@ -30,8 +30,9 @@ export default function Privacidade() {
           <h2>2. Responsável pelo tratamento de dados</h2>
           <p>
             O responsável pelo tratamento dos dados recolhidos através deste site é a{" "}
-            <strong>[nome legal da empresa]</strong>, pessoa coletiva n.º{" "}
-            <strong>[NIPC]</strong>, com sede em <strong>[morada da sede]</strong>.
+            <strong>people4people</strong>. Esta secção será atualizada com a denominação social,
+            o número de pessoa coletiva e a sede assim que a sociedade estiver formalmente
+            constituída.
           </p>
 
           <h2>3. Que dados pessoais recolhemos</h2>
@@ -94,7 +95,7 @@ export default function Privacidade() {
           </ul>
           <p>
             Para exercer qualquer um destes direitos, contacte-nos através de{" "}
-            <strong>[email dedicado a privacidade, ex.: privacidade@people4people.pt]</strong>.
+            <strong>rgpd@people4people.pt</strong>.
           </p>
 
           <h2>9. Segurança da informação</h2>
