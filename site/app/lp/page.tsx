@@ -66,9 +66,10 @@ function LpHeader() {
         <Logo />
         <a
           href="#contacto"
-          className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
+          className="shrink-0 whitespace-nowrap rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
         >
-          Pedir uma demonstração
+          <span className="hidden sm:inline">Pedir uma demonstração</span>
+          <span className="sm:hidden">Pedir demo</span>
         </a>
       </div>
     </header>
