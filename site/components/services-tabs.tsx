@@ -11,6 +11,7 @@ import {
   FileSignature,
   Banknote,
   LineChart,
+  ClipboardCheck,
   Check,
 } from "lucide-react";
 import { ColaboradoresDemo } from "./colaboradores-demo";
@@ -20,6 +21,7 @@ import { PicagensDemo } from "./picagens-demo";
 import { AbsenceCalendarDemo } from "./absence-calendar-demo";
 import { ContratosDemo } from "./contratos-demo";
 import { PayrollDemo } from "./payroll-demo";
+import { AvaliacoesDemo } from "./avaliacoes-demo";
 
 const PREVIEW_COMPONENTS: Record<string, ComponentType> = {
   colaboradores: ColaboradoresDemo,
@@ -29,6 +31,7 @@ const PREVIEW_COMPONENTS: Record<string, ComponentType> = {
   ausencias: AbsenceCalendarDemo,
   contratos: ContratosDemo,
   payroll: PayrollDemo,
+  avaliacoes: AvaliacoesDemo,
 };
 
 type Service = {
@@ -130,6 +133,19 @@ const SERVICES: Service[] = [
       "Recibos de vencimento calculados automaticamente",
       "Tabelas de IRS e pressupostos sempre atualizáveis",
       "Histórico e exportação de todos os recibos",
+    ],
+  },
+  {
+    key: "avaliacoes",
+    icon: ClipboardCheck,
+    label: "Avaliações",
+    title: "Avaliações de Desempenho",
+    description:
+      "Modelos de avaliação com perguntas pontuadas e consequências automáticas por resultado — sempre que uma avaliação é concluída.",
+    bullets: [
+      "Perguntas pontuadas e de texto livre, agrupadas por secção",
+      "Consequências automáticas por faixa de resultado",
+      "Autoavaliação opcional, histórico e exportação em PDF",
     ],
   },
 ];
