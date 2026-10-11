@@ -30,9 +30,7 @@ export default function Privacidade() {
           <h2>2. Responsável pelo tratamento de dados</h2>
           <p>
             O responsável pelo tratamento dos dados recolhidos através deste site é a{" "}
-            <strong>people4people</strong>. Esta secção será atualizada com a denominação social,
-            o número de pessoa coletiva e a sede assim que a sociedade estiver formalmente
-            constituída.
+            <strong>people4people</strong>.
           </p>
 
           <h2>3. Que dados pessoais recolhemos</h2>
