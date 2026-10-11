@@ -4,10 +4,10 @@ import { LogoMark } from "./logo";
 import { TikTokIcon } from "./tiktok-icon";
 
 const SOCIAL_LINKS = [
-  { icon: Facebook, label: "Facebook", href: "https://www.facebook.com/people4people" },
-  { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/people4people" },
-  { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/people4people" },
-  { icon: TikTokIcon, label: "TikTok", href: "https://www.tiktok.com/@people4people" },
+  { icon: Facebook, label: "Facebook" },
+  { icon: Instagram, label: "Instagram" },
+  { icon: Linkedin, label: "LinkedIn" },
+  { icon: TikTokIcon, label: "TikTok" },
 ];
 
 export function Footer() {
@@ -27,17 +27,14 @@ export function Footer() {
               empresas portuguesas.
             </p>
             <div className="mt-5 flex items-center gap-3">
-              {SOCIAL_LINKS.map(({ icon: Icon, label, href }) => (
-                <a
+              {SOCIAL_LINKS.map(({ icon: Icon, label }) => (
+                <span
                   key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   aria-label={label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:border-violet-300 hover:text-violet-700"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500"
                 >
                   <Icon size={16} />
-                </a>
+                </span>
               ))}
             </div>
           </div>
