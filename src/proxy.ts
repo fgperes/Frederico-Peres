@@ -12,9 +12,13 @@ export default auth((req) => {
   // (nem pode ter) uma sessão de browser autenticada; a autenticação é feita
   // pelo próprio token do equipamento na rota (ver Equipment.webhookToken).
   const isPicagensWebhook = req.nextUrl.pathname.startsWith("/api/picagens/webhook/");
+  // A app mobile autentica-se com o seu próprio JWT (Authorization: Bearer),
+  // nunca com a sessão de browser do NextAuth — cada rota em
+  // `/api/mobile/**` valida esse token por si própria (ver lib/mobile).
+  const isMobileApi = req.nextUrl.pathname.startsWith("/api/mobile/");
   const isChangePasswordPage = req.nextUrl.pathname.startsWith("/alterar-password");
 
-  if (isAuthApi || isPicagensWebhook) return NextResponse.next();
+  if (isAuthApi || isPicagensWebhook || isMobileApi) return NextResponse.next();
 
   if (!isLoggedIn && !isLoginPage) {
     const loginUrl = new URL("/login", req.nextUrl.origin);

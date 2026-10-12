@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { getVisibleNews } from "@/lib/news";
 import { getTodaysAnniversaries, getMyAlreadyCommentedKeys, getUpcomingAbsences } from "@/lib/anniversaries";
 import { getModuleSubscription } from "@/lib/subscriptions";
+import { loadColaboradorDashboardData } from "./colaborador-data";
 import { AnniversaryWidget } from "./anniversary-widget";
 import { MonthlyAnniversariesList, type MonthlyAnniversaryEntry } from "./monthly-anniversaries";
 import Link from "next/link";
@@ -548,37 +549,6 @@ function ManagementDashboardBody({
       </div>
     </>
   );
-}
-
-async function loadColaboradorDashboardData(user: Awaited<ReturnType<typeof requireUser>>) {
-  if (!user.employeeId) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const year = today.getFullYear();
-
-  const [nextShift, feriasBalance, pendingAbsences, unjustifiedDeviations, upcomingAbsences] = await Promise.all([
-    prisma.shift.findFirst({
-      where: { employeeId: user.employeeId, date: { gte: today }, status: "PUBLISHED" },
-      orderBy: { date: "asc" },
-      include: { shiftTemplate: true },
-    }),
-    prisma.absenceBalance.findFirst({
-      where: { employeeId: user.employeeId, year, absenceType: { name: "Férias" } },
-    }),
-    prisma.absence.count({ where: { employeeId: user.employeeId, status: "PENDING" } }),
-    prisma.timeClockEntry.count({
-      where: { employeeId: user.employeeId, hasDeviation: true, justification: null },
-    }),
-    // Âmbito "própria ficha" — mostra ambos os tipos (ausências e férias).
-    getUpcomingAbsences({ id: user.employeeId }),
-  ]);
-
-  const feriasDisponiveis = feriasBalance
-    ? feriasBalance.entitledDays - feriasBalance.usedDays - feriasBalance.plannedDays
-    : null;
-
-  return { nextShift, feriasDisponiveis, pendingAbsences, unjustifiedDeviations, upcomingAbsences };
 }
 
 function ColaboradorStatCards({ data }: { data: NonNullable<Awaited<ReturnType<typeof loadColaboradorDashboardData>>> }) {
