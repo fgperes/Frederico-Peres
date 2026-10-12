@@ -3,10 +3,14 @@ import { Facebook, Instagram, Linkedin } from "lucide-react";
 import { LogoMark } from "./logo";
 import { TikTokIcon } from "./tiktok-icon";
 
-const SOCIAL_LINKS = [
+const SOCIAL_LINKS: {
+  icon: (props: { size?: number; className?: string }) => React.ReactNode;
+  label: string;
+  href?: string;
+}[] = [
   { icon: Facebook, label: "Facebook" },
   { icon: Instagram, label: "Instagram" },
-  { icon: Linkedin, label: "LinkedIn" },
+  { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/people4peoplept/" },
   { icon: TikTokIcon, label: "TikTok" },
 ];
 
@@ -27,15 +31,28 @@ export function Footer() {
               empresas portuguesas.
             </p>
             <div className="mt-5 flex items-center gap-3">
-              {SOCIAL_LINKS.map(({ icon: Icon, label }) => (
-                <span
-                  key={label}
-                  aria-label={label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500"
-                >
-                  <Icon size={16} />
-                </span>
-              ))}
+              {SOCIAL_LINKS.map(({ icon: Icon, label, href }) =>
+                href ? (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:border-violet-300 hover:text-violet-600"
+                  >
+                    <Icon size={16} />
+                  </a>
+                ) : (
+                  <span
+                    key={label}
+                    aria-label={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500"
+                  >
+                    <Icon size={16} />
+                  </span>
+                )
+              )}
             </div>
           </div>
           <div>
