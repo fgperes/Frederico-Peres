@@ -24,10 +24,31 @@ A app liga sempre a `https://sgrh.people4people.pt` (ver `app.json` →
 
 - `app/` — ecrãs (expo-router, routing por ficheiros)
   - `login.tsx` — autenticação
-  - `(tabs)/` — navegação principal depois do login
+  - `(tabs)/` — navegação principal depois do login: início, ausências,
+    férias, vencimento, horário, picagens, perfil
+  - `avaliacoes/`, `notificacoes/` — acessíveis a partir do separador Perfil
 - `lib/api.ts` — cliente HTTP (token Bearer guardado em `expo-secure-store`)
 - `lib/auth.tsx` — contexto de autenticação (login/logout/sessão)
 - `lib/theme.ts` — paleta de cores e espaçamentos (alinhado com a app web)
+- `lib/dates.ts` — formatação de datas em pt-PT
+- `components/ui.tsx` — Card, Badge, PageHeader, botões, estados vazios/erro
+  (equivalente a `src/components/ui.tsx` na app web)
+
+## Funcionalidades cobertas
+
+- Dashboard (próximo turno, saldo de férias, ausências pendentes, desvios)
+- Ausências: listar, pedir (intervalo de dias), cancelar pedido pendente
+- Férias: calendário mensal interativo (marcar/desmarcar dias), saldo e
+  histórico por ano
+- Vencimento: histórico de recibos, detalhe (rubricas) e download/partilha
+  do PDF
+- Horário: turnos da semana, navegação semana a semana
+- Picagens: entrada/saída/pausa com geolocalização, histórico, justificar
+  desvios
+- Perfil: dados da conta, acesso a Avaliações e Notificações, terminar sessão
+- Avaliações: listar, preencher autoavaliação (perguntas de escala, escolha
+  única e texto livre)
+- Notificações: feed de notificações próprias + mensagens por ler
 
 ## Validar antes de commit
 

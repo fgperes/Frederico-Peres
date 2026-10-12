@@ -25,7 +25,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -42,7 +45,9 @@
         {
           "locationAlwaysAndWhenInUsePermission": "A people4people usa a sua localização para validar o local da picagem."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
     ],
     "extra": {
       "apiBaseUrl": "https://sgrh.people4people.pt"

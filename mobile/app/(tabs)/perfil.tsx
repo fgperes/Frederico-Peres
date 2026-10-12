@@ -1,9 +1,10 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { LogOut } from "lucide-react-native";
+import { Bell, ChevronRight, ClipboardList, LogOut } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { colors, radii, spacing } from "@/lib/theme";
+import { Card } from "@/components/ui";
 
 export default function PerfilScreen() {
   const { user, logout } = useAuth();
@@ -39,6 +40,23 @@ export default function PerfilScreen() {
             </Text>
           </View>
         )}
+
+        <View style={styles.menu}>
+          <TouchableOpacity onPress={() => router.push("/avaliacoes")}>
+            <Card style={styles.menuItem}>
+              <ClipboardList color={colors.violet600} size={20} />
+              <Text style={styles.menuLabel}>Avaliações</Text>
+              <ChevronRight color={colors.stone400} size={18} />
+            </Card>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/notificacoes")}>
+            <Card style={styles.menuItem}>
+              <Bell color={colors.violet600} size={20} />
+              <Text style={styles.menuLabel}>Notificações</Text>
+              <ChevronRight color={colors.stone400} size={18} />
+            </Card>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut color={colors.red600} size={18} />
@@ -111,6 +129,22 @@ const styles = StyleSheet.create({
   warningText: {
     color: colors.stone600,
     fontSize: 13,
+  },
+  menu: {
+    width: "100%",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: colors.stone900,
   },
   logoutButton: {
     flexDirection: "row",
