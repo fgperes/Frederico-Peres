@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "people4people",
+    "slug": "people4people-mobile",
+    "scheme": "people4people",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "pt.people4people.sgrh"
+    },
+    "android": {
+      "package": "pt.people4people.sgrh",
+      "adaptiveIcon": {
+        "backgroundColor": "#7c3aed",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "A people4people usa a sua localização para validar o local da picagem."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#7c3aed"
+        }
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "https://sgrh.people4people.pt"
+    }
+  }
+}

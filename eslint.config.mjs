@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // App Expo/React Native independente — tem as suas próprias regras.
+    "mobile/**",
   ]),
 ]);
 
