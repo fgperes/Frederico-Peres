@@ -59,6 +59,7 @@ npx expo export --platform android --output-dir /tmp/expo-export-check
 
 ## Publicar na Play Store
 
-Falta cobrir numa fase posterior: ícone/splash definitivos, `eas.json`, e o
-guia de submissão (requer conta Google Play Console e conta Expo/EAS do
-cliente — não geríveis por aqui).
+Ícone, splash screen e `eas.json` já estão prontos. Os passos que faltam
+(conta Expo/EAS, conta Google Play Console, build e submissão) exigem
+credenciais que só o cliente tem — ver o guia passo a passo em
+[`PUBLICAR.md`](./PUBLICAR.md).

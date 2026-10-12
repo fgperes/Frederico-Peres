@@ -7,12 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#7c3aed"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "pt.people4people.sgrh"
@@ -47,7 +41,16 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#7c3aed"
+        }
+      ]
     ],
     "extra": {
       "apiBaseUrl": "https://sgrh.people4people.pt"
