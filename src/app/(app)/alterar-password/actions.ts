@@ -9,9 +9,10 @@ export type ChangePasswordState = { error?: string; success?: boolean };
 
 export async function changePasswordAction(
   _prev: ChangePasswordState,
-  formData: FormData
+  formData: FormData,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ): Promise<ChangePasswordState> {
-  const user = await requireUser();
+  const user = overrideUser ?? (await requireUser());
 
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");

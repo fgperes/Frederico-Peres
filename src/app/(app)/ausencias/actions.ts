@@ -22,8 +22,11 @@ async function assertCanManage() {
 // `targetEmployeeId`: a própria ficha (self-service) ou, tendo perfil de
 // gestão (canWrite em "ausencias"), qualquer colaborador dentro do seu
 // âmbito — mesma regra do módulo de Férias.
-async function assertCanActOn(targetEmployeeId: string) {
-  const user = await requireUser();
+async function assertCanActOn(
+  targetEmployeeId: string,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+) {
+  const user = overrideUser ?? (await requireUser());
   if (!canRead(user.roles, "ausencias")) throw new Error("Sem permissão para o módulo de ausências.");
 
   if (user.employeeId === targetEmployeeId) {
@@ -69,10 +72,11 @@ export async function requestAbsenceDays(
   targetEmployeeId: string,
   absenceTypeId: string,
   dates: string[],
-  details: { reason?: string; documentName?: string; documentData?: string }
+  details: { reason?: string; documentName?: string; documentData?: string },
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ): Promise<RequestAbsenceState> {
   try {
-    const { user } = await assertCanActOn(targetEmployeeId);
+    const { user } = await assertCanActOn(targetEmployeeId, overrideUser);
 
     if (dates.length === 0) return { error: "Selecione pelo menos um dia." };
 
@@ -246,9 +250,12 @@ export async function decideAbsence(
   }
 }
 
-export async function cancelAbsence(absenceId: string): Promise<{ error?: string }> {
+export async function cancelAbsence(
+  absenceId: string,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+): Promise<{ error?: string }> {
   try {
-    const user = await requireUser();
+    const user = overrideUser ?? (await requireUser());
     const absence = await prisma.absence.findUniqueOrThrow({
       where: { id: absenceId },
       include: { absenceType: true },

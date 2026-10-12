@@ -31,8 +31,11 @@ function revalidateFerias(employeeId?: string) {
 // Confirma que o utilizador atual pode marcar/desmarcar férias na ficha de
 // `targetEmployeeId`: a própria ficha (self-service) ou, tendo perfil de
 // gestão (canWrite em "ferias"), qualquer colaborador dentro do seu âmbito.
-async function assertCanActOn(targetEmployeeId: string) {
-  const user = await requireUser();
+async function assertCanActOn(
+  targetEmployeeId: string,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+) {
+  const user = overrideUser ?? (await requireUser());
   if (!canRead(user.roles, "ferias")) throw new Error("Sem permissão para o módulo de férias.");
 
   if (user.employeeId === targetEmployeeId) {
@@ -66,8 +69,12 @@ export type ToggleVacationDayState = { error?: string; success?: boolean };
 // (usada pela modal "Marcar férias" dia a dia, por compatibilidade) como
 // pela versão em lote (`toggleVacationDays`, usada pela modal para marcar
 // vários dias de uma vez, ao estilo da criação de turnos em Escalas).
-async function toggleOneVacationDay(targetEmployeeId: string, dateStr: string): Promise<void> {
-  const { user, isSelf } = await assertCanActOn(targetEmployeeId);
+async function toggleOneVacationDay(
+  targetEmployeeId: string,
+  dateStr: string,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+): Promise<void> {
+  const { user, isSelf } = await assertCanActOn(targetEmployeeId, overrideUser);
 
   const date = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(date.getTime())) throw new Error("Data inválida.");
@@ -285,7 +292,8 @@ export type ToggleVacationDaysState = {
 // toggleOneVacationDay), em vez de depender da ordem de seleção.
 export async function toggleVacationDays(
   targetEmployeeId: string,
-  dateIsos: string[]
+  dateIsos: string[],
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ): Promise<ToggleVacationDaysState> {
   try {
     if (!targetEmployeeId) throw new Error("Colaborador não identificado.");
@@ -311,7 +319,7 @@ export async function toggleVacationDays(
     const failed: { date: string; error: string }[] = [];
     for (const dateStr of orderedDateIsos) {
       try {
-        await toggleOneVacationDay(targetEmployeeId, dateStr);
+        await toggleOneVacationDay(targetEmployeeId, dateStr, overrideUser);
         updated++;
       } catch (e) {
         failed.push({ date: dateStr, error: e instanceof Error ? e.message : "Erro." });
