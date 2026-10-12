@@ -87,10 +87,11 @@ export type SubmitEvaluationAnswersState = { error?: string; employeeId?: string
 export async function submitEvaluationAnswers(
   evaluationId: string,
   respondent: Respondent,
-  answers: AnswerInput[]
+  answers: AnswerInput[],
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ): Promise<SubmitEvaluationAnswersState> {
   try {
-    const user = await requireUser();
+    const user = overrideUser ?? (await requireUser());
 
     const evaluation = await prisma.evaluation.findUnique({
       where: { id: evaluationId },

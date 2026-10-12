@@ -18,9 +18,11 @@ export type GeoCoords = {
 // associada ao registo para validação de local de picagem.
 export async function clockAction(
   type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END",
-  coords?: GeoCoords | null
+  coords?: GeoCoords | null,
+  terminalType: "WEB" | "MOBILE" = "WEB",
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ) {
-  const user = await requireUser();
+  const user = overrideUser ?? (await requireUser());
   if (!user.employeeId) throw new Error("Utilizador sem ficha de colaborador associada.");
 
   const now = new Date();
@@ -31,7 +33,7 @@ export async function clockAction(
     employeeId: user.employeeId,
     type,
     timestamp: now,
-    terminalType: "WEB",
+    terminalType,
     coords,
   });
 
@@ -61,8 +63,12 @@ export async function dismissMealReminder(shiftId: string) {
 }
 
 // PI-03: colaborador submete justificação para picagem em falta/incorreta.
-export async function submitJustification(entryId: string, formData: FormData) {
-  const user = await requireUser();
+export async function submitJustification(
+  entryId: string,
+  formData: FormData,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+) {
+  const user = overrideUser ?? (await requireUser());
   const justification = String(formData.get("justification") ?? "").trim();
   if (!justification) throw new Error("Indique uma justificação.");
 

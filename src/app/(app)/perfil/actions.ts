@@ -16,8 +16,11 @@ function refreshAvatarViews() {
 
 // Qualquer utilizador só pode alterar o seu próprio avatar — mesmo que
 // esteja, por exemplo, a consultar a ficha de outro colaborador.
-export async function updateAvatar(avatarKey: string) {
-  const user = await requireUser();
+export async function updateAvatar(
+  avatarKey: string,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+) {
+  const user = overrideUser ?? (await requireUser());
   if (!AVATARS.some((a) => a.key === avatarKey)) {
     throw new Error("Avatar inválido.");
   }
@@ -30,9 +33,12 @@ export async function updateAvatar(avatarKey: string) {
 // Foto carregada a partir do computador — o browser já a redimensiona e
 // recomprime antes de enviar (ver lib/client-files.ts), para caber num
 // campo de texto na base de dados sem precisar de armazenamento externo.
-export async function uploadAvatarImage(dataUrl: string): Promise<{ error?: string }> {
+export async function uploadAvatarImage(
+  dataUrl: string,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+): Promise<{ error?: string }> {
   try {
-    const user = await requireUser();
+    const user = overrideUser ?? (await requireUser());
     if (!dataUrl.startsWith("data:image/")) {
       throw new Error("Ficheiro inválido — escolha uma imagem.");
     }
@@ -58,8 +64,8 @@ export async function uploadAvatarImage(dataUrl: string): Promise<{ error?: stri
   }
 }
 
-export async function removeAvatarImage() {
-  const user = await requireUser();
+export async function removeAvatarImage(overrideUser?: Awaited<ReturnType<typeof requireUser>>) {
+  const user = overrideUser ?? (await requireUser());
   await prisma.user.update({ where: { id: user.id }, data: { avatarImage: null } });
   refreshAvatarViews();
 }
