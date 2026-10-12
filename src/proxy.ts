@@ -18,7 +18,26 @@ export default auth((req) => {
   const isMobileApi = req.nextUrl.pathname.startsWith("/api/mobile/");
   const isChangePasswordPage = req.nextUrl.pathname.startsWith("/alterar-password");
 
-  if (isAuthApi || isPicagensWebhook || isMobileApi) return NextResponse.next();
+  // CORS para a API mobile: permite chamadas a partir do browser (ex.: uma
+  // pré-visualização web da app) — seguro porque a autenticação é sempre
+  // feita pelo token Bearer no próprio pedido, nunca por cookies/sessão
+  // ambiente que um site de terceiros pudesse reutilizar sem o conhecer.
+  if (isMobileApi) {
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+    };
+    if (req.method === "OPTIONS") {
+      return new NextResponse(null, { status: 204, headers: corsHeaders });
+    }
+    const res = NextResponse.next();
+    for (const [key, value] of Object.entries(corsHeaders)) res.headers.set(key, value);
+    return res;
+  }
+
+  if (isAuthApi || isPicagensWebhook) return NextResponse.next();
 
   if (!isLoggedIn && !isLoginPage) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
