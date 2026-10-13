@@ -88,19 +88,100 @@ alguns colaboradores de confiança como testadores, confirma que tudo
 funciona no telemóvel real, e só depois promove a versão para Produção
 dentro da própria Play Console (um botão, sem nova build).
 
-## 6. Atualizações seguintes
+## 6. (Opcional) Publicar também na App Store (iPhone)
 
-Para cada nova versão:
+A Play Store e a App Store são lojas completamente separadas — uma build
+Android (`.aab`) não corre num iPhone. Mas como a app é React Native/Expo, o
+mesmo código serve para iOS sem reescrever nada; só falta repetir os passos
+de conta/build/submissão do lado da Apple. O `eas.json` já tem um perfil
+`ios` em `development`/`preview`/`production` (ao lado do `android`, sem o
+alterar) pronto a usar.
+
+### 6.1. Custo
+
+- **Apple Developer Program**: 99 USD/ano (ao contrário da Google, que é
+  uma taxa única de inscrição, a Apple cobra todos os anos para manteres a
+  app publicada).
+
+### 6.2. Conta Apple Developer
+
+1. Inscreve-te em https://developer.apple.com/programs/ (conta Apple
+   normal + os 99 USD/ano). Pode demorar até 48h a ser aprovada.
+2. Garante que a tua Apple ID tem autenticação de dois fatores ativada
+   (a Apple exige isto para publicar apps).
+
+### 6.3. Gerar a build iOS (.ipa) — não precisas de Mac
+
+Já no teu computador, dentro de `mobile/`:
+
+```bash
+eas build --platform ios --profile production
+```
+
+- Corre na cloud da Expo, tal como a build Android — **não precisas de Mac
+  nem de Xcode**.
+- Na primeira vez, o EAS pede para entrares com a tua Apple ID e pergunta
+  se queres que ele crie e faça a gestão do certificado de assinatura e do
+  perfil de aprovisionamento por ti — **responde que sim** (é o equivalente
+  à keystore automática do Android).
+
+### 6.4. Criar a app na App Store Connect
+
+Em paralelo, cria a ficha da app em https://appstoreconnect.apple.com
+("Minhas Apps" → "+"):
+- Nome: `people4people`, idioma principal Português (Portugal).
+- Bundle ID: `pt.people4people.sgrh` (já definido em `app.json` →
+  `expo.ios.bundleIdentifier` — escolhe o mesmo quando a Apple pedir para
+  o registares).
+- Preenche o obrigatório antes de submeter: política de privacidade (o
+  mesmo URL que vais usar na Play Store), questionário de privacidade da
+  Apple ("App Privacy" — que dados a app recolhe, ex.: localização para
+  picagens), classificação etária, capturas de ecrã (a Apple pede
+  tamanhos específicos por modelo de iPhone) e descrição da app.
+
+### 6.5. Submeter
+
+```bash
+eas submit --platform ios --profile production
+```
+
+Na primeira vez pede a Apple ID, o Team ID e o ID da app na App Store
+Connect — depois de os teres, dá para gravá-los em
+`eas.json` → `submit.production.ios` para não teres de os repetir nas
+próximas vezes.
+
+### 6.6. Testar antes de lançar (TestFlight)
+
+Equivalente ao "Teste interno" da Play Store: assim que a build é
+processada, fica automaticamente disponível em TestFlight dentro da App
+Store Connect. Adiciona-te a ti e a colaboradores de confiança como
+testadores internos (até 100, sem revisão da Apple) antes de submeter a
+app para revisão pública.
+
+**Nota sobre tempos**: a revisão da Apple costuma demorar 24–48h (por
+vezes mais, sobretudo na primeira submissão), ao contrário da Play Store
+que costuma ser mais rápida — conta com isso no planeamento do lançamento.
+
+## 7. Atualizações seguintes
+
+Para cada nova versão (Android):
 ```bash
 eas build --platform android --profile production
 eas submit --platform android --profile production
 ```
-O número de versão incrementa sozinho (`eas.json` tem
-`cli.appVersionSource: "remote"` e `build.production.autoIncrement: true`).
+Se também publicares na App Store, o mesmo para iOS:
+```bash
+eas build --platform ios --profile production
+eas submit --platform ios --profile production
+```
+Ou as duas lojas de uma vez, com `--platform all`. O número de versão
+incrementa sozinho em ambas (`eas.json` tem `cli.appVersionSource: "remote"`
+e `build.production.autoIncrement: true`).
 
 Para alterações pequenas de JavaScript (sem adicionar módulos nativos
 novos), também é possível usar **EAS Update** para publicar sem passar pela
-revisão da Play Store — mas isso fica fora do âmbito desta primeira versão.
+revisão da Play Store/App Store — mas isso fica fora do âmbito desta
+primeira versão.
 
 ## Itens que preciso de confirmar contigo
 
