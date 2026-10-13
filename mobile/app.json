@@ -21,7 +21,9 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -53,7 +55,12 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "https://sgrh.people4people.pt"
-    }
+      "apiBaseUrl": "https://sgrh.people4people.pt",
+      "router": {},
+      "eas": {
+        "projectId": "9057f068-373c-4540-81c3-8e1bb43bc59d"
+      }
+    },
+    "owner": "fredericoperess-team"
   }
 }
