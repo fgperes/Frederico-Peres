@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CookieConsent } from "@/components/cookie-consent";
 import { FloatingChatWidget } from "@/components/floating-chat-widget";
+import { GoogleTag } from "@/components/google-tag";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://people4people.pt"),
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-PT">
       <body className="antialiased">
+        <GoogleTag />
         <noscript>
           <style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style>
         </noscript>
