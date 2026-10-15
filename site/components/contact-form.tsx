@@ -1,13 +1,18 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { submitDemoForm, type LeadFormState } from "@/app/actions";
+import { reportLeadConversion } from "@/lib/gtag";
 
 const initialState: LeadFormState = {};
 
 export function ContactForm() {
   const [state, formAction, pending] = useActionState(submitDemoForm, initialState);
+
+  useEffect(() => {
+    if (state.success) reportLeadConversion();
+  }, [state.success]);
 
   if (state.success) {
     return (

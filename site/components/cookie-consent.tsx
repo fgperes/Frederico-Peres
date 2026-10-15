@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { updateConsent } from "@/lib/gtag";
 
 const STORAGE_KEY = "p4p-cookie-consent";
 
@@ -12,8 +13,15 @@ export function CookieConsent() {
     // Lido só no cliente (localStorage não existe no SSR) — não há como evitar
     // o setState aqui sem arriscar um hydration mismatch.
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (!window.localStorage.getItem(STORAGE_KEY)) setVisible(true);
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored === "accepted" || stored === "rejected") {
+        // O Google tag arranca sempre com consentimento negado por omissão
+        // (gtag-consent-default) — uma escolha já guardada tem de ser reaplicada a cada carregamento.
+        updateConsent(stored);
+      } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVisible(true);
+      }
     } catch {
       setVisible(true);
     }
@@ -25,6 +33,7 @@ export function CookieConsent() {
     } catch {
       // armazenamento indisponível (ex.: modo privado) — a escolha só vale para esta visita
     }
+    updateConsent(value);
     setVisible(false);
   }
 
