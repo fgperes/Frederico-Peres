@@ -33,6 +33,11 @@ export function updateConsent(choice: ConsentChoice) {
   });
 }
 
+// Ação de conversão "Enviar formulário de leads" (Objetivos → Conversões no Google Ads) —
+// o identificador vem do fragmento de evento gerado lá, não é inventado aqui.
+const LEAD_FORM_CONVERSION_LABEL = "AW-18511881919/cep6CNCV_psdEL_Nk_tE";
+
 export function reportLeadConversion() {
   gtag("event", "generate_lead");
+  gtag("event", "conversion", { send_to: LEAD_FORM_CONVERSION_LABEL });
 }
