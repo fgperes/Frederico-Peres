@@ -1,5 +1,5 @@
 import Script from "next/script";
-import { GTAG_ID } from "@/lib/gtag";
+import { GTAG_ID, CONSENT_DEFAULT_REGIONS } from "@/lib/gtag";
 
 export function GoogleTag() {
   return (
@@ -14,6 +14,7 @@ export function GoogleTag() {
             ad_user_data: 'denied',
             ad_personalization: 'denied',
             analytics_storage: 'denied',
+            region: ${JSON.stringify(CONSENT_DEFAULT_REGIONS)},
             wait_for_update: 500
           });
         `}
