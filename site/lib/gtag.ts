@@ -1,5 +1,14 @@
 export const GTAG_ID = "AW-18511881919";
 
+// Espaço Económico Europeu (UE + Islândia/Liechtenstein/Noruega) + Reino Unido + Suíça.
+// A negação de consentimento por omissão só se aplica aqui — fora destas regiões,
+// a medição fica ativa de imediato (RGPD não exige consentimento prévio nesses casos).
+export const CONSENT_DEFAULT_REGIONS = [
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU",
+  "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL", "PT", "RO",
+  "SK", "SI", "ES", "SE", "GB", "CH",
+];
+
 declare global {
   interface Window {
     dataLayer: unknown[];
