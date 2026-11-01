@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { Badge, Button } from "@/components/ui";
+import { useConfirm } from "@/components/confirm-dialog";
 import {
   decideTimeClockDayAction,
   removeTimeClockDecisionAction,
@@ -91,6 +92,7 @@ function DecisionModal({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
 
   const diffHours = diffMinutes / 60;
   const sign = diffHours >= 0 ? "+" : "";
@@ -124,7 +126,8 @@ function DecisionModal({
     });
   }
 
-  function remove() {
+  async function remove() {
+    if (!(await confirm("Tem a certeza que quer remover a decisão atual deste dia?"))) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -138,7 +141,9 @@ function DecisionModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Decidir desvio de picagens" widthClassName="max-w-sm">
+    <>
+      {dialog}
+      <Modal open onClose={onClose} title="Decidir desvio de picagens" widthClassName="max-w-sm">
       <p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
         Dia {new Date(`${date}T12:00:00`).toLocaleDateString("pt-PT")} · desvio{" "}
         <span className={diffHours >= 0 ? "font-semibold text-emerald-600 dark:text-emerald-400" : "font-semibold text-rose-600 dark:text-rose-400"}>
@@ -235,6 +240,7 @@ function DecisionModal({
           )}
         </div>
       )}
-    </Modal>
+      </Modal>
+    </>
   );
 }

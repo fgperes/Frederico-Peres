@@ -5,6 +5,7 @@ import { Check, Upload, X } from "lucide-react";
 import { AVATARS, AVATAR_CATEGORY_LABELS, AvatarImage, type AvatarCategory } from "@/lib/avatars";
 import { readImageAsResizedDataUrl } from "@/lib/client-files";
 import { updateAvatar, uploadAvatarImage, removeAvatarImage } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const CATEGORIES: AvatarCategory[] = ["anime", "cartoon", "cinema"];
 
@@ -23,6 +24,7 @@ export function AvatarPicker({
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog } = useConfirm();
 
   function handlePick(key: string) {
     setSelectedKey(key);
@@ -39,6 +41,14 @@ export function AvatarPicker({
     if (!file.type.startsWith("image/")) {
       setUploadError("Escolha um ficheiro de imagem (JPG, PNG, etc.).");
       return;
+    }
+    if (image) {
+      const ok = await confirm("Já tem uma foto carregada. Quer substituí-la pela nova imagem?", {
+        title: "Substituir foto",
+        confirmLabel: "Substituir",
+        variant: "primary",
+      });
+      if (!ok) return;
     }
     setUploadError(null);
     setUploading(true);
@@ -62,7 +72,8 @@ export function AvatarPicker({
     }
   }
 
-  function handleRemoveImage() {
+  async function handleRemoveImage() {
+    if (!(await confirm("Tem a certeza que quer remover a foto carregada?"))) return;
     setImage(null);
     startTransition(() => {
       removeAvatarImage();
@@ -71,6 +82,7 @@ export function AvatarPicker({
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
           Foto do computador

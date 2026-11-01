@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { isSystemAdmin } from "@/lib/roles";
 import { getHolidays } from "@/lib/holidays";
-import { PageHeader, Card, Badge, Button, EmptyState } from "@/components/ui";
+import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { AcessosTabs } from "../tabs";
 import { HolidayForm } from "./holiday-form";
 import { HolidayImportForm } from "./import-form";
-import { deleteHoliday } from "./actions";
+import { DeleteHolidayButton } from "./delete-holiday-button";
 import { redirect } from "next/navigation";
 import { CalendarDays, Download } from "lucide-react";
 
@@ -69,11 +69,7 @@ export default async function FeriadosPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <form action={deleteHoliday.bind(null, h.id)}>
-                              <Button variant="danger" type="submit" className="px-2.5 py-1 text-xs">
-                                Remover
-                              </Button>
-                            </form>
+                            <DeleteHolidayButton holidayId={h.id} description={h.description} />
                           </td>
                         </tr>
                       ))}

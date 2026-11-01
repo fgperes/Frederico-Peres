@@ -54,8 +54,15 @@ export function AccessCard({
   const rolesFeedback = useSaveFeedback();
   const roleLabels = Object.fromEntries(roles.map((r) => [r.key, r.label]));
 
-  function handleRolesSubmit(formData: FormData) {
+  function handleRolesSubmit(event: React.FormEvent<HTMLFormElement>) {
+    // onSubmit + preventDefault (não `action={fn}`): com a Actions API do
+    // React, um `action` que termina com sucesso repõe os campos não
+    // controlados (defaultValue/defaultChecked) ao valor que tinham quando
+    // o formulário montou, fazendo o Âmbito/perfis voltarem ao estado
+    // anterior logo após "Guardar perfis" apesar de já gravados na BD.
+    event.preventDefault();
     if (!boundUpdateRoles) return;
+    const formData = new FormData(event.currentTarget);
     startRolesTransition(() => {
       rolesFeedback.run(async () => {
         await boundUpdateRoles(formData);
@@ -94,7 +101,7 @@ export function AccessCard({
           Perfis de acesso
         </h3>
         {canManage && boundUpdateRoles ? (
-          <form action={handleRolesSubmit} className="space-y-3">
+          <form onSubmit={handleRolesSubmit} className="space-y-3">
             <SaveBanner status={rolesFeedback.status} message={rolesFeedback.message} />
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {roles.map((role) => (

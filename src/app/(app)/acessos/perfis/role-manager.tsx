@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, Pencil, Trash2, X, Check } from "lucide-react";
 import { createRole, updateRole, deleteRole } from "./role-actions";
 import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type RoleDefRow = { id: string; key: string; label: string; isSystem: boolean };
 
@@ -34,9 +35,11 @@ function RoleList({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   return (
     <div>
+      {dialog}
       <SaveBanner status={status} message={message} />
       <div className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
         <div className="overflow-x-auto">
@@ -74,7 +77,8 @@ function RoleList({
                       });
                       setEditingId(null);
                     }}
-                    onDelete={() => {
+                    onDelete={async () => {
+                      if (!(await confirm(`Tem a certeza que quer eliminar o perfil "${def.label}"?`))) return;
                       startTransition(() => {
                         run(async () => {
                           await deleteRole(def.id);

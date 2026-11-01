@@ -5,10 +5,10 @@ import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { ListPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { removePayrollComponent } from "../actions";
 import { PAYROLL_COMPONENT_CATEGORY_LABELS, taxFlagsToCategory } from "@/lib/payroll";
 import { ImportPayrollComponentsForm } from "./import-payroll-components-form";
 import { AddPayrollComponentDirectForm } from "./add-payroll-component-direct-form";
+import { RemovePayrollComponentButton } from "../remove-payroll-component-button";
 import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
 
 function parseIdList(value: string | undefined): string[] {
@@ -136,11 +136,7 @@ export default async function PayrollRubricasPage({
                     <td className="px-4 py-3">{c.type === "EARNING" ? "+" : "−"}{c.amount.toFixed(2)} €</td>
                     <td className="px-4 py-3">{c.recurring ? "Recorrente" : `${c.applyMonth}/${c.applyYear}`}</td>
                     <td className="px-4 py-3 text-right">
-                      <form action={removePayrollComponent.bind(null, c.id, c.employeeId)}>
-                        <button type="submit" className="text-xs text-rose-600 hover:underline">
-                          remover
-                        </button>
-                      </form>
+                      <RemovePayrollComponentButton componentId={c.id} employeeId={c.employeeId} componentName={c.name} />
                     </td>
                   </tr>
                 ))}

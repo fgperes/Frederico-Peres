@@ -8,6 +8,7 @@ import { Button, Field, Input, Select, Badge } from "@/components/ui";
 import { TimeField } from "@/components/time-field";
 import { isoDate } from "@/lib/dates";
 import { createShiftAction, updateShiftAction, deleteSingleShiftAction } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export type ShiftTemplateOption = {
   id: string;
@@ -58,6 +59,7 @@ export function ShiftModal({
   const [notes, setNotes] = useState(existingShift?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirm();
 
   function applyTemplate(id: string) {
     setShiftTemplateId(id);
@@ -127,8 +129,9 @@ export function ShiftModal({
     });
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!existingShift) return;
+    if (!(await confirm("Tem a certeza que quer eliminar este turno?"))) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteSingleShiftAction(existingShift.id);
@@ -143,7 +146,9 @@ export function ShiftModal({
   const canSubmit = isEdit ? true : selectedDates.size > 0;
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? "Editar turno" : "Criar turno"} widthClassName="max-w-md">
+    <>
+      {dialog}
+      <Modal open={open} onClose={onClose} title={isEdit ? "Editar turno" : "Criar turno"} widthClassName="max-w-md">
       <div className="space-y-4">
         <p className="text-sm text-stone-600 dark:text-stone-400">
           Colaborador: <span className="font-medium text-stone-900 dark:text-stone-100">{employeeName}</span>
@@ -233,6 +238,7 @@ export function ShiftModal({
           </div>
         </div>
       </div>
-    </Modal>
+      </Modal>
+    </>
   );
 }

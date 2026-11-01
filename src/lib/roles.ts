@@ -183,21 +183,28 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
 // Matriz efetiva em memória: começa igual à matriz por omissão e é
 // atualizada com os desvios gravados pelo Administrador do Sistema. As
 // funções accessFor/canWrite/canRead continuam síncronas (usadas em
-// dezenas de páginas) — a carga a partir da BD acontece uma única vez por
-// processo, em getCurrentUser(), antes de qualquer verificação de acesso.
+// dezenas de páginas) — ensureMatrixLoaded() recarrega-a a partir da BD em
+// CADA pedido (chamada por getCurrentUser(), antes de qualquer verificação
+// de acesso), em vez de só uma vez por processo: num ambiente serverless
+// (Vercel) cada pedido pode cair numa instância/processo diferente, e uma
+// instância que nunca tivesse recarregado a matriz continuaria a aplicar os
+// valores por omissão indefinidamente mesmo depois de o Administrador do
+// Sistema gravar uma alteração — era exactamente isto que fazia "Acessos →
+// Perfis → alterar nível de acesso" não se refletir de imediato (nem sequer
+// ao dar refresh) para quem fosse servido por essa instância. As tabelas
+// envolvidas (RoleDefinition, RolePermission) são pequenas, por isso o custo
+// extra por pedido é residual.
 let runtimeMatrix: Record<Role, Record<Module, AccessLevel>> = Object.fromEntries(
   ROLES.map((r) => [r, { ...(DEFAULT_MATRIX[r] ?? allNoneRow()) }])
 );
-let matrixLoaded = false;
 
 export async function ensureMatrixLoaded(): Promise<void> {
-  if (matrixLoaded) return;
-  matrixLoaded = true; // marca já para não disparar várias cargas em paralelo
   try {
     let defs = await prisma.roleDefinition.findMany({ orderBy: { createdAt: "asc" } });
 
     // Autoinstalação: semeia os 6 perfis originais na BD caso ainda não lá
     // estejam (ex.: primeira vez que esta versão corre contra a BD).
+    // skipDuplicates torna isto seguro de repetir em todos os pedidos.
     const existingKeys = new Set(defs.map((d) => d.key));
     const missing = BUILTIN_ROLE_DEFS.filter((b) => !existingKeys.has(b.key));
     if (missing.length > 0) {
@@ -208,20 +215,21 @@ export async function ensureMatrixLoaded(): Promise<void> {
     runtimeRoleDefs = defs.map((d) => ({ key: d.key, label: d.label, isSystem: d.isSystem }));
     rebuildDerivedRoleState();
 
-    runtimeMatrix = Object.fromEntries(
+    const nextMatrix = Object.fromEntries(
       ROLES.map((r) => [r, { ...(DEFAULT_MATRIX[r] ?? allNoneRow()) }])
     );
 
     const overrides = await prisma.rolePermission.findMany();
     for (const o of overrides) {
       const mod = o.module as Module;
-      if (runtimeMatrix[o.role] && mod in runtimeMatrix[o.role]) {
-        runtimeMatrix[o.role][mod] = o.accessLevel as AccessLevel;
+      if (nextMatrix[o.role] && mod in nextMatrix[o.role]) {
+        nextMatrix[o.role][mod] = o.accessLevel as AccessLevel;
       }
     }
+    runtimeMatrix = nextMatrix;
   } catch {
-    // Sem BD acessível (ex.: build estático) — mantém os valores por omissão.
-    matrixLoaded = false;
+    // Sem BD acessível (ex.: build estático) — mantém os valores em memória
+    // (por omissão, ou os últimos carregados com sucesso nesta instância).
   }
 }
 
@@ -239,7 +247,6 @@ export function applyMatrixOverrides(
     next[c.role] = { ...next[c.role], [c.module]: c.accessLevel };
   }
   runtimeMatrix = next;
-  matrixLoaded = true;
 }
 
 // Reflete de imediato, sem esperar por reload, a criação/edição/eliminação

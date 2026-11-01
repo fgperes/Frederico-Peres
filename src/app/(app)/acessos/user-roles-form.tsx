@@ -23,7 +23,17 @@ export function UserRolesForm({
   const { status, message, run } = useSaveFeedback();
   const router = useRouter();
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    // Lê o FormData e previne o submit nativo em vez de passar handleSubmit
+    // como `action` do <form> — com a Actions API do React, um `action`
+    // (função) que termina com sucesso repõe os campos não controlados
+    // (defaultValue/defaultChecked) ao valor que tinham quando o formulário
+    // montou, o que fazia o Âmbito voltar à opção por omissão logo após
+    // "Guardar perfis", apesar de já ter sido gravado na BD (só aparecia
+    // correto depois de um reload completo da página, que remonta o
+    // formulário com o novo currentDepartmentId).
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     startTransition(() => {
       run(async () => {
         await updateUserRoles(userId, formData);
@@ -35,7 +45,7 @@ export function UserRolesForm({
   return (
     <div className="space-y-2">
       <SaveBanner status={status} message={message} />
-      <form action={handleSubmit} className="space-y-2">
+      <form onSubmit={handleSubmit} className="space-y-2">
         <div className="grid grid-cols-1 gap-1">
           {roles.map((role) => (
             <label key={role.key} className="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, RotateCcw } from "lucide-react";
 import { TimeField } from "@/components/time-field";
 import { setActualTimesCorrectionAction, deleteHoursCorrectionAction, type CorrectionState } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 // Corrige o horário real de um dia (entrada/saída) — nunca um número de
 // horas. Disponível para quem gere Picagens e para o próprio colaborador
@@ -32,6 +33,7 @@ export function EditActualTimesCell({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
 
   function save() {
     if (!start || !end) {
@@ -57,7 +59,8 @@ export function EditActualTimesCell({
     });
   }
 
-  function revert() {
+  async function revert() {
+    if (!(await confirm("Tem a certeza que quer remover esta correção e repor o horário original?"))) return;
     startTransition(async () => {
       await deleteHoursCorrectionAction(employeeId, date);
       router.refresh();
@@ -111,6 +114,7 @@ export function EditActualTimesCell({
 
   return (
     <div className="flex items-center justify-center gap-1">
+      {dialog}
       <button
         type="button"
         onClick={() => {
