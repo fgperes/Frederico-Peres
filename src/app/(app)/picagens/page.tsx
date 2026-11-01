@@ -39,58 +39,65 @@ export default async function PicagensPage() {
   const canEdit = canWrite(user.roles, "picagens");
   const scope = await employeeScopeWhere(user);
 
-  const myEntries = user.employeeId
-    ? await prisma.timeClockEntry.findMany({
-        where: { employeeId: user.employeeId },
-        orderBy: { timestamp: "desc" },
-        take: 15,
-      })
-    : [];
-
+  let myEntries: Awaited<ReturnType<typeof prisma.timeClockEntry.findMany>> = [];
   let mealStatus = null;
-  if (user.employeeId) {
-    const employee = await prisma.employee.findUnique({
-      where: { id: user.employeeId },
-      select: { weeklyHours: true },
-    });
-    mealStatus = await getTodayMealStatus(user.employeeId, employee?.weeklyHours ?? 40);
-  }
-
-  const weekStart = getWeekStart();
-  const weekDays = getWeekDays(weekStart);
-  const weekEnd = weekDays[6];
-  weekEnd.setHours(23, 59, 59, 999);
-
   let deviationQueue: TimeClockEntryWithEmployee[] = [];
   let weeklyReport: { name: string; worked: number; contracted: number }[] = [];
 
-  if (canEdit) {
-    const scopedEmployees = await prisma.employee.findMany({ where: scope });
-    const scopedIds = scopedEmployees.map((e) => e.id);
+  try {
+    myEntries = user.employeeId
+      ? await prisma.timeClockEntry.findMany({
+          where: { employeeId: user.employeeId },
+          orderBy: { timestamp: "desc" },
+          take: 15,
+        })
+      : [];
 
-    deviationQueue = await prisma.timeClockEntry.findMany({
-      where: {
-        employeeId: { in: scopedIds },
-        hasDeviation: true,
-        justificationStatus: { in: ["PENDING"] },
-      },
-      include: { employee: true },
-      orderBy: { timestamp: "desc" },
-      take: 30,
-    });
+    if (user.employeeId) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: user.employeeId },
+        select: { weeklyHours: true },
+      });
+      mealStatus = await getTodayMealStatus(user.employeeId, employee?.weeklyHours ?? 40);
+    }
 
-    const weekEntries = await prisma.timeClockEntry.findMany({
-      where: { employeeId: { in: scopedIds }, timestamp: { gte: weekStart, lte: weekEnd } },
-    });
+    const weekStart = getWeekStart();
+    const weekDays = getWeekDays(weekStart);
+    const weekEnd = weekDays[6];
+    weekEnd.setHours(23, 59, 59, 999);
 
-    weeklyReport = scopedEmployees.map((e) => {
-      const entries = weekEntries.filter((en) => en.employeeId === e.id);
-      return {
-        name: `${e.firstName} ${e.lastName}`,
-        worked: computeWorkedHours(entries),
-        contracted: e.weeklyHours,
-      };
-    });
+    if (canEdit) {
+      const scopedEmployees = await prisma.employee.findMany({ where: scope });
+      const scopedIds = scopedEmployees.map((e) => e.id);
+
+      deviationQueue = await prisma.timeClockEntry.findMany({
+        where: {
+          employeeId: { in: scopedIds },
+          hasDeviation: true,
+          justificationStatus: { in: ["PENDING"] },
+        },
+        include: { employee: true },
+        orderBy: { timestamp: "desc" },
+        take: 30,
+      });
+
+      const weekEntries = await prisma.timeClockEntry.findMany({
+        where: { employeeId: { in: scopedIds }, timestamp: { gte: weekStart, lte: weekEnd } },
+      });
+
+      weeklyReport = scopedEmployees.map((e) => {
+        const entries = weekEntries.filter((en) => en.employeeId === e.id);
+        return {
+          name: `${e.firstName} ${e.lastName}`,
+          worked: computeWorkedHours(entries),
+          contracted: e.weeklyHours,
+        };
+      });
+    }
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("picagensPage:read", err);
+    throw err;
   }
 
   return (

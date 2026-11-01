@@ -43,13 +43,27 @@ export default async function DashboardPage() {
   const isManagement = accessFor(user.roles, "recursos") !== "own";
   const userIsSystemAdmin = isSystemAdmin(user.roles);
 
-  const [todaysAnniversaries, subscription, managementData, colaboradorData] = await Promise.all([
-    getTodaysAnniversaries(),
-    getModuleSubscription(),
-    isManagement ? loadManagementDashboardData(user) : Promise.resolve(null),
-    isManagement ? Promise.resolve(null) : loadColaboradorDashboardData(user),
-  ]);
-  const alreadyCommentedKeys = await getMyAlreadyCommentedKeys(user.id, todaysAnniversaries);
+  let todaysAnniversaries, subscription, managementData, colaboradorData;
+  try {
+    [todaysAnniversaries, subscription, managementData, colaboradorData] = await Promise.all([
+      getTodaysAnniversaries(),
+      getModuleSubscription(),
+      isManagement ? loadManagementDashboardData(user) : Promise.resolve(null),
+      isManagement ? Promise.resolve(null) : loadColaboradorDashboardData(user),
+    ]);
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("dashboard:Promise.all", err);
+    throw err;
+  }
+  let alreadyCommentedKeys;
+  try {
+    alreadyCommentedKeys = await getMyAlreadyCommentedKeys(user.id, todaysAnniversaries);
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("dashboard:alreadyCommentedKeys", err);
+    throw err;
+  }
 
   return (
     <div>

@@ -27,23 +27,29 @@ export async function clockAction(
 
   const now = new Date();
 
-  // PI-02: comparar automaticamente com o horário planeado (feito dentro de
-  // recordTimeClockEntry, partilhado com o webhook de terminais físicos).
-  const entry = await recordTimeClockEntry({
-    employeeId: user.employeeId,
-    type,
-    timestamp: now,
-    terminalType,
-    coords,
-  });
+  try {
+    // PI-02: comparar automaticamente com o horário planeado (feito dentro de
+    // recordTimeClockEntry, partilhado com o webhook de terminais físicos).
+    const entry = await recordTimeClockEntry({
+      employeeId: user.employeeId,
+      type,
+      timestamp: now,
+      terminalType,
+      coords,
+    });
 
-  await logAudit({
-    userId: user.id,
-    action: "CLOCK",
-    entity: "TimeClockEntry",
-    entityId: entry.id,
-    details: coords ? `${type} (com localização)` : type,
-  });
+    await logAudit({
+      userId: user.id,
+      action: "CLOCK",
+      entity: "TimeClockEntry",
+      entityId: entry.id,
+      details: coords ? `${type} (com localização)` : type,
+    });
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("clockAction:write", err);
+    throw err;
+  }
 
   revalidatePath("/picagens");
   revalidatePath("/", "layout");

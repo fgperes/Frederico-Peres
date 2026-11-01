@@ -9,6 +9,7 @@ import { getOpenTasks } from "@/lib/tasks";
 import { getTodayMealStatus } from "@/lib/meal-rules";
 import { ensureEvaluationDueTasks } from "@/lib/evaluations";
 import { MobileNavProvider } from "@/components/mobile-nav-context";
+import { captureDebug } from "@/lib/debug-capture";
 
 export default async function AppLayout({
   children,
@@ -17,32 +18,48 @@ export default async function AppLayout({
 }) {
   const user = await requireUser();
 
-  // Sem cron disponível: cria (se ainda não existirem) as tarefas de aviso
-  // de avaliações agendadas para os próximos 30 dias a cada carregamento de
-  // página, antes de ler as tarefas abertas do utilizador abaixo.
-  await ensureEvaluationDueTasks();
+  try {
+    // Sem cron disponível: cria (se ainda não existirem) as tarefas de aviso
+    // de avaliações agendadas para os próximos 30 dias a cada carregamento de
+    // página, antes de ler as tarefas abertas do utilizador abaixo.
+    await ensureEvaluationDueTasks();
+  } catch (err) {
+    await captureDebug("layout:ensureEvaluationDueTasks", err);
+    throw err;
+  }
 
-  const [notifications, unreadMessageCount, recipients, messages, dbUser, tasks] = await Promise.all([
-    getNotifications(user),
-    getUnreadMessageCount(user.id),
-    getAllowedRecipients(user),
-    prisma.message.findMany({
-      where: { recipientId: user.id },
-      include: { sender: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { avatarKey: true, avatarImage: true } }),
-    getOpenTasks(user.id),
-  ]);
+  let notifications, unreadMessageCount, recipients, messages, dbUser, tasks;
+  try {
+    [notifications, unreadMessageCount, recipients, messages, dbUser, tasks] = await Promise.all([
+      getNotifications(user),
+      getUnreadMessageCount(user.id),
+      getAllowedRecipients(user),
+      prisma.message.findMany({
+        where: { recipientId: user.id },
+        include: { sender: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      prisma.user.findUnique({ where: { id: user.id }, select: { avatarKey: true, avatarImage: true } }),
+      getOpenTasks(user.id),
+    ]);
+  } catch (err) {
+    await captureDebug("layout:Promise.all", err);
+    throw err;
+  }
 
   let mealStatus = null;
   if (user.employeeId) {
-    const employee = await prisma.employee.findUnique({
-      where: { id: user.employeeId },
-      select: { weeklyHours: true },
-    });
-    mealStatus = await getTodayMealStatus(user.employeeId, employee?.weeklyHours ?? 40);
+    try {
+      const employee = await prisma.employee.findUnique({
+        where: { id: user.employeeId },
+        select: { weeklyHours: true },
+      });
+      mealStatus = await getTodayMealStatus(user.employeeId, employee?.weeklyHours ?? 40);
+    } catch (err) {
+      await captureDebug("layout:mealStatus", err);
+      throw err;
+    }
   }
 
   return (
