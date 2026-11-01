@@ -35,6 +35,16 @@ type TimeClockEntryWithEmployee = Prisma.TimeClockEntryGetPayload<{
 }>;
 
 export default async function PicagensPage() {
+  try {
+    return await PicagensPageInner();
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("picagensPage:full", err);
+    throw err;
+  }
+}
+
+async function PicagensPageInner() {
   const user = await requireUser();
   const canEdit = canWrite(user.roles, "picagens");
   const scope = await employeeScopeWhere(user);

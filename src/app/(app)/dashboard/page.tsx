@@ -30,6 +30,16 @@ import {
 } from "lucide-react";
 
 export default async function DashboardPage() {
+  try {
+    return await DashboardPageInner();
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("dashboardPage:full", err);
+    throw err;
+  }
+}
+
+async function DashboardPageInner() {
   const user = await requireUser();
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
