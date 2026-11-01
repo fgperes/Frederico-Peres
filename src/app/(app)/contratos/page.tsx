@@ -10,7 +10,19 @@ import { getContractTypeLabels } from "@/lib/contract-types";
 import { ContractProfilesTable } from "./contract-profiles-table";
 import { redirect } from "next/navigation";
 
-export default async function ContratosPage({
+export default async function ContratosPage(props: {
+  searchParams: Promise<{ horizon?: string }>;
+}) {
+  try {
+    return await ContratosPageInner(props);
+  } catch (err) {
+    const { captureDebug } = await import("@/lib/debug-capture");
+    await captureDebug("contratosPage:full", err);
+    throw err;
+  }
+}
+
+async function ContratosPageInner({
   searchParams,
 }: {
   searchParams: Promise<{ horizon?: string }>;
