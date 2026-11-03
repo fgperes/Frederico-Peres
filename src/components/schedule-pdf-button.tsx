@@ -118,7 +118,7 @@ export function SchedulePdfButton({
     doc.setFontSize(8);
     doc.setTextColor(140);
     doc.text(
-      "F = Folga · outras siglas de 3 letras = tipo de ausência (ex.: FÉR = Férias)",
+      "FO = Folga · FE = Férias · F = Feriado · outras siglas de 3 letras = tipo de ausência (ex.: BAI = Baixa Médica)",
       14,
       doc.internal.pageSize.getHeight() - 14
     );
