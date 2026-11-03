@@ -34,16 +34,29 @@ export default async function FeriasPage({
 
   let targetEmployeeId: string | null = null;
   let isSelf = true;
-  let pickerEmployees: { id: string; name: string }[] = [];
+  let pickerEmployees: { id: string; name: string; departmentId: string | null; teamId: string | null }[] = [];
+  let pickerDepartments: { id: string; name: string }[] = [];
+  let pickerTeams: { id: string; name: string; departmentId: string }[] = [];
 
   if (canManage) {
     const scope = await employeeScopeWhere(user);
-    const employees = await prisma.employee.findMany({
-      where: scope,
-      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-      select: { id: true, firstName: true, lastName: true },
-    });
-    pickerEmployees = employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
+    const [employees, departments, teams] = await Promise.all([
+      prisma.employee.findMany({
+        where: scope,
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+        select: { id: true, firstName: true, lastName: true, departmentId: true, teamId: true },
+      }),
+      prisma.department.findMany({ orderBy: { name: "asc" } }),
+      prisma.team.findMany({ orderBy: { name: "asc" } }),
+    ]);
+    pickerEmployees = employees.map((e) => ({
+      id: e.id,
+      name: `${e.firstName} ${e.lastName}`,
+      departmentId: e.departmentId,
+      teamId: e.teamId,
+    }));
+    pickerDepartments = departments.map((d) => ({ id: d.id, name: d.name }));
+    pickerTeams = teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }));
 
     if (params.employeeId && employees.some((e) => e.id === params.employeeId)) {
       targetEmployeeId = params.employeeId;
@@ -72,7 +85,12 @@ export default async function FeriasPage({
 
       {canManage && (
         <div className="mb-6">
-          <EmployeePicker employees={pickerEmployees} selectedId={targetEmployeeId ?? ""} />
+          <EmployeePicker
+            employees={pickerEmployees}
+            departments={pickerDepartments}
+            teams={pickerTeams}
+            selectedId={targetEmployeeId ?? ""}
+          />
         </div>
       )}
 
