@@ -4,11 +4,9 @@ import { canRead } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { generateReport, REPORT_DEFINITIONS } from "@/lib/reports";
 import { PageHeader, Card, EmptyState, LinkButton } from "@/components/ui";
-import { EmployeeTreeFilter } from "@/components/employee-tree-filter";
-import { DateField } from "@/components/date-field";
+import { ReportFiltersForm } from "./report-filters-form";
 import { redirect } from "next/navigation";
-import { BarChart3, Download, LayoutTemplate } from "lucide-react";
-import Link from "next/link";
+import { BarChart3, LayoutTemplate } from "lucide-react";
 
 function parseIdList(value: string | undefined): string[] {
   if (!value) return [];
@@ -101,81 +99,22 @@ export default async function RelatoriosPage({
       />
 
       <Card className="mb-6">
-        <form method="get" className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-              Relatório
-            </label>
-            <select
-              name="report"
-              defaultValue={reportKey}
-              className="w-full max-w-md rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-            >
-              {REPORT_DEFINITIONS.map((r) => (
-                <option key={r.key} value={r.key}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {reportDef.usesRange && (
-            <div className="flex flex-wrap gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">De</label>
-                <DateField
-                  name="from"
-                  defaultValue={fromStr}
-                  inputClassName="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">Até</label>
-                <DateField
-                  name="to"
-                  defaultValue={toStr}
-                  inputClassName="rounded-md border border-stone-300 px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
-              Departamento / Equipa / Colaborador
-            </label>
-            <EmployeeTreeFilter
-              departments={departments.map((d) => ({ id: d.id, name: d.name }))}
-              teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
-              employees={allEmployees.map((e) => ({
-                id: e.id,
-                name: `${e.firstName} ${e.lastName}`,
-                departmentId: e.departmentId,
-                teamId: e.teamId,
-              }))}
-              initialSelected={Array.from(selectedEmployees)}
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
-            >
-              Gerar relatório
-            </button>
-            <Link
-              href={`/api/reports?${exportParams.toString()}`}
-              className="flex items-center gap-1.5 rounded-md border border-stone-300 px-3.5 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-            >
-              <Download size={14} />
-              Exportar XLSX
-            </Link>
-          </div>
-          <p className="text-[11px] text-stone-400 dark:text-stone-600">
-            Sem seleção mostra todos os colaboradores visíveis para o seu perfil.
-          </p>
-        </form>
+        <ReportFiltersForm
+          reportDefinitions={REPORT_DEFINITIONS}
+          defaultReportKey={reportKey}
+          fromStr={fromStr}
+          toStr={toStr}
+          departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+          teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+          employees={allEmployees.map((e) => ({
+            id: e.id,
+            name: `${e.firstName} ${e.lastName}`,
+            departmentId: e.departmentId,
+            teamId: e.teamId,
+          }))}
+          initialSelectedEmployees={Array.from(selectedEmployees)}
+          exportHref={`/api/reports?${exportParams.toString()}`}
+        />
       </Card>
 
       <Card>
