@@ -110,7 +110,7 @@ export async function createHoliday(
     details: `${description} — ${date.toLocaleDateString("pt-PT")}`,
   });
 
-  revalidatePath("/acessos/feriados");
+  revalidatePath("/ausencias/feriados");
   return { success: `Feriado "${description}" criado com sucesso.` };
 }
 
@@ -124,7 +124,7 @@ export async function deleteHoliday(holidayId: string) {
     entityId: holidayId,
     details: holiday.description,
   });
-  revalidatePath("/acessos/feriados");
+  revalidatePath("/ausencias/feriados");
 }
 
 export type HolidayImportState = {
@@ -215,6 +215,6 @@ export async function importHolidaysAction(
     details: `${created}/${rows.length} feriados importados de ${file.name}`,
   });
 
-  revalidatePath("/acessos/feriados");
+  revalidatePath("/ausencias/feriados");
   return { result: { total: rows.length, created, errorReport } };
 }

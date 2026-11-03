@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { canRead, canWrite } from "@/lib/roles";
+import { canRead, canWrite, isSystemAdmin } from "@/lib/roles";
 import { employeeScopeWhere } from "@/lib/scope";
 import { PageHeader, Card, Badge, EmptyState, LinkButton } from "@/components/ui";
 import type { Prisma } from "@prisma/client";
@@ -34,6 +34,7 @@ export default async function AusenciasPage({
   if (!canRead(user.roles, "ausencias")) redirect("/dashboard");
 
   const canManage = canWrite(user.roles, "ausencias");
+  const canManageHolidays = isSystemAdmin(user.roles);
   const scope = await employeeScopeWhere(user);
   const year = new Date().getFullYear();
 
@@ -188,7 +189,20 @@ export default async function AusenciasPage({
             : "Marque os seus dias de ausência no calendário e acompanhe os saldos e pedidos."
         }
         action={
-          canManage ? <LinkButton href="/ausencias/tipos" variant="secondary">Tipos de Ausência</LinkButton> : undefined
+          canManage || canManageHolidays ? (
+            <div className="flex flex-wrap gap-2">
+              {canManage && (
+                <LinkButton href="/ausencias/tipos" variant="secondary">
+                  Tipos de Ausência
+                </LinkButton>
+              )}
+              {canManageHolidays && (
+                <LinkButton href="/ausencias/feriados" variant="secondary">
+                  Feriados
+                </LinkButton>
+              )}
+            </div>
+          ) : undefined
         }
       />
 

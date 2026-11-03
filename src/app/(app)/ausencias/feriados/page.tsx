@@ -1,8 +1,7 @@
 import { requireUser } from "@/lib/session";
 import { isSystemAdmin } from "@/lib/roles";
 import { getHolidays } from "@/lib/holidays";
-import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
-import { AcessosTabs } from "../tabs";
+import { PageHeader, Card, Badge, EmptyState, LinkButton } from "@/components/ui";
 import { HolidayForm } from "./holiday-form";
 import { HolidayImportForm } from "./import-form";
 import { DeleteHolidayButton } from "./delete-holiday-button";
@@ -11,7 +10,7 @@ import { CalendarDays, Download } from "lucide-react";
 
 export default async function FeriadosPage() {
   const user = await requireUser();
-  if (!isSystemAdmin(user.roles)) redirect("/acessos");
+  if (!isSystemAdmin(user.roles)) redirect("/ausencias");
 
   const holidays = await getHolidays();
 
@@ -27,11 +26,14 @@ export default async function FeriadosPage() {
     <div>
       <PageHeader
         icon={CalendarDays}
-        title="Perfis e Acessos"
+        title="Feriados"
         description="Configuração dos feriados nacionais e regionais usados na aplicação."
+        action={
+          <LinkButton href="/ausencias" variant="secondary">
+            Voltar a Ausências
+          </LinkButton>
+        }
       />
-
-      <AcessosTabs showDocumentos showFeriados />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
