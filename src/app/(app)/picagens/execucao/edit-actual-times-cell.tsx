@@ -6,6 +6,7 @@ import { Pencil, RotateCcw } from "lucide-react";
 import { TimeField } from "@/components/time-field";
 import { setActualTimesCorrectionAction, deleteHoursCorrectionAction, type CorrectionState } from "./actions";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useAlert } from "@/components/alert-dialog";
 
 // Corrige o horário real de um dia (entrada/saída) — nunca um número de
 // horas. Disponível para quem gere Picagens e para o próprio colaborador
@@ -34,6 +35,7 @@ export function EditActualTimesCell({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const { confirm, dialog } = useConfirm();
+  const { showAlert, dialog: alertDialog } = useAlert();
 
   function save() {
     if (!start || !end) {
@@ -52,6 +54,9 @@ export function EditActualTimesCell({
       const result: CorrectionState = await setActualTimesCorrectionAction({}, formData);
       if (result.error) {
         setError(result.error);
+        if (result.error.startsWith("Incumprimento legal")) {
+          showAlert(result.error, "Incumprimento legal — corrija antes de guardar");
+        }
         return;
       }
       setEditing(false);
@@ -70,6 +75,7 @@ export function EditActualTimesCell({
   if (editing) {
     return (
       <div className="flex flex-col items-center gap-1 rounded-md border border-violet-300 bg-violet-50/50 p-1.5 dark:border-violet-700 dark:bg-violet-500/10">
+        {alertDialog}
         <div className="flex items-center gap-1">
           <TimeField
             value={start}
@@ -115,6 +121,7 @@ export function EditActualTimesCell({
   return (
     <div className="flex items-center justify-center gap-1">
       {dialog}
+      {alertDialog}
       <button
         type="button"
         onClick={() => {
