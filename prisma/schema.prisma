@@ -227,7 +227,7 @@ model OperatingHours {
   @@unique([locationId, dayOfWeek, isHoliday])
 }
 
-// Feriados configuráveis em Perfis e Acessos → Feriados. Nacionais aplicam-se
+// Feriados configuráveis em Ausências → Feriados. Nacionais aplicam-se
 // a todos; regionais aplicam-se aos concelhos indicados em `municipalities`
 // — um colaborador fica abrangido se o concelho do seu local de trabalho
 // (Location.municipality) estiver nessa lista (comparação sem distinguir
