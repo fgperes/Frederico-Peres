@@ -47,3 +47,13 @@ export async function employeeScopeWhere(
   // Colaborador: apenas a própria ficha
   return user.employeeId ? { id: user.employeeId } : { id: "__none__" };
 }
+
+/**
+ * true quando o utilizador vê mais do que a sua própria ficha (leitura
+ * ampla ou Gestor de Equipa) — um simples Colaborador vê só a sua própria
+ * ficha, pelo que estatísticas agregadas (total, ativos, etc.) não fazem
+ * sentido para ele.
+ */
+export function hasOrgWideOrTeamScope(roles: Role[]): boolean {
+  return roles.some((r) => BROAD_READ_ROLES.includes(r)) || roles.includes("GESTOR_EQUIPA");
+}

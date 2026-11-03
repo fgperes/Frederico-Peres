@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { employeeScopeWhere } from "@/lib/scope";
+import { employeeScopeWhere, hasOrgWideOrTeamScope } from "@/lib/scope";
 import { canWrite } from "@/lib/roles";
 import { PageHeader, Card, StatCard, Badge, LinkButton, EmptyState } from "@/components/ui";
 import { SaveBanner } from "@/components/save-banner";
@@ -18,6 +18,7 @@ export default async function ColaboradoresPage({
   const params = await searchParams;
   const scope = await employeeScopeWhere(user);
   const canEdit = canWrite(user.roles, "recursos");
+  const showStats = hasOrgWideOrTeamScope(user.roles);
 
   const where: Prisma.EmployeeWhereInput = {
     AND: [
@@ -54,10 +55,12 @@ export default async function ColaboradoresPage({
         take: 200,
       }),
       prisma.department.findMany({ orderBy: { name: "asc" } }),
-      prisma.employee.count({ where: scope }),
-      prisma.employee.count({ where: { AND: [scope, { status: "ACTIVE" }] } }),
-      prisma.employee.count({ where: { AND: [scope, { userId: null }] } }),
-      prisma.employee.count({ where: { AND: [scope, { hireDate: { gte: monthStart } }] } }),
+      showStats ? prisma.employee.count({ where: scope }) : Promise.resolve(0),
+      showStats ? prisma.employee.count({ where: { AND: [scope, { status: "ACTIVE" }] } }) : Promise.resolve(0),
+      showStats ? prisma.employee.count({ where: { AND: [scope, { userId: null }] } }) : Promise.resolve(0),
+      showStats
+        ? prisma.employee.count({ where: { AND: [scope, { hireDate: { gte: monthStart } }] } })
+        : Promise.resolve(0),
     ]);
 
   return (
@@ -84,18 +87,20 @@ export default async function ColaboradoresPage({
         <SaveBanner status="success" message="Alteração guardada com sucesso." />
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total de colaboradores" value={totalCount} icon={Users} accent="violet" />
-        <StatCard label="Ativos" value={activeCount} icon={UserCheck} accent="emerald" />
-        <StatCard
-          label="Sem conta de acesso"
-          value={noAccessCount}
-          icon={ShieldOff}
-          accent="amber"
-          hint="Ainda não convidados para a aplicação"
-        />
-        <StatCard label="Admitidos este mês" value={newThisMonthCount} icon={UserPlus} accent="sky" />
-      </div>
+      {showStats && (
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Total de colaboradores" value={totalCount} icon={Users} accent="violet" />
+          <StatCard label="Ativos" value={activeCount} icon={UserCheck} accent="emerald" />
+          <StatCard
+            label="Sem conta de acesso"
+            value={noAccessCount}
+            icon={ShieldOff}
+            accent="amber"
+            hint="Ainda não convidados para a aplicação"
+          />
+          <StatCard label="Admitidos este mês" value={newThisMonthCount} icon={UserPlus} accent="sky" />
+        </div>
+      )}
 
       <Card className="mb-6">
         <form className="flex flex-wrap items-end gap-3" method="get">
