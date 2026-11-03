@@ -397,21 +397,26 @@ function filterSubtitle(
   return [...deptNames, ...teamNames].join(" / ") || "Todos os departamentos";
 }
 
-// Sigla curta para o PDF do horário (a afixar) — "F" para folga, 3 letras
-// maiúsculas do tipo de ausência (ex.: "Férias" -> "FÉR", "Baixa Médica" ->
-// "BAI"). Qualquer dia sem turno nem ausência é folga — não fica em branco.
+// Sigla curta para o PDF do horário (a afixar) — "FO" para folga, "FE" para
+// férias, "F" para feriado, e 3 letras maiúsculas para outros tipos de
+// ausência (ex.: "Baixa Médica" -> "BAI"). Qualquer dia sem turno nem
+// ausência é folga — não fica em branco.
 function pdfCellLabel(
   employeeId: string,
   day: Date,
   shifts: { employeeId: string; date: Date; startTime: string; endTime: string }[],
-  absences: { employeeId: string; date: Date; label: string }[]
+  absences: { employeeId: string; date: Date; label: string; isVacation: boolean; isHoliday?: boolean }[]
 ): string {
   const dayIso = isoDate(day);
   const shift = shifts.find((s) => s.employeeId === employeeId && isoDate(s.date) === dayIso);
   if (shift) return `${shift.startTime}-${shift.endTime}`;
   const absence = absences.find((a) => a.employeeId === employeeId && isoDate(a.date) === dayIso);
-  if (absence) return absence.label.slice(0, 3).toUpperCase();
-  return "F";
+  if (absence) {
+    if (absence.isHoliday) return "F";
+    if (absence.isVacation) return "FE";
+    return absence.label.slice(0, 3).toUpperCase();
+  }
+  return "FO";
 }
 
 async function WeekView({
