@@ -348,11 +348,11 @@ export function ScheduleGrid({
                               <button
                                 type="button"
                                 onClick={() => setModalState({ mode: "create", employeeId: e.id, employeeName, dateIso })}
-                                className="group flex h-7 w-full items-center justify-center rounded-md text-stone-300 hover:bg-violet-50 hover:text-violet-500 dark:text-stone-700 dark:hover:bg-violet-500/10 dark:hover:text-violet-400"
-                                title="Criar turno"
+                                className="group flex h-7 w-full items-center justify-center gap-1 rounded-md text-xs font-medium italic text-stone-400 hover:bg-violet-50 hover:text-violet-500 dark:text-stone-600 dark:hover:bg-violet-500/10 dark:hover:text-violet-400"
+                                title="Folga — clique para criar turno"
                               >
-                                <Plus size={13} className="opacity-0 transition-opacity group-hover:opacity-100" />
-                                <span className="sr-only">Folga — criar turno</span>
+                                <Plus size={12} className="opacity-0 transition-opacity group-hover:opacity-100" />
+                                <span>Folga</span>
                               </button>
                             ) : (
                               <span className="text-xs font-medium italic text-stone-400 dark:text-stone-600">Folga</span>
