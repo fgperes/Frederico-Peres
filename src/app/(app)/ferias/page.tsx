@@ -103,7 +103,19 @@ async function FeriasCalendar({
   isSelf: boolean;
   canManage: boolean;
 }) {
-  const { type, balance } = await getOrCreateVacationBalance(employeeId, year);
+  // Ambiente sem o tipo de ausência "Férias" configurado (isVacation) —
+  // acontece em bases de dados novas antes do seed de referência correr.
+  // Mostra um aviso em vez de rebentar a página.
+  const result = await getOrCreateVacationBalance(employeeId, year).catch(() => null);
+  if (!result) {
+    return (
+      <EmptyState
+        icon={Plane}
+        message={'O tipo de ausência "Férias" ainda não está configurado neste ambiente. Peça ao Administrador do Sistema para o configurar.'}
+      />
+    );
+  }
+  const { type, balance } = result;
   const headcount = computeHeadcount(balance);
   const history = await getVacationHistory(employeeId);
   const employee = await prisma.employee.findUniqueOrThrow({

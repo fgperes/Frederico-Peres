@@ -97,7 +97,11 @@ export async function getOrCreateVacationBalancesBatch(
   const result = new Map<string, Awaited<ReturnType<typeof getOrCreateVacationBalance>>["balance"]>();
   if (employeeIds.length === 0) return result;
 
-  const type = await getVacationType();
+  // Tal como o resto da página de Férias, um ambiente sem o tipo "Férias"
+  // configurado (isVacation) não deve rebentar — mostra saldos a zero em
+  // vez de erro 500, até alguém correr o seed/configurar o tipo.
+  const type = await getVacationType().catch(() => null);
+  if (!type) return result;
 
   const [existing, employees] = await Promise.all([
     prisma.absenceBalance.findMany({

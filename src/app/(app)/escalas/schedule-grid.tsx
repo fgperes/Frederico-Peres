@@ -9,6 +9,7 @@ import { Badge, EmptyState } from "@/components/ui";
 import { AvatarImage } from "@/lib/avatars";
 import { ShiftModal, type ShiftTemplateOption, type EditingShift } from "./shift-modal";
 import { moveShiftAction, copyShiftAction } from "./actions";
+import { useAlert } from "@/components/alert-dialog";
 
 export type GridEmployee = {
   id: string;
@@ -127,6 +128,7 @@ export function ScheduleGrid({
   const [, startTransition] = useTransition();
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
+  const { showAlert, dialog: alertDialog } = useAlert();
   const [modalState, setModalState] = useState<ModalState>(null);
 
   const shiftMap = new Map<string, GridShift>();
@@ -165,6 +167,9 @@ export function ScheduleGrid({
         : await moveShiftAction(payload.shiftId, targetEmployeeId, targetDateIso);
       if (!result.ok) {
         setDropError(result.error);
+        if (result.error.startsWith("Incumprimento legal")) {
+          showAlert(result.error, "Incumprimento legal — corrija antes de guardar");
+        }
         return;
       }
       router.refresh();
@@ -181,6 +186,7 @@ export function ScheduleGrid({
 
   return (
     <div>
+      {alertDialog}
       {dropError && (
         <p className="mb-2 rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
           {dropError}

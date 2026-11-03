@@ -1,19 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ChevronDown, Moon, Users2, Clock, CalendarDays, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ChevronDown, Moon, Users2, Clock, CalendarDays, Coffee, type LucideIcon } from "lucide-react";
 import type { ScheduleAlert, ScheduleAlertType } from "@/lib/schedule-alerts";
 
 const TYPE_META: Record<ScheduleAlertType, { label: string; icon: LucideIcon }> = {
   REST: { label: "Descanso insuficiente (< 11h)", icon: Moon },
   OVERLAP: { label: "Turnos sobrepostos", icon: Users2 },
   EXCESS_HOURS: { label: "Excesso de horas semanais", icon: Clock },
+  DAILY_EXCESS_HOURS: { label: "Excesso de horas diárias (> 8h)", icon: Clock },
   CONSECUTIVE_DAYS: { label: "Dias seguidos sem folga", icon: CalendarDays },
+  BREAK_MISSING: { label: "Pausa de almoço em falta (> 5h seguidas)", icon: Coffee },
 };
 
-// Resumo dos alertas detetados na vista atual (não bloqueiam nada — a
-// geração automática já respeita estas regras; isto avisa sobre turnos
-// criados/editados manualmente, incluindo depois de publicados).
+// Resumo dos alertas detetados na vista atual. A criação/edição/movimento/
+// cópia manual de turnos já bloqueia estas situações antes de gravar (ver
+// escalas/actions.ts); este painel continua a servir para localizar na
+// grelha turnos que ficaram não conformes por outra via (ex.: alteração
+// posterior ao contrato do colaborador, ou geração automática por ciclo).
 export function ScheduleAlertsBanner({ alerts }: { alerts: ScheduleAlert[] }) {
   const [open, setOpen] = useState(false);
   if (alerts.length === 0) return null;

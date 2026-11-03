@@ -6,8 +6,8 @@ import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 import { Banknote } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { removePayrollComponent } from "../actions";
 import { AddPayrollComponentForm } from "../add-payroll-component-form";
+import { RemovePayrollComponentButton } from "../remove-payroll-component-button";
 
 function subsidyModeLabel(mode: string | null, months: string | null): string {
   if (mode === "DUODECIMOS") return "Duodécimos mensais";
@@ -143,11 +143,7 @@ export default async function EmployeePayrollPage({
                       </span>
                     </div>
                     {canEdit && (
-                      <form action={removePayrollComponent.bind(null, c.id, employee.id)}>
-                        <button type="submit" className="text-xs text-rose-600 hover:underline">
-                          remover
-                        </button>
-                      </form>
+                      <RemovePayrollComponentButton componentId={c.id} employeeId={employee.id} componentName={c.name} />
                     )}
                   </li>
                 ))}

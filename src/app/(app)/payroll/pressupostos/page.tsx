@@ -11,11 +11,12 @@ import {
 import { PageHeader, Card, Badge, LinkButton } from "@/components/ui";
 import { Sliders } from "lucide-react";
 import { redirect } from "next/navigation";
-import { deleteIrsBracket, deleteIrsTable } from "../actions";
 import { IrsTableImportForm } from "../irs-table-import-form";
 import { PayrollSettingsForm } from "./payroll-settings-form";
 import { CreateIrsTableForm } from "./create-irs-table-form";
 import { UpsertIrsBracketForm } from "./upsert-irs-bracket-form";
+import { DeleteIrsTableButton } from "./delete-irs-table-button";
+import { DeleteIrsBracketButton } from "./delete-irs-bracket-button";
 import { FiscalYearConstantsForm } from "./fiscal-year-constants-form";
 
 export default async function PayrollSettingsPage() {
@@ -101,11 +102,10 @@ export default async function PayrollSettingsPage() {
                     {table.label || IRS_TABLE_TYPE_LABELS[table.tableType as IrsTableType]}
                   </p>
                 </div>
-                <form action={deleteIrsTable.bind(null, table.id)}>
-                  <button type="submit" className="text-xs text-rose-600 hover:underline">
-                    eliminar tabela
-                  </button>
-                </form>
+                <DeleteIrsTableButton
+                  tableId={table.id}
+                  label={`${table.year} — ${FISCAL_REGION_LABELS[table.region] ?? table.region} — Tabela ${table.tableType}`}
+                />
               </div>
 
               <div className="mb-4 overflow-x-auto">
@@ -135,11 +135,7 @@ export default async function PayrollSettingsPage() {
                         </td>
                         <td className="py-2">{b.dependentAddition.toFixed(2)}</td>
                         <td className="py-2 text-right">
-                          <form action={deleteIrsBracket.bind(null, b.id)}>
-                            <button type="submit" className="text-xs text-rose-600 hover:underline">
-                              remover
-                            </button>
-                          </form>
+                          <DeleteIrsBracketButton bracketId={b.id} order={b.order} />
                         </td>
                       </tr>
                     ))}

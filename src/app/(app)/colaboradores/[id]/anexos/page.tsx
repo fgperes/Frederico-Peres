@@ -6,9 +6,9 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { ColaboradorTabs } from "../tabs";
 import { UploadDocumentForm } from "./upload-document-form";
 import { UploadContractAddendumForm } from "./upload-contract-addendum-form";
-import { deleteEmployeeDocument } from "./actions";
+import { DeleteDocumentButton } from "./delete-document-button";
 import { notFound } from "next/navigation";
-import { User, FileText, Trash2, Download } from "lucide-react";
+import { User, FileText, Download } from "lucide-react";
 
 export default async function ColaboradorAnexosPage({
   params,
@@ -28,7 +28,6 @@ export default async function ColaboradorAnexosPage({
   });
 
   const canManage = canWrite(user.roles, "recursos") || user.employeeId === employee.id;
-  const boundDelete = deleteEmployeeDocument.bind(null, employee.id);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -84,15 +83,7 @@ export default async function ColaboradorAnexosPage({
                     <Download size={14} />
                   </a>
                   {canManage && (
-                    <form action={boundDelete.bind(null, doc.id)}>
-                      <button
-                        type="submit"
-                        title="Eliminar"
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-stone-300 text-rose-600 hover:bg-rose-50 dark:border-stone-700 dark:hover:bg-rose-500/10"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </form>
+                    <DeleteDocumentButton employeeId={employee.id} documentId={doc.id} documentName={doc.name} />
                   )}
                 </div>
               </li>

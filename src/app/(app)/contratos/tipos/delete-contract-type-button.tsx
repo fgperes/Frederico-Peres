@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { deleteContractType } from "../actions";
 import { Button } from "@/components/ui";
 import { SaveBanner, useSaveFeedback } from "@/components/save-banner";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function DeleteContractTypeButton({ contractTypeId }: { contractTypeId: string }) {
   const [pending, startTransition] = useTransition();
   const { status, message, run } = useSaveFeedback();
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
 
-  function handleClick() {
+  async function handleClick() {
+    if (!(await confirm("Tem a certeza que quer remover este tipo de contrato?"))) return;
     startTransition(() => {
       run(async () => {
         const result = await deleteContractType(contractTypeId);
@@ -23,6 +26,7 @@ export function DeleteContractTypeButton({ contractTypeId }: { contractTypeId: s
 
   return (
     <div>
+      {dialog}
       {status === "error" && <SaveBanner status={status} message={message} />}
       <Button variant="danger" type="button" disabled={pending} onClick={handleClick} className="px-2.5 py-1 text-xs">
         {pending ? "A remover..." : "Remover"}

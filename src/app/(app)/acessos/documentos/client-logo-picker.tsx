@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Upload, X } from "lucide-react";
 import { readImageAsResizedDataUrl } from "@/lib/client-files";
 import { uploadClientCompanyLogo, removeClientCompanyLogo } from "./actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }) {
   const [logo, setLogo] = useState(currentLogo);
@@ -11,6 +12,7 @@ export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog } = useConfirm();
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -19,6 +21,14 @@ export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }
     if (!file.type.startsWith("image/")) {
       setError("Escolha um ficheiro de imagem (JPG, PNG, etc.).");
       return;
+    }
+    if (logo) {
+      const ok = await confirm("Já existe um logótipo carregado. Quer substituí-lo pelo novo ficheiro?", {
+        title: "Substituir logótipo",
+        confirmLabel: "Substituir",
+        variant: "primary",
+      });
+      if (!ok) return;
     }
     setError(null);
     setUploading(true);
@@ -41,7 +51,9 @@ export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }
     }
   }
 
-  function handleRemove() {
+  async function handleRemove() {
+    const ok = await confirm("Tem a certeza que quer remover o logótipo da empresa?", { title: "Remover logótipo" });
+    if (!ok) return;
     setLogo(null);
     startTransition(() => {
       removeClientCompanyLogo();
@@ -50,6 +62,7 @@ export function ClientLogoPicker({ currentLogo }: { currentLogo: string | null }
 
   return (
     <div>
+      {dialog}
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-32 items-center justify-center rounded-md border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-800">
           {logo ? (
