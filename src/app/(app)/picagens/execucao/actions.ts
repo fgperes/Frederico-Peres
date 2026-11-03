@@ -55,6 +55,21 @@ export async function setActualTimesCorrectionAction(
 
   let totalMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
   if (totalMinutes <= 0) totalMinutes += 24 * 60; // turno que passa a meia-noite
+
+  // Máximo absoluto de horas diárias por turno (CT, art.º 203.º + limite de
+  // 2h/dia de trabalho suplementar do art.º 228.º = 10h/dia no total).
+  // Ao contrário do previsto em Escalas (que deve ficar dentro das 8h
+  // normais), o real executado pode legitimamente incluir horas extras —
+  // só acima deste teto absoluto é que a correção é mesmo rejeitada; dentro
+  // dele, o excesso sobre as 8h segue o fluxo normal de decisão do desvio
+  // (bolsa de horas / hora extra) em "Desvios a decidir".
+  const MAX_DAILY_MINUTES = 10 * 60;
+  if (totalMinutes > MAX_DAILY_MINUTES) {
+    return {
+      error: `Incumprimento legal: ${startTime}–${endTime} são ${(totalMinutes / 60).toFixed(1)}h num único dia, acima do máximo legal de 10h diárias por turno (CT, art.º 203.º/228.º).`,
+    };
+  }
+
   const minutesDelta = Math.round(totalMinutes - rawHours * 60);
 
   const correction = await prisma.hoursCorrection.upsert({
