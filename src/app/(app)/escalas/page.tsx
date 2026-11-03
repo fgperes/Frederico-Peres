@@ -342,7 +342,13 @@ async function loadHolidaysForDays(
 async function loadAlertsAndCoverage(
   employeeIds: string[],
   employees: { id: string; firstName: string; lastName: string }[],
-  shifts: { employeeId: string; date: Date; startTime: string; endTime: string }[],
+  shifts: {
+    employeeId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    shiftTemplate?: { breakMins: number } | null;
+  }[],
   days: Date[],
   departmentId: string | null | undefined
 ) {

@@ -19,7 +19,13 @@ export type ScheduleAlert = {
   dates: string[]; // datas ISO envolvidas, para destacar células na grelha
 };
 
-type AlertShift = { employeeId: string; date: Date; startTime: string; endTime: string };
+type AlertShift = {
+  employeeId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  shiftTemplate?: { breakMins: number } | null;
+};
 type AlertEmployee = { id: string; firstName: string; lastName: string };
 
 export function findScheduleAlerts(
@@ -125,7 +131,10 @@ export function findScheduleAlerts(
       const byWeek = new Map<string, number>();
       for (const s of empShifts) {
         const week = isoDate(getWeekStart(isoDate(s.date)));
-        byWeek.set(week, (byWeek.get(week) ?? 0) + shiftDurationHours(s.startTime, s.endTime, 0));
+        byWeek.set(
+          week,
+          (byWeek.get(week) ?? 0) + shiftDurationHours(s.startTime, s.endTime, s.shiftTemplate?.breakMins ?? 0)
+        );
       }
       for (const [week, hours] of byWeek) {
         if (hours > contractHours) {
