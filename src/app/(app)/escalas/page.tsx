@@ -93,7 +93,7 @@ export default async function EscalasPage({
     // os que já correspondem ao filtro atual.
     prisma.employee.findMany({
       where: { AND: [scope, { status: "ACTIVE" }] },
-      select: { id: true, firstName: true, lastName: true, departmentId: true },
+      select: { id: true, firstName: true, lastName: true, departmentId: true, teamId: true },
       orderBy: [{ firstName: "asc" }],
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
@@ -122,7 +122,7 @@ export default async function EscalasPage({
           <ScheduleFilterPanel
             departments={departments}
             teams={teams}
-            employees={allEmployees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId }))}
+            employees={allEmployees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId, teamId: e.teamId }))}
             initialDepartmentIds={filterDepartmentIds}
             initialTeamIds={filterTeamIds}
             initialEmployeeIds={filterEmployeeIds}
@@ -139,7 +139,8 @@ export default async function EscalasPage({
       {canEdit && (
         <GenerateToolbar
           departments={departments.map((d) => ({ id: d.id, name: d.name }))}
-          employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId }))}
+          teams={teams.map((t) => ({ id: t.id, name: t.name, departmentId: t.departmentId }))}
+          employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, departmentId: e.departmentId, teamId: e.teamId }))}
           defaultFrom={
             view === "month"
               ? isoDate(getMonthStart(params.month))
