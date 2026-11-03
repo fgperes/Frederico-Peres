@@ -4,9 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Filter } from "lucide-react";
 import { Button } from "@/components/ui";
-import { EmployeeTree, type TreeDepartment, type TreeEmployee } from "./employee-tree";
-
-type Option = { id: string; name: string };
+import { EmployeeTree, type TreeDepartment, type TreeTeam, type TreeEmployee } from "./employee-tree";
 
 // Permite escolher vários departamentos, várias equipas e vários
 // colaboradores ao mesmo tempo (em vez de um só valor por campo) —
@@ -25,7 +23,7 @@ export function ScheduleFilterPanel({
   month,
 }: {
   departments: TreeDepartment[];
-  teams: Option[];
+  teams: TreeTeam[];
   employees: TreeEmployee[];
   initialDepartmentIds: string[];
   initialTeamIds: string[];
@@ -138,7 +136,7 @@ export function ScheduleFilterPanel({
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                   Colaboradores
                 </p>
-                <EmployeeTree departments={departments} employees={employees} selected={employeeIds} onChange={setEmployeeIds} />
+                <EmployeeTree departments={departments} teams={teams} employees={employees} selected={employeeIds} onChange={setEmployeeIds} />
               </div>
             </div>
 
