@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { Badge, Button } from "@/components/ui";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useAlert } from "@/components/alert-dialog";
 import {
   decideTimeClockDayAction,
   removeTimeClockDecisionAction,
@@ -93,6 +94,7 @@ function DecisionModal({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const { confirm, dialog } = useConfirm();
+  const { showAlert, dialog: alertDialog } = useAlert();
 
   const diffHours = diffMinutes / 60;
   const sign = diffHours >= 0 ? "+" : "";
@@ -103,6 +105,9 @@ function DecisionModal({
       const result = await decideTimeClockDayAction(employeeId, date, choice, absenceId);
       if (result.error) {
         setError(result.error);
+        if (result.error.startsWith("Incumprimento legal")) {
+          showAlert(result.error, "Incumprimento legal — corrija antes de guardar");
+        }
         return;
       }
       router.refresh();
@@ -143,6 +148,7 @@ function DecisionModal({
   return (
     <>
       {dialog}
+      {alertDialog}
       <Modal open onClose={onClose} title="Decidir desvio de picagens" widthClassName="max-w-sm">
       <p className="mb-4 text-sm text-stone-600 dark:text-stone-400">
         Dia {new Date(`${date}T12:00:00`).toLocaleDateString("pt-PT")} · desvio{" "}
