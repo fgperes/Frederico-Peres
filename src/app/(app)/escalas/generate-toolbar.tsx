@@ -6,7 +6,7 @@ import { Wand2, Send, Trash2, AlertTriangle, ChevronDown, Users, SlidersHorizont
 import { Button, Badge } from "@/components/ui";
 import { DateField } from "@/components/date-field";
 import { Modal } from "@/components/modal";
-import { EmployeeTree, type TreeDepartment, type TreeEmployee } from "./employee-tree";
+import { EmployeeTree, type TreeDepartment, type TreeTeam, type TreeEmployee } from "./employee-tree";
 import {
   generateSchedulesAction,
   publishSchedulesAction,
@@ -18,11 +18,13 @@ type ConfirmKind = "generate" | "publish" | "delete" | null;
 
 export function GenerateToolbar({
   departments,
+  teams,
   employees,
   defaultFrom,
   defaultTo,
 }: {
   departments: TreeDepartment[];
+  teams: TreeTeam[];
   employees: TreeEmployee[];
   defaultFrom: string;
   defaultTo: string;
@@ -166,7 +168,7 @@ export function GenerateToolbar({
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
                   <div className="absolute left-0 top-full z-30 mt-1 w-80 rounded-lg border border-stone-200 bg-white p-2 shadow-xl dark:border-stone-700 dark:bg-stone-900">
-                    <EmployeeTree departments={departments} employees={employees} selected={selected} onChange={setSelected} />
+                    <EmployeeTree departments={departments} teams={teams} employees={employees} selected={selected} onChange={setSelected} />
                   </div>
                 </>
               )}

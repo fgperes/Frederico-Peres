@@ -3,16 +3,19 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 
-export type TreeEmployee = { id: string; name: string; departmentId: string | null };
+export type TreeEmployee = { id: string; name: string; departmentId: string | null; teamId?: string | null };
 export type TreeDepartment = { id: string; name: string };
+export type TreeTeam = { id: string; name: string; departmentId: string };
 
 export function EmployeeTree({
   departments,
+  teams = [],
   employees,
   selected,
   onChange,
 }: {
   departments: TreeDepartment[];
+  teams?: TreeTeam[];
   employees: TreeEmployee[];
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
@@ -66,6 +69,16 @@ export function EmployeeTree({
     onChange(next);
   }
 
+  function toggleTeam(teamEmployees: TreeEmployee[]) {
+    const next = new Set(selected);
+    const allIn = teamEmployees.every((e) => next.has(e.id));
+    for (const e of teamEmployees) {
+      if (allIn) next.delete(e.id);
+      else next.add(e.id);
+    }
+    onChange(next);
+  }
+
   return (
     <div>
       <div className="relative mb-2">
@@ -87,6 +100,18 @@ export function EmployeeTree({
         {[...groups.entries()].map(([deptKey, deptEmployees]) => {
           const dept = departments.find((d) => d.id === deptKey);
           const deptAllSelected = deptEmployees.every((e) => selected.has(e.id));
+          const deptTeams = teams.filter((t) => t.departmentId === deptKey);
+
+          const byTeam = new Map<string, TreeEmployee[]>();
+          for (const e of deptEmployees) {
+            const key = e.teamId ?? "__none__";
+            const arr = byTeam.get(key) ?? [];
+            arr.push(e);
+            byTeam.set(key, arr);
+          }
+          const noTeamEmployees = byTeam.get("__none__") ?? [];
+          const hasTeamSplit = deptTeams.length > 0 && byTeam.size > (noTeamEmployees.length > 0 ? 1 : 0);
+
           return (
             <div key={deptKey} className="mt-1 px-1">
               <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
@@ -98,8 +123,41 @@ export function EmployeeTree({
                 />
                 {dept?.name ?? "Sem departamento"}
               </label>
-              <div className="mt-0.5 space-y-0.5 pl-4">
-                {deptEmployees.map((e) => (
+              <div className="mt-0.5 space-y-1 pl-4">
+                {hasTeamSplit
+                  ? deptTeams.map((team) => {
+                      const teamEmployees = byTeam.get(team.id) ?? [];
+                      if (teamEmployees.length === 0) return null;
+                      const teamAllSelected = teamEmployees.every((e) => selected.has(e.id));
+                      return (
+                        <div key={team.id}>
+                          <label className="flex items-center gap-1.5 text-[11px] font-medium text-stone-600 dark:text-stone-400">
+                            <input
+                              type="checkbox"
+                              checked={teamAllSelected}
+                              onChange={() => toggleTeam(teamEmployees)}
+                              className="h-3 w-3 rounded border-stone-300 dark:border-stone-700"
+                            />
+                            {team.name}
+                          </label>
+                          <div className="mt-0.5 space-y-0.5 pl-4">
+                            {teamEmployees.map((e) => (
+                              <label key={e.id} className="flex items-center gap-1.5 text-xs text-stone-700 dark:text-stone-300">
+                                <input
+                                  type="checkbox"
+                                  checked={selected.has(e.id)}
+                                  onChange={() => toggleOne(e.id)}
+                                  className="h-3.5 w-3.5 rounded border-stone-300 dark:border-stone-700"
+                                />
+                                {e.name}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  : null}
+                {(hasTeamSplit ? noTeamEmployees : deptEmployees).map((e) => (
                   <label key={e.id} className="flex items-center gap-1.5 text-xs text-stone-700 dark:text-stone-300">
                     <input
                       type="checkbox"
