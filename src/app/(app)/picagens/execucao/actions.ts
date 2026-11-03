@@ -172,6 +172,31 @@ export async function decideTimeClockDayAction(
     if (diffMinutes <= 0) {
       return { error: "Só é possível justificar como hora extra quando o saldo é positivo." };
     }
+
+    // Limite anual de trabalho suplementar (CT, art.º 228.º) — 150h/ano
+    // para médias/grandes empresas (configuração da people4people). Soma o
+    // que já foi reconhecido como hora extra no ano civil da data em causa,
+    // excluindo uma eventual decisão anterior para este mesmo dia (está a
+    // ser substituída, não acumulada).
+    const MAX_ANNUAL_OVERTIME_MINUTES = 150 * 60;
+    const yearStart = new Date(Date.UTC(dateObj.getUTCFullYear(), 0, 1));
+    const yearEnd = new Date(Date.UTC(dateObj.getUTCFullYear(), 11, 31, 23, 59, 59, 999));
+    const existingOvertimeThisYear = await prisma.timeClockDayDecision.findMany({
+      where: {
+        employeeId,
+        decisionType: "OVERTIME",
+        date: { gte: yearStart, lte: yearEnd, not: dateObj },
+      },
+      select: { diffMinutes: true },
+    });
+    const alreadyUsedMinutes = existingOvertimeThisYear.reduce((sum, d) => sum + d.diffMinutes, 0);
+    const projectedTotalMinutes = alreadyUsedMinutes + diffMinutes;
+    if (projectedTotalMinutes > MAX_ANNUAL_OVERTIME_MINUTES) {
+      return {
+        error: `Incumprimento legal: esta hora extra levaria o total do ano a ${(projectedTotalMinutes / 60).toFixed(1)}h, acima do máximo legal de 150h/ano de trabalho suplementar (CT, art.º 228.º). Já reconhecidas este ano: ${(alreadyUsedMinutes / 60).toFixed(1)}h.`,
+      };
+    }
+
     decisionType = "OVERTIME";
   } else if (choice === "POOL") {
     decisionType = "POOL";
