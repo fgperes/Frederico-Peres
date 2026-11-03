@@ -9,6 +9,7 @@ import { TimeField } from "@/components/time-field";
 import { isoDate } from "@/lib/dates";
 import { createShiftAction, updateShiftAction, deleteSingleShiftAction } from "./actions";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useAlert } from "@/components/alert-dialog";
 
 export type ShiftTemplateOption = {
   id: string;
@@ -60,6 +61,7 @@ export function ShiftModal({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { confirm, dialog } = useConfirm();
+  const { showAlert, dialog: alertDialog } = useAlert();
 
   function applyTemplate(id: string) {
     setShiftTemplateId(id);
@@ -84,6 +86,16 @@ export function ShiftModal({
     onClose();
   }
 
+  // Incumprimentos legais (ver escalas/actions.ts) vêm sempre com este
+  // prefixo — mostra um popup bloqueante a pedir correção, em vez de só o
+  // aviso discreto em linha, para o utilizador não passar por cima dele.
+  function reportError(message: string) {
+    setError(message);
+    if (message.startsWith("Incumprimento legal")) {
+      showAlert(message, "Incumprimento legal — corrija antes de guardar");
+    }
+  }
+
   function handleSubmit() {
     setError(null);
     startTransition(async () => {
@@ -95,7 +107,7 @@ export function ShiftModal({
           notes,
         });
         if (!result.ok) {
-          setError(result.error);
+          reportError(result.error);
           return;
         }
         handleSaved();
@@ -111,7 +123,7 @@ export function ShiftModal({
         notes
       );
       if (!result.ok) {
-        setError(result.error);
+        reportError(result.error);
         return;
       }
       const { created, skippedExisting, skippedDueToRestriction } = result.data;
@@ -148,6 +160,7 @@ export function ShiftModal({
   return (
     <>
       {dialog}
+      {alertDialog}
       <Modal open={open} onClose={onClose} title={isEdit ? "Editar turno" : "Criar turno"} widthClassName="max-w-md">
       <div className="space-y-4">
         <p className="text-sm text-stone-600 dark:text-stone-400">

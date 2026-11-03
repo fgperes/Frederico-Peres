@@ -9,6 +9,7 @@ import { differenceInCalendarDays } from "date-fns";
 import { isoDate } from "@/lib/dates";
 import { generateSchedulesForEmployees, MIN_GENERATION_RANGE_DAYS, type GenerationIssue } from "@/lib/schedule-generation";
 import { getHolidaysInRange, isHolidayForMunicipality } from "@/lib/holidays";
+import { validateShiftAgainstLabourLaw } from "@/lib/schedule-alerts";
 
 type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -196,6 +197,71 @@ export async function deleteSchedulesAction(
   });
 }
 
+// Janela suficiente para o descanso de 11h (dia anterior/seguinte) e para
+// os 6 dias seguidos / semana do contrato (ver findScheduleAlerts).
+const VALIDATION_WINDOW_DAYS = 8;
+
+async function loadLegalValidationContext(employeeId: string, centerDate: Date) {
+  const from = new Date(centerDate);
+  from.setDate(from.getDate() - VALIDATION_WINDOW_DAYS);
+  const to = new Date(centerDate);
+  to.setDate(to.getDate() + VALIDATION_WINDOW_DAYS);
+
+  const [shifts, employee, contract] = await Promise.all([
+    prisma.shift.findMany({
+      where: { employeeId, date: { gte: from, lte: to } },
+      include: { shiftTemplate: { select: { breakMins: true } } },
+    }),
+    prisma.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } }),
+    prisma.employeeContract.findFirst({
+      where: { employeeId, status: "ACTIVE" },
+      orderBy: { startDate: "desc" },
+      include: { contractProfile: { select: { weeklyHours: true } } },
+    }),
+  ]);
+
+  return {
+    existingShifts: shifts,
+    employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Colaborador",
+    contractWeeklyHours: contract?.contractProfile.weeklyHours ?? null,
+  };
+}
+
+// Lança erro (bloqueia a gravação) se o turno proposto violar o Código do
+// Trabalho — descanso de 11h, máx. 8h/dia, pausa obrigatória acima de 5h
+// seguidas, máx. 6 dias seguidos sem folga, ou o teto semanal do contrato.
+async function assertShiftLegal(
+  employeeId: string,
+  date: Date,
+  startTime: string,
+  endTime: string,
+  shiftTemplateId: string | null,
+  excludeShiftId?: string
+) {
+  const { existingShifts, employeeName, contractWeeklyHours } = await loadLegalValidationContext(employeeId, date);
+  const breakMins = shiftTemplateId
+    ? ((await prisma.shiftTemplate.findUnique({ where: { id: shiftTemplateId }, select: { breakMins: true } }))
+        ?.breakMins ?? 0)
+    : 0;
+
+  const violation = validateShiftAgainstLabourLaw(
+    { id: excludeShiftId, employeeId, date, startTime, endTime, shiftTemplate: { breakMins } },
+    existingShifts.map((s) => ({
+      id: s.id,
+      employeeId: s.employeeId,
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      shiftTemplate: s.shiftTemplate,
+    })),
+    employeeName,
+    contractWeeklyHours
+  );
+  if (violation) {
+    throw new Error(`Incumprimento legal: ${violation}`);
+  }
+}
+
 function parseDay(iso: string): Date {
   const d = new Date(iso);
   d.setHours(0, 0, 0, 0);
@@ -236,13 +302,19 @@ export async function createShiftAction(
     assertTimeFormat(endTime, "Hora de fim");
 
     const days = dateIsos.map(parseDay);
+    const minDay = days.reduce((a, b) => (a < b ? a : b));
+    const maxDay = days.reduce((a, b) => (a > b ? a : b));
 
-    const [existingShifts, absences, restrictions] = await Promise.all([
+    const [existingShifts, absences, restrictions, legalCtx, breakMins] = await Promise.all([
       prisma.shift.findMany({ where: { employeeId, date: { in: days } }, select: { date: true } }),
       prisma.absence.findMany({
         where: { employeeId, status: "APPROVED", startDate: { lte: days[days.length - 1] }, endDate: { gte: days[0] } },
       }),
       getEmployeeWorkRestrictions(employeeId),
+      loadLegalValidationContext(employeeId, minDay < maxDay ? minDay : maxDay),
+      shiftTemplateId
+        ? prisma.shiftTemplate.findUnique({ where: { id: shiftTemplateId }, select: { breakMins: true } })
+        : Promise.resolve(null),
     ]);
     const existingDates = new Set(existingShifts.map((s) => isoDate(s.date)));
 
@@ -254,6 +326,61 @@ export async function createShiftAction(
       restrictedHolidayDates = new Set(
         holidays.filter((h) => isHolidayForMunicipality(h, restrictions.municipality)).map((h) => isoDate(h.date))
       );
+    }
+
+    // Validação legal: simula a criação sequencial de todos os dias pedidos
+    // (cada dia já vê os anteriores do mesmo pedido) antes de gravar seja o
+    // que for — um único dia não conforme bloqueia o pedido inteiro, para
+    // nunca ficar uma gravação parcial.
+    type SimShift = {
+      id: string;
+      employeeId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      shiftTemplate: { breakMins: number } | null;
+    };
+    const simulatedShifts: SimShift[] = legalCtx.existingShifts.map((s) => ({
+      id: s.id,
+      employeeId: s.employeeId,
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      shiftTemplate: s.shiftTemplate,
+    }));
+    for (const day of days) {
+      const dayIso = isoDate(day);
+      if (existingDates.has(dayIso)) continue;
+      const absent = absences.some((a) => a.startDate <= day && a.endDate >= day);
+      if (absent) continue;
+      if (isWeekendDate(day) && !restrictions.worksWeekends) continue;
+      if (restrictedHolidayDates?.has(dayIso)) continue;
+
+      const proposed = { employeeId, date: day, startTime, endTime, shiftTemplate: { breakMins: breakMins?.breakMins ?? 0 } };
+      const violation = validateShiftAgainstLabourLaw(
+        proposed,
+        simulatedShifts.map((s) => ({
+          id: s.id,
+          employeeId: s.employeeId,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          shiftTemplate: s.shiftTemplate,
+        })),
+        legalCtx.employeeName,
+        legalCtx.contractWeeklyHours
+      );
+      if (violation) {
+        throw new Error(`Incumprimento legal em ${dayIso}: ${violation}`);
+      }
+      simulatedShifts.push({
+        id: `sim-${dayIso}`,
+        employeeId,
+        date: day,
+        startTime,
+        endTime,
+        shiftTemplate: { breakMins: breakMins?.breakMins ?? 0 },
+      });
     }
 
     let created = 0;
@@ -322,6 +449,8 @@ export async function updateShiftAction(
     const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
     if (!shift) throw new Error("Turno não encontrado.");
 
+    await assertShiftLegal(shift.employeeId, shift.date, data.startTime, data.endTime, data.shiftTemplateId, shiftId);
+
     await prisma.shift.update({
       where: { id: shiftId },
       data: {
@@ -370,6 +499,7 @@ export async function moveShiftAction(
 
     await assertTargetCellFree(newEmployeeId, newDate, shiftId);
     await assertDayAllowedForEmployee(newEmployeeId, newDate);
+    await assertShiftLegal(newEmployeeId, newDate, shift.startTime, shift.endTime, shift.shiftTemplateId, shiftId);
 
     await prisma.shift.update({
       where: { id: shiftId },
@@ -407,6 +537,7 @@ export async function copyShiftAction(
 
     await assertTargetCellFree(newEmployeeId, newDate);
     await assertDayAllowedForEmployee(newEmployeeId, newDate);
+    await assertShiftLegal(newEmployeeId, newDate, shift.startTime, shift.endTime, shift.shiftTemplateId);
 
     const created = await prisma.shift.create({
       data: {
