@@ -24,7 +24,7 @@ export default async function DocumentosPage() {
         description="Identidade visual usada no cabeçalho dos documentos para download."
       />
 
-      <AcessosTabs showDocumentos showFeriados />
+      <AcessosTabs showDocumentos />
 
       <Card className="mb-6">
         <h2 className="mb-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
