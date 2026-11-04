@@ -564,6 +564,11 @@ model HoursCorrection {
   // saldo/payroll continuar a ler um único valor, como antes.
   startTime    String?
   endTime      String?
+  // Pausa de refeição dentro do horário corrigido (opcional) — subtraída ao
+  // calcular minutesDelta, tal como a pausa de uma picagem normal (campos
+  // BREAK_START/BREAK_END) ou a de um modelo de turno (breakMins).
+  breakStart   String?
+  breakEnd     String?
   minutesDelta Int
   reason       String?
   createdById  String
