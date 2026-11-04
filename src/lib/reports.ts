@@ -21,6 +21,7 @@ export const REPORT_DEFINITIONS: { key: string; label: string; usesRange: boolea
   { key: "saldo_horas", label: "Saldo de Horas (realizadas vs. esperadas)", usesRange: true },
   { key: "acumulados", label: "Acumulados do Ano e Anteriores", usesRange: true },
   { key: "contratos", label: "Contratos", usesRange: true },
+  { key: "avaliacoes", label: "Avaliações de Desempenho", usesRange: true },
   { key: "picagens_correcoes", label: "Picagens — Correções Manuais", usesRange: true },
   { key: "terminais", label: "Terminais de Picagem", usesRange: true },
   { key: "escalas_publicacao", label: "Escalas — Publicação (Rascunho vs. Publicado)", usesRange: true },
@@ -54,6 +55,8 @@ export async function generateReport(key: string, filters: ReportFilters): Promi
       return reportAcumulados(filters);
     case "contratos":
       return reportContratos(filters);
+    case "avaliacoes":
+      return reportAvaliacoes(filters);
     case "picagens_correcoes":
       return reportPicagensCorrecoes(filters);
     case "terminais":
@@ -455,6 +458,51 @@ async function reportContratos(filters: ReportFilters): Promise<ReportResult> {
       c.contractProfile.weeklyHours,
       c.employee.baseSalary ? round1(c.employee.baseSalary) : "",
       CONTRACT_STATUS_LABELS[c.status] ?? c.status,
+    ]),
+  };
+}
+
+// --- Avaliações de Desempenho ---------------------------------------------
+
+const EVALUATION_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: "Agendada",
+  COMPLETED: "Concluída",
+  CANCELLED: "Cancelada",
+};
+
+async function reportAvaliacoes(filters: ReportFilters): Promise<ReportResult> {
+  const evaluations = await prisma.evaluation.findMany({
+    where: {
+      employeeId: employeeFilter(filters.employeeIds),
+      scheduledDate: { gte: filters.from, lte: filters.to },
+    },
+    include: { employee: true, template: { select: { name: true } } },
+    orderBy: { scheduledDate: "asc" },
+  });
+  return {
+    columns: [
+      "Colaborador",
+      "Modelo",
+      "Data agendada",
+      "Estado",
+      "Pontuação (gestor)",
+      "% (gestor)",
+      "Consequência (gestor)",
+      "Autoavaliação",
+      "% (auto)",
+      "Concluída em",
+    ],
+    rows: evaluations.map((e) => [
+      `${e.employee.firstName} ${e.employee.lastName}`,
+      e.template.name,
+      e.scheduledDate.toISOString().slice(0, 10),
+      EVALUATION_STATUS_LABELS[e.status] ?? e.status,
+      e.managerScore ?? "",
+      e.managerPercent != null ? `${e.managerPercent}%` : "",
+      e.managerConsequence ?? "",
+      e.selfCompletedAt ? "Sim" : "Não",
+      e.selfPercent != null ? `${e.selfPercent}%` : "",
+      e.managerCompletedAt ? e.managerCompletedAt.toISOString().slice(0, 10) : "",
     ]),
   };
 }
