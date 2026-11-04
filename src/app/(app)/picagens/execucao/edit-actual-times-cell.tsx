@@ -18,6 +18,8 @@ export function EditActualTimesCell({
   rawHours,
   currentStart,
   currentEnd,
+  currentBreakStart,
+  currentBreakEnd,
   hasCorrection,
 }: {
   employeeId: string;
@@ -25,11 +27,15 @@ export function EditActualTimesCell({
   rawHours: number;
   currentStart: string | null;
   currentEnd: string | null;
+  currentBreakStart?: string | null;
+  currentBreakEnd?: string | null;
   hasCorrection: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [start, setStart] = useState(currentStart ?? "");
   const [end, setEnd] = useState(currentEnd ?? "");
+  const [breakStart, setBreakStart] = useState(currentBreakStart ?? "");
+  const [breakEnd, setBreakEnd] = useState(currentBreakEnd ?? "");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -50,6 +56,8 @@ export function EditActualTimesCell({
       formData.set("rawHours", rawHours.toString());
       formData.set("startTime", start);
       formData.set("endTime", end);
+      formData.set("breakStart", breakStart);
+      formData.set("breakEnd", breakEnd);
       formData.set("reason", reason);
       const result: CorrectionState = await setActualTimesCorrectionAction({}, formData);
       if (result.error) {
@@ -86,6 +94,20 @@ export function EditActualTimesCell({
           <TimeField
             value={end}
             onChange={setEnd}
+            inputClassName="w-14 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-stone-400 dark:text-stone-500">pausa</span>
+          <TimeField
+            value={breakStart}
+            onChange={setBreakStart}
+            inputClassName="w-14 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
+          />
+          <span className="text-xs text-stone-400 dark:text-stone-500">→</span>
+          <TimeField
+            value={breakEnd}
+            onChange={setBreakEnd}
             inputClassName="w-14 rounded border border-stone-300 px-1 py-0.5 text-center text-xs dark:border-stone-700 dark:bg-stone-800"
           />
         </div>
@@ -127,6 +149,8 @@ export function EditActualTimesCell({
         onClick={() => {
           setStart(currentStart ?? "");
           setEnd(currentEnd ?? "");
+          setBreakStart(currentBreakStart ?? "");
+          setBreakEnd(currentBreakEnd ?? "");
           setEditing(true);
         }}
         title="Corrigir horário"

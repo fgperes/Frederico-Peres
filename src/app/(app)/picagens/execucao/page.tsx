@@ -54,6 +54,8 @@ type DayRow = {
   hasActualCorrection: boolean;
   currentStart: string | null;
   currentEnd: string | null;
+  currentBreakStart: string | null;
+  currentBreakEnd: string | null;
   diffMinutes: number;
 };
 
@@ -85,9 +87,13 @@ function buildRows(
     const actualCorrMin = actualCorrection?.minutesDelta ?? 0;
     const actualCorrected = actualRaw + actualCorrMin / 60;
 
+    const correctionBreak =
+      actualCorrection?.breakStart && actualCorrection?.breakEnd
+        ? ` (pausa ${actualCorrection.breakStart}–${actualCorrection.breakEnd})`
+        : "";
     const actualLabel =
       actualCorrection?.startTime && actualCorrection?.endTime
-        ? `${actualCorrection.startTime} → ${actualCorrection.endTime} (alteração manual)`
+        ? `${actualCorrection.startTime} → ${actualCorrection.endTime}${correctionBreak} (alteração manual)`
         : formatActual(clockTimes);
 
     return {
@@ -100,6 +106,8 @@ function buildRows(
       hasActualCorrection: !!actualCorrection,
       currentStart: actualCorrection?.startTime ?? clockTimes.clockIn,
       currentEnd: actualCorrection?.endTime ?? clockTimes.clockOut,
+      currentBreakStart: actualCorrection?.breakStart ?? clockTimes.breakStart,
+      currentBreakEnd: actualCorrection?.breakEnd ?? clockTimes.breakEnd,
       diffMinutes: dayShift ? Math.round((actualCorrected - scheduledRaw) * 60) : 0,
     };
   });
@@ -364,6 +372,8 @@ async function GestorExecucaoView({
                                   rawHours={r.actualRaw}
                                   currentStart={r.currentStart}
                                   currentEnd={r.currentEnd}
+                                  currentBreakStart={r.currentBreakStart}
+                                  currentBreakEnd={r.currentBreakEnd}
                                   hasCorrection={r.hasActualCorrection}
                                 />
                               </div>
@@ -523,6 +533,8 @@ async function ColaboradorExecucaoView({
                         rawHours={r.actualRaw}
                         currentStart={r.currentStart}
                         currentEnd={r.currentEnd}
+                        currentBreakStart={r.currentBreakStart}
+                        currentBreakEnd={r.currentBreakEnd}
                         hasCorrection={r.hasActualCorrection}
                       />
                     </div>
