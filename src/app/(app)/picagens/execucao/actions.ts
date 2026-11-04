@@ -46,15 +46,33 @@ export async function setActualTimesCorrectionAction(
   const rawHours = Number(formData.get("rawHours"));
   const startTime = String(formData.get("startTime") ?? "");
   const endTime = String(formData.get("endTime") ?? "");
+  const breakStartRaw = String(formData.get("breakStart") ?? "").trim();
+  const breakEndRaw = String(formData.get("breakEnd") ?? "").trim();
   const reason = String(formData.get("reason") ?? "").trim();
 
   if (!employeeId || !date) return { error: "Dados em falta." };
   if (!TIME_RE.test(startTime) || !TIME_RE.test(endTime)) {
     return { error: "Indique a hora de início e de fim." };
   }
+  if ((breakStartRaw && !breakEndRaw) || (breakEndRaw && !breakStartRaw)) {
+    return { error: "Indique o início e o fim da pausa, ou deixe ambos em branco." };
+  }
+  if (breakStartRaw && !TIME_RE.test(breakStartRaw)) return { error: "Hora de início da pausa inválida." };
+  if (breakEndRaw && !TIME_RE.test(breakEndRaw)) return { error: "Hora de fim da pausa inválida." };
+  const breakStart = breakStartRaw || null;
+  const breakEnd = breakEndRaw || null;
 
   let totalMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
   if (totalMinutes <= 0) totalMinutes += 24 * 60; // turno que passa a meia-noite
+
+  if (breakStart && breakEnd) {
+    let breakMinutes = timeToMinutes(breakEnd) - timeToMinutes(breakStart);
+    if (breakMinutes <= 0) breakMinutes += 24 * 60;
+    if (breakMinutes >= totalMinutes) {
+      return { error: "A pausa não pode ser igual ou maior do que o horário todo." };
+    }
+    totalMinutes -= breakMinutes;
+  }
 
   // Máximo absoluto de horas diárias por turno (CT, art.º 203.º + limite de
   // 2h/dia de trabalho suplementar do art.º 228.º = 10h/dia no total).
@@ -65,8 +83,9 @@ export async function setActualTimesCorrectionAction(
   // (bolsa de horas / hora extra) em "Desvios a decidir".
   const MAX_DAILY_MINUTES = 10 * 60;
   if (totalMinutes > MAX_DAILY_MINUTES) {
+    const breakNote = breakStart && breakEnd ? ` (já descontada a pausa ${breakStart}–${breakEnd})` : "";
     return {
-      error: `Incumprimento legal: ${startTime}–${endTime} são ${(totalMinutes / 60).toFixed(1)}h num único dia, acima do máximo legal de 10h diárias por turno (CT, art.º 203.º/228.º).`,
+      error: `Incumprimento legal: ${startTime}–${endTime} são ${(totalMinutes / 60).toFixed(1)}h de trabalho efetivo${breakNote} num único dia, acima do máximo legal de 10h diárias por turno (CT, art.º 203.º/228.º).`,
     };
   }
 
@@ -80,6 +99,8 @@ export async function setActualTimesCorrectionAction(
       field: "ACTUAL",
       startTime,
       endTime,
+      breakStart,
+      breakEnd,
       minutesDelta,
       reason: reason || null,
       createdById: user.id,
@@ -87,18 +108,21 @@ export async function setActualTimesCorrectionAction(
     update: {
       startTime,
       endTime,
+      breakStart,
+      breakEnd,
       minutesDelta,
       reason: reason || null,
       createdById: user.id,
     },
   });
 
+  const breakDetail = breakStart && breakEnd ? ` (pausa ${breakStart}–${breakEnd})` : "";
   await logAudit({
     userId: user.id,
     action: "UPDATE",
     entity: "HoursCorrection",
     entityId: correction.id,
-    details: `${employeeId} · ${date} · horário real alterado manualmente para ${startTime}–${endTime}${reason ? ` · ${reason}` : ""}`,
+    details: `${employeeId} · ${date} · horário real alterado manualmente para ${startTime}–${endTime}${breakDetail}${reason ? ` · ${reason}` : ""}`,
   });
 
   revalidatePath("/picagens/execucao");
