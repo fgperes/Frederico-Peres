@@ -6,7 +6,6 @@ import {
   getWeekStart,
   getWeekDays,
   isoDate,
-  WEEKDAY_LABELS,
   MONTH_LABELS,
   addWeeksIso,
   getMonthStart,
@@ -114,6 +113,7 @@ export default async function ExecucaoPage({
     month?: string;
     year?: string;
     employees?: string;
+    onlyPending?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -146,10 +146,11 @@ async function GestorExecucaoView({
   toleranceMinutes,
 }: {
   user: Awaited<ReturnType<typeof requireUser>>;
-  params: { week?: string; month?: string; year?: string; employees?: string };
+  params: { week?: string; month?: string; year?: string; employees?: string; onlyPending?: string };
   toleranceMinutes: number;
 }) {
   const scope = await employeeScopeWhere(user);
+  const onlyPending = params.onlyPending === "1";
 
   const monthYearBase =
     params.month && params.year
@@ -164,7 +165,7 @@ async function GestorExecucaoView({
   const nextWeek = addWeeksIso(weekStartIso, 1);
 
   const selectedEmployeeIds = parseIdList(params.employees);
-  const filterQuery = `employees=${selectedEmployeeIds.join(",")}`;
+  const filterQuery = `employees=${selectedEmployeeIds.join(",")}${onlyPending ? "&onlyPending=1" : ""}`;
 
   const [departments, teams, scopedEmployees] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: "asc" } }),
@@ -207,6 +208,23 @@ async function GestorExecucaoView({
 
   const decisionByKey = new Map<string, TimeClockDayDecision>();
   for (const d of decisions) decisionByKey.set(`${d.employeeId}_${isoDate(d.date)}`, d);
+
+  const employeeRows = employees
+    .map((emp) => {
+      const empShifts = shifts.filter((s) => s.employeeId === emp.id);
+      const empEntries = entries.filter((e) => e.employeeId === emp.id);
+      const empCorrections = corrections.filter((c) => c.employeeId === emp.id);
+      const allRows = buildRows(weekDays, empShifts, empEntries, empCorrections);
+      const rows = onlyPending
+        ? allRows.filter((r) => {
+            const decision = decisionByKey.get(`${emp.id}_${r.key}`);
+            return Math.abs(r.diffMinutes) > toleranceMinutes && !decision;
+          })
+        : allRows;
+      const balanceCorrected = allRows.reduce((sum, r) => sum + r.diffMinutes, 0) / 60;
+      return { emp, rows, balanceCorrected };
+    })
+    .filter((e) => !onlyPending || e.rows.length > 0);
 
   return (
     <>
@@ -253,6 +271,16 @@ async function GestorExecucaoView({
                 fieldName="employees"
               />
             </div>
+            <label className="mb-1.5 flex items-center gap-1.5 self-end text-sm text-stone-600 dark:text-stone-400">
+              <input
+                type="checkbox"
+                name="onlyPending"
+                value="1"
+                defaultChecked={onlyPending}
+                className="rounded border-stone-300 dark:border-stone-700"
+              />
+              Só dias por corrigir
+            </label>
             <button
               type="submit"
               className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-700"
@@ -285,18 +313,13 @@ async function GestorExecucaoView({
         </div>
       </Card>
 
-      {employees.length === 0 ? (
-        <EmptyState message="Sem colaboradores para mostrar." />
+      {employeeRows.length === 0 ? (
+        <EmptyState
+          message={onlyPending ? "Sem dias por corrigir para os filtros selecionados." : "Sem colaboradores para mostrar."}
+        />
       ) : (
         <div className="space-y-6">
-          {employees.map((emp) => {
-            const empShifts = shifts.filter((s) => s.employeeId === emp.id);
-            const empEntries = entries.filter((e) => e.employeeId === emp.id);
-            const empCorrections = corrections.filter((c) => c.employeeId === emp.id);
-            const rows = buildRows(weekDays, empShifts, empEntries, empCorrections);
-
-            const balanceCorrected = rows.reduce((sum, r) => sum + r.diffMinutes, 0) / 60;
-
+          {employeeRows.map(({ emp, rows, balanceCorrected }) => {
             return (
               <Card key={emp.id}>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -319,13 +342,13 @@ async function GestorExecucaoView({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-                      {rows.map((r, i) => {
+                      {rows.map((r) => {
                         const decision = decisionByKey.get(`${emp.id}_${r.key}`);
                         const needsDecision = Math.abs(r.diffMinutes) > toleranceMinutes;
                         return (
                           <tr key={r.key}>
                             <td className="py-2">
-                              {WEEKDAY_LABELS[i]} {r.day.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
+                              {r.day.toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "2-digit" })}
                             </td>
                             <td className="py-2 text-center text-stone-700 dark:text-stone-300">
                               {r.scheduledLabel}
