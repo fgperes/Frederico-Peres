@@ -2,20 +2,21 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Copy } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { DateField } from "@/components/date-field";
+import { TimeField } from "@/components/time-field";
 import { Button, Select, Textarea, Input } from "@/components/ui";
 import { createTraining, type SessionInput } from "../actions";
 
-type ModalityOption = { id: string; name: string; active: boolean };
+type ModalityOption = { id: string; code: string; description: string; active: boolean };
 type EntityOption = { id: string; name: string };
 
 type SessionRow = SessionInput & { key: number };
 
 let rowKeySeq = 0;
 function emptyRow(): SessionRow {
-  return { key: rowKeySeq++, date: "", hours: 0 };
+  return { key: rowKeySeq++, date: "", startTime: "", hours: 0 };
 }
 
 export function TrainingModal({
@@ -49,6 +50,15 @@ export function TrainingModal({
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.key !== key) : prev));
   }
 
+  function duplicateRow(key: number) {
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.key === key);
+      if (idx === -1) return prev;
+      const copy: SessionRow = { ...prev[idx], key: rowKeySeq++ };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+  }
+
   function resetAndClose() {
     setName("");
     setModalityId(activeModalities[0]?.id ?? "");
@@ -68,7 +78,7 @@ export function TrainingModal({
         modalityId,
         entityId: entityId || undefined,
         description: description || undefined,
-        sessions: rows.map((r) => ({ date: r.date, hours: Number(r.hours) || 0, notes: r.notes })),
+        sessions: rows.map((r) => ({ date: r.date, startTime: r.startTime, hours: Number(r.hours) || 0 })),
       });
       if (result.error) {
         setError(result.error);
@@ -94,7 +104,7 @@ export function TrainingModal({
               {activeModalities.length === 0 && <option value="">Sem modalidades ativas</option>}
               {activeModalities.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name}
+                  {m.code} — {m.description}
                 </option>
               ))}
             </Select>
@@ -124,7 +134,7 @@ export function TrainingModal({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-xs font-medium text-stone-600 dark:text-stone-400">
-              Cronograma (dias e horas)
+              Cronograma (data, hora de início e horas)
             </label>
             <span className="text-xs font-semibold text-stone-500 dark:text-stone-400">
               Total: {totalHours}h
@@ -138,6 +148,11 @@ export function TrainingModal({
                   onChange={(v) => updateRow(row.key, { date: v })}
                   className="flex-1"
                 />
+                <TimeField
+                  value={row.startTime}
+                  onChange={(v) => updateRow(row.key, { startTime: v })}
+                  className="w-28"
+                />
                 <Input
                   type="number"
                   min={0}
@@ -147,12 +162,14 @@ export function TrainingModal({
                   onChange={(e) => updateRow(row.key, { hours: Number(e.target.value) })}
                   className="w-24"
                 />
-                <Input
-                  placeholder="Notas (opcional)"
-                  value={row.notes ?? ""}
-                  onChange={(e) => updateRow(row.key, { notes: e.target.value })}
-                  className="flex-1"
-                />
+                <button
+                  type="button"
+                  onClick={() => duplicateRow(row.key)}
+                  className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400"
+                  title="Duplicar sessão"
+                >
+                  <Copy size={15} />
+                </button>
                 <button
                   type="button"
                   onClick={() => removeRow(row.key)}

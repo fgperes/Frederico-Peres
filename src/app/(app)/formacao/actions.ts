@@ -21,17 +21,36 @@ function refresh(employeeIds: string[] = []) {
 
 // --- Modalidades (tabela de configuração) ---------------------------------
 
-export async function createTrainingModality(params: { name: string }): Promise<{ error?: string }> {
+export type TrainingModalityState = { error?: string };
+
+function parseModalityFields(formData: FormData) {
+  const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const description = String(formData.get("description") ?? "").trim();
+  const active = formData.get("active") === "on";
+  if (!code) throw new Error("Sigla obrigatória.");
+  if (!description) throw new Error("Descrição obrigatória.");
+  return { code, description, active };
+}
+
+export async function createTrainingModality(
+  _prev: TrainingModalityState,
+  formData: FormData
+): Promise<TrainingModalityState> {
   try {
     const user = await assertCanWrite();
-    const name = params.name.trim();
-    if (!name) return { error: "Nome obrigatório." };
+    const data = parseModalityFields(formData);
 
-    const existing = await prisma.trainingModality.findUnique({ where: { name } });
-    if (existing) return { error: `Já existe uma modalidade "${name}".` };
+    const existing = await prisma.trainingModality.findUnique({ where: { code: data.code } });
+    if (existing) return { error: `Já existe uma modalidade com a sigla "${data.code}".` };
 
-    const modality = await prisma.trainingModality.create({ data: { name } });
-    await logAudit({ userId: user.id, action: "CREATE", entity: "TrainingModality", entityId: modality.id, details: name });
+    const modality = await prisma.trainingModality.create({ data });
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      entity: "TrainingModality",
+      entityId: modality.id,
+      details: data.code,
+    });
     revalidatePath("/formacao/formacoes");
     return {};
   } catch (e) {
@@ -39,17 +58,27 @@ export async function createTrainingModality(params: { name: string }): Promise<
   }
 }
 
-export async function toggleTrainingModalityActive(modalityId: string): Promise<{ error?: string }> {
+export async function updateTrainingModality(
+  modalityId: string,
+  _prev: TrainingModalityState,
+  formData: FormData
+): Promise<TrainingModalityState> {
   try {
     const user = await assertCanWrite();
-    const current = await prisma.trainingModality.findUniqueOrThrow({ where: { id: modalityId } });
-    await prisma.trainingModality.update({ where: { id: modalityId }, data: { active: !current.active } });
+    const data = parseModalityFields(formData);
+
+    const existing = await prisma.trainingModality.findUnique({ where: { code: data.code } });
+    if (existing && existing.id !== modalityId) {
+      return { error: `Já existe uma modalidade com a sigla "${data.code}".` };
+    }
+
+    await prisma.trainingModality.update({ where: { id: modalityId }, data });
     await logAudit({
       userId: user.id,
-      action: current.active ? "DEACTIVATE" : "ACTIVATE",
+      action: "UPDATE",
       entity: "TrainingModality",
       entityId: modalityId,
-      details: current.name,
+      details: data.code,
     });
     revalidatePath("/formacao/formacoes");
     return {};
@@ -138,7 +167,7 @@ export async function deleteTrainingAddress(addressId: string): Promise<{ error?
 
 // --- Formações ---------------------------------------------------------------
 
-export type SessionInput = { date: string; hours: number; notes?: string };
+export type SessionInput = { date: string; startTime: string; hours: number; notes?: string };
 
 export async function createTraining(params: {
   name: string;
@@ -152,8 +181,10 @@ export async function createTraining(params: {
     const name = params.name.trim();
     if (!name) return { error: "Nome obrigatório." };
     if (!params.modalityId) return { error: "Selecione a modalidade." };
-    const sessions = params.sessions.filter((s) => s.date && s.hours > 0);
-    if (sessions.length === 0) return { error: "Adicione pelo menos uma sessão ao cronograma, com data e horas." };
+    const sessions = params.sessions.filter((s) => s.date && s.startTime && s.hours > 0);
+    if (sessions.length === 0) {
+      return { error: "Adicione pelo menos uma sessão ao cronograma, com data, hora de início e horas." };
+    }
 
     const training = await prisma.training.create({
       data: {
@@ -165,6 +196,7 @@ export async function createTraining(params: {
         sessions: {
           create: sessions.map((s) => ({
             date: new Date(`${s.date}T00:00:00`),
+            startTime: s.startTime,
             hours: s.hours,
             notes: s.notes?.trim() || null,
           })),
