@@ -112,6 +112,29 @@ export async function getNotifications(user: SessionUser): Promise<NotificationI
     }
   }
 
+  // O próprio colaborador é avisado de que tem medicina do trabalho
+  // agendada (ainda não fechada) — visível desde o momento em que é
+  // marcada, cobrindo ao mesmo tempo o aviso imediato e o aviso às 48h.
+  if (user.employeeId) {
+    const appointment = await prisma.workMedicineAppointment.findFirst({
+      where: { employeeId: user.employeeId, status: { not: "FECHADA" } },
+      orderBy: { scheduledAt: "asc" },
+    });
+    if (appointment) {
+      const dateLabel = appointment.scheduledAt.toLocaleDateString("pt-PT");
+      const timeLabel = appointment.scheduledAt.toLocaleTimeString("pt-PT", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      items.push({
+        id: "own-work-medicine",
+        label: `Tem medicina do trabalho agendada para ${dateLabel} às ${timeLabel}`,
+        count: 1,
+        href: `/colaboradores/${user.employeeId}/medicina-trabalho`,
+      });
+    }
+  }
+
   return items;
 }
 

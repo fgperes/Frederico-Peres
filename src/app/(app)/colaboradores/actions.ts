@@ -10,6 +10,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { parseExcelFile } from "@/lib/excel";
 import { ID_DOCUMENT_TYPES, EDUCATION_LEVELS, BLOOD_TYPES } from "@/lib/employee-constants";
+import { notifyNewEmployeeWorkMedicine } from "@/lib/work-medicine";
 
 const employeeSchema = z.object({
   employeeNumber: z
@@ -243,6 +244,8 @@ export async function createEmployee(
       entityId: employee.id,
       details: `${employee.firstName} ${employee.lastName}`,
     });
+
+    await notifyNewEmployeeWorkMedicine(employee.id, `${employee.firstName} ${employee.lastName}`);
 
     await maybeCreateLinkedUser({
       employeeId: employee.id,
@@ -523,7 +526,7 @@ export async function importEmployeesAction(
     const departmentId = data.department ? deptByName.get(data.department.toLowerCase()) : undefined;
 
     try {
-      await prisma.employee.create({
+      const imported = await prisma.employee.create({
         data: {
           firstName: data.firstName,
           lastName: data.lastName,
@@ -539,6 +542,7 @@ export async function importEmployeesAction(
           importLogId: importLog.id,
         },
       });
+      await notifyNewEmployeeWorkMedicine(imported.id, `${imported.firstName} ${imported.lastName}`);
       created++;
     } catch (e) {
       errorReport.push(`Linha ${rowNum}: erro ao criar registo (${e instanceof Error ? e.message : "desconhecido"}).`);
