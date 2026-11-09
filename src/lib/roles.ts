@@ -61,7 +61,8 @@ export type Module =
   | "integracoes"
   | "payroll"
   | "relatorios"
-  | "avaliacoes";
+  | "avaliacoes"
+  | "medicina_trabalho";
 
 export const MODULES: Module[] = [
   "recursos",
@@ -75,6 +76,7 @@ export const MODULES: Module[] = [
   "payroll",
   "relatorios",
   "avaliacoes",
+  "medicina_trabalho",
 ];
 
 export const MODULE_LABELS: Record<Module, string> = {
@@ -89,6 +91,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   payroll: "Payroll",
   relatorios: "Relatórios",
   avaliacoes: "Avaliações de Desempenho",
+  medicina_trabalho: "Medicina do Trabalho",
 };
 
 function allNoneRow(): Record<Module, AccessLevel> {
@@ -112,6 +115,7 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     payroll: "rw",
     relatorios: "rw",
     avaliacoes: "rw",
+    medicina_trabalho: "rw",
   },
   ADMIN_RH: {
     recursos: "rw",
@@ -125,6 +129,7 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     payroll: "rw",
     relatorios: "rw",
     avaliacoes: "rw",
+    medicina_trabalho: "rw",
   },
   GESTOR_EQUIPA: {
     recursos: "rw",
@@ -138,6 +143,7 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     payroll: "none",
     relatorios: "ro",
     avaliacoes: "rw",
+    medicina_trabalho: "ro",
   },
   COLABORADOR: {
     recursos: "own",
@@ -151,6 +157,7 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     payroll: "own",
     relatorios: "none",
     avaliacoes: "none",
+    medicina_trabalho: "own",
   },
   RH_CONTRATOS: {
     recursos: "ro",
@@ -164,6 +171,7 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     payroll: "ro",
     relatorios: "ro",
     avaliacoes: "none",
+    medicina_trabalho: "none",
   },
   AUDITOR: {
     recursos: "ro",
@@ -177,6 +185,7 @@ const DEFAULT_MATRIX: Record<Role, Record<Module, AccessLevel>> = {
     payroll: "ro",
     relatorios: "ro",
     avaliacoes: "ro",
+    medicina_trabalho: "ro",
   },
 };
 
