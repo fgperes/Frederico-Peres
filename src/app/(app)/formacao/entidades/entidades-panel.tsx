@@ -61,7 +61,7 @@ export function EntidadesFormacaoPanel({
               onChange={(e) => setName(e.target.value)}
               className="w-64"
             />
-            <Input placeholder="NIF" value={nif} onChange={(e) => setNif(e.target.value)} className="w-40" />
+            <Input placeholder="NIPC" value={nif} onChange={(e) => setNif(e.target.value)} className="w-40" />
             <Button type="submit" disabled={pending}>
               <Plus size={15} /> Adicionar
             </Button>
@@ -130,7 +130,7 @@ function EntityCard({ entity, canEdit }: { entity: Entity; canEdit: boolean }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{entity.name}</p>
-          <p className="text-xs text-stone-500 dark:text-stone-400">NIF {entity.nif}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">NIPC {entity.nif}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge color={entity.active ? "green" : "slate"}>{entity.active ? "Ativo" : "Inativo"}</Badge>

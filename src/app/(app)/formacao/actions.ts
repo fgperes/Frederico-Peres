@@ -66,10 +66,10 @@ export async function createTrainingEntity(params: { name: string; nif: string }
     const name = params.name.trim();
     const nif = params.nif.trim();
     if (!name) return { error: "Nome obrigatório." };
-    if (!nif) return { error: "NIF obrigatório." };
+    if (!nif) return { error: "NIPC obrigatório." };
 
     const existing = await prisma.trainingEntity.findUnique({ where: { nif } });
-    if (existing) return { error: `Já existe uma entidade com o NIF ${nif}.` };
+    if (existing) return { error: `Já existe uma entidade com o NIPC ${nif}.` };
 
     const entity = await prisma.trainingEntity.create({ data: { name, nif } });
     await logAudit({ userId: user.id, action: "CREATE", entity: "TrainingEntity", entityId: entity.id, details: name });

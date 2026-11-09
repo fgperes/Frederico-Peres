@@ -34,10 +34,10 @@ export async function createWorkMedicineEntity(params: {
     const name = params.name.trim();
     const nif = params.nif.trim();
     if (!name) return { error: "Nome obrigatório." };
-    if (!nif) return { error: "NIF obrigatório." };
+    if (!nif) return { error: "NIPC obrigatório." };
 
     const existing = await prisma.workMedicineEntity.findUnique({ where: { nif } });
-    if (existing) return { error: `Já existe uma entidade com o NIF ${nif}.` };
+    if (existing) return { error: `Já existe uma entidade com o NIPC ${nif}.` };
 
     const entity = await prisma.workMedicineEntity.create({ data: { name, nif } });
     await logAudit({ userId: user.id, action: "CREATE", entity: "WorkMedicineEntity", entityId: entity.id, details: name });
