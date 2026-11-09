@@ -21,6 +21,8 @@ export type AbsenceSummary = {
   documentName: string | null;
   documentData: string | null;
   decisionNote: string | null;
+  countsAsTraining: boolean;
+  trainingHours: number | null;
 };
 
 export type AbsenceTypeOption = {
@@ -105,6 +107,8 @@ export function AbsenceRequestModal({
   const [typeId, setTypeId] = useState(defaultTypeId);
   const [selected, setSelected] = useState<Set<string>>(defaultSelected());
   const [reason, setReason] = useState("");
+  const [countsAsTraining, setCountsAsTraining] = useState(false);
+  const [trainingHours, setTrainingHours] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -124,6 +128,8 @@ export function AbsenceRequestModal({
       setTypeId(defaultTypeId);
       setSelected(defaultSelected());
       setReason("");
+      setCountsAsTraining(false);
+      setTrainingHours("");
       setFile(null);
       setError(null);
       setFileInputKey((k) => k + 1);
@@ -188,6 +194,10 @@ export function AbsenceRequestModal({
       setError("Ficheiro demasiado grande (máximo 2MB).");
       return;
     }
+    if (countsAsTraining && (!trainingHours || Number(trainingHours) <= 0)) {
+      setError("Indique quantas horas de formação esta ausência conta.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const documentData = file ? await readFileAsDataUrl(file) : undefined;
@@ -195,6 +205,8 @@ export function AbsenceRequestModal({
         reason: reason || undefined,
         documentName: file?.name,
         documentData,
+        countsAsTraining,
+        trainingHours: countsAsTraining ? Number(trainingHours) : undefined,
       });
       if (result.error) {
         setError(result.error);
@@ -222,6 +234,9 @@ export function AbsenceRequestModal({
               {new Date(`${existingAbsence.endDate}T00:00:00`).toLocaleDateString("pt-PT")} · {existingAbsence.days} dia(s)
             </p>
             {existingAbsence.reason && <p className="mt-1 text-xs">Motivo: {existingAbsence.reason}</p>}
+            {existingAbsence.countsAsTraining && (
+              <p className="mt-1 text-xs">Conta para formação: {existingAbsence.trainingHours ?? 0}h</p>
+            )}
             {existingAbsence.documentName && (
               <a
                 href={existingAbsence.documentData ?? undefined}
@@ -363,6 +378,49 @@ export function AbsenceRequestModal({
             onChange={(e) => setReason(e.target.value)}
             className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
           />
+        </div>
+
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-xs font-medium text-stone-600 dark:text-stone-400">
+              Conta para horas de formação?
+            </label>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCountsAsTraining(false)}
+                className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                  !countsAsTraining
+                    ? "border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-500/10 dark:text-violet-300"
+                    : "border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800"
+                }`}
+              >
+                Não
+              </button>
+              <button
+                type="button"
+                onClick={() => setCountsAsTraining(true)}
+                className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                  countsAsTraining
+                    ? "border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-500/10 dark:text-violet-300"
+                    : "border-stone-200 text-stone-500 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-400 dark:hover:bg-stone-800"
+                }`}
+              >
+                Sim
+              </button>
+            </div>
+          </div>
+          {countsAsTraining && (
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              placeholder="Horas de formação"
+              value={trainingHours}
+              onChange={(e) => setTrainingHours(e.target.value)}
+              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+            />
+          )}
         </div>
 
         <div>
