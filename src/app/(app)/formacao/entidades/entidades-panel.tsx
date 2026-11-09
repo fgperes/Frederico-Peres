@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MapPin, Trash2, Power, Building2 } from "lucide-react";
+import { Plus, MapPin, Trash2, Power, Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, Badge, Button, Input, EmptyState } from "@/components/ui";
 import { SaveBanner, type SaveStatus } from "@/components/save-banner";
 import {
@@ -12,7 +12,7 @@ import {
   deleteTrainingAddress,
 } from "../actions";
 
-type Address = { id: string; address: string; postalCode: string | null; municipality: string | null };
+type Address = { id: string; address: string; postalCode: string | null };
 type Entity = { id: string; name: string; nif: string; active: boolean; addresses: Address[] };
 
 export function EntidadesFormacaoPanel({
@@ -85,10 +85,10 @@ export function EntidadesFormacaoPanel({
 }
 
 function EntityCard({ entity, canEdit }: { entity: Entity; canEdit: boolean }) {
+  const [expanded, setExpanded] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [municipality, setMunicipality] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -105,14 +105,13 @@ function EntityCard({ entity, canEdit }: { entity: Entity; canEdit: boolean }) {
     if (!address.trim()) return;
     setError(null);
     startTransition(async () => {
-      const result = await createTrainingAddress({ entityId: entity.id, address, postalCode, municipality });
+      const result = await createTrainingAddress({ entityId: entity.id, address, postalCode });
       if (result.error) {
         setError(result.error);
         return;
       }
       setAddress("");
       setPostalCode("");
-      setMunicipality("");
       setShowAddressForm(false);
       router.refresh();
     });
@@ -150,82 +149,85 @@ function EntityCard({ entity, canEdit }: { entity: Entity; canEdit: boolean }) {
       </div>
 
       <div className="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
-          Moradas
-        </p>
-        {entity.addresses.length === 0 ? (
-          <p className="text-sm text-stone-400 dark:text-stone-500">Sem moradas registadas.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {entity.addresses.map((a) => (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60"
-              >
-                <span className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
-                  <MapPin size={13} className="shrink-0 text-stone-400" />
-                  {a.address}
-                  {a.postalCode ? ` · ${a.postalCode}` : ""}
-                  {a.municipality ? ` · ${a.municipality}` : ""}
-                </span>
-                {canEdit && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+        >
+          <span>Moradas ({entity.addresses.length})</span>
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
+        {expanded && (
+          <div className="mt-2">
+            {entity.addresses.length === 0 ? (
+              <p className="text-sm text-stone-400 dark:text-stone-500">Sem moradas registadas.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {entity.addresses.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2 text-sm dark:bg-stone-800/60"
+                  >
+                    <span className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
+                      <MapPin size={13} className="shrink-0 text-stone-400" />
+                      {a.address}
+                      {a.postalCode ? ` · ${a.postalCode}` : ""}
+                    </span>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddress(a.id)}
+                        disabled={pending}
+                        title="Eliminar morada"
+                        className="text-stone-400 hover:text-rose-600 disabled:opacity-60 dark:hover:text-rose-400"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {canEdit && (
+              <div className="mt-3">
+                {!showAddressForm ? (
                   <button
                     type="button"
-                    onClick={() => handleDeleteAddress(a.id)}
-                    disabled={pending}
-                    title="Eliminar morada"
-                    className="text-stone-400 hover:text-rose-600 disabled:opacity-60 dark:hover:text-rose-400"
+                    onClick={() => setShowAddressForm(true)}
+                    className="text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
                   >
-                    <Trash2 size={13} />
+                    + Adicionar morada
                   </button>
+                ) : (
+                  <form onSubmit={handleAddAddress} className="flex flex-wrap items-end gap-2">
+                    <Input
+                      placeholder="Morada"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-56"
+                    />
+                    <Input
+                      placeholder="Código postal"
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      className="w-32"
+                    />
+                    <Button type="submit" disabled={pending} className="px-3 py-1.5 text-xs">
+                      Guardar
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddressForm(false)}
+                      className="text-xs text-stone-500 hover:text-stone-700 dark:text-stone-400"
+                    >
+                      Cancelar
+                    </button>
+                    {error && <p className="w-full text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+                  </form>
                 )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {canEdit && (
-          <div className="mt-3">
-            {!showAddressForm ? (
-              <button
-                type="button"
-                onClick={() => setShowAddressForm(true)}
-                className="text-xs font-medium text-violet-600 hover:underline dark:text-violet-400"
-              >
-                + Adicionar morada
-              </button>
-            ) : (
-              <form onSubmit={handleAddAddress} className="flex flex-wrap items-end gap-2">
-                <Input
-                  placeholder="Morada"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-56"
-                />
-                <Input
-                  placeholder="Código postal"
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  className="w-32"
-                />
-                <Input
-                  placeholder="Concelho"
-                  value={municipality}
-                  onChange={(e) => setMunicipality(e.target.value)}
-                  className="w-36"
-                />
-                <Button type="submit" disabled={pending} className="px-3 py-1.5 text-xs">
-                  Guardar
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddressForm(false)}
-                  className="text-xs text-stone-500 hover:text-stone-700 dark:text-stone-400"
-                >
-                  Cancelar
-                </button>
-                {error && <p className="w-full text-xs text-rose-600 dark:text-rose-400">{error}</p>}
-              </form>
+              </div>
             )}
           </div>
         )}
