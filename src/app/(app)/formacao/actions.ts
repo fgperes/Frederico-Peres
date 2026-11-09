@@ -103,7 +103,6 @@ export async function createTrainingAddress(params: {
   entityId: string;
   address: string;
   postalCode?: string;
-  municipality?: string;
 }): Promise<{ error?: string }> {
   try {
     const user = await assertCanWrite();
@@ -115,7 +114,6 @@ export async function createTrainingAddress(params: {
         entityId: params.entityId,
         address,
         postalCode: params.postalCode?.trim() || null,
-        municipality: params.municipality?.trim() || null,
       },
     });
     await logAudit({ userId: user.id, action: "CREATE", entity: "TrainingAddress", entityId: created.id, details: address });
