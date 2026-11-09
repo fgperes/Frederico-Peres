@@ -292,6 +292,31 @@ async function loadAbsencesForDays(employeeIds: string[], days: Date[]) {
   return entries;
 }
 
+// Medicina do trabalho agendada (ainda não fechada) dos colaboradores
+// visíveis, para os dias mostrados na grelha — ver "Medicina do Trabalho"
+// no requisito: a marcação deve "passar para a escala".
+async function loadWorkMedicineForDays(employeeIds: string[], days: Date[]) {
+  if (employeeIds.length === 0 || days.length === 0) return [];
+
+  const rangeStart = days[0];
+  const rangeEndExclusive = new Date(days[days.length - 1]);
+  rangeEndExclusive.setDate(rangeEndExclusive.getDate() + 1);
+  const appointments = await prisma.workMedicineAppointment.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      status: { not: "FECHADA" },
+      scheduledAt: { gte: rangeStart, lt: rangeEndExclusive },
+    },
+    select: { employeeId: true, scheduledAt: true },
+  });
+
+  return appointments.map((a) => ({
+    employeeId: a.employeeId,
+    date: a.scheduledAt,
+    time: a.scheduledAt.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+  }));
+}
+
 // Feriados (nacionais para todos; regionais só para quem trabalha num local
 // do concelho abrangido) para os dias mostrados — devolvidos no mesmo
 // formato de `loadAbsencesForDays` para serem fundidos com ausências reais
@@ -456,13 +481,14 @@ async function WeekView({
   const nextWeek = addWeeksIso(weekStartIso, 1);
   const weekLabel = `${weekStart.toLocaleDateString("pt-PT")} a ${days[6].toLocaleDateString("pt-PT")}`;
 
-  const [shifts, absences, holidays] = await Promise.all([
+  const [shifts, absences, holidays, workMedicine] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { in: days } },
       include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
     loadHolidaysForDays(employees, days),
+    loadWorkMedicineForDays(employeeIds, days),
   ]);
   const mergedAbsences = [...holidays.entries, ...absences];
   const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
@@ -518,6 +544,7 @@ async function WeekView({
           alertCells={alertCells}
           coverage={coverage ?? undefined}
           canEdit={canEdit}
+          workMedicine={workMedicine}
         />
       </FullscreenSection>
       <StatusLegend />
@@ -562,13 +589,14 @@ async function MonthView({
   const nextMonth = addMonthsIso(monthStartIso, 1);
   const monthLabel = monthStart.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
-  const [shifts, absences, holidays] = await Promise.all([
+  const [shifts, absences, holidays, workMedicine] = await Promise.all([
     prisma.shift.findMany({
       where: { employeeId: { in: employeeIds }, date: { gte: days[0], lte: days[days.length - 1] } },
       include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
     }),
     loadAbsencesForDays(employeeIds, days),
     loadHolidaysForDays(employees, days),
+    loadWorkMedicineForDays(employeeIds, days),
   ]);
   const mergedAbsences = [...holidays.entries, ...absences];
   const { alerts, alertCells, coverage } = await loadAlertsAndCoverage(
@@ -628,6 +656,7 @@ async function MonthView({
           alertCells={alertCells}
           coverage={coverage ?? undefined}
           canEdit={canEdit}
+          workMedicine={workMedicine}
         />
       </FullscreenSection>
       <StatusLegend />

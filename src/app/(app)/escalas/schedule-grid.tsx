@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Plus, Stethoscope } from "lucide-react";
 import { isoDate } from "@/lib/dates";
 import { shiftDurationHours } from "@/lib/schedule";
 import { Badge, EmptyState } from "@/components/ui";
@@ -42,6 +42,8 @@ export type GridAbsence = {
 };
 
 export type CoverageDay = { dateIso: string; scheduled: number; recommended: number | null };
+
+export type GridWorkMedicine = { employeeId: string; date: Date; time: string };
 
 // Converte a cor hex do modelo de turno (ex.: "#2563eb") num par
 // fundo/texto suave para o chip da grelha — não usamos a cor sólida
@@ -107,11 +109,13 @@ export function ScheduleGrid({
   alertCells = new Set(),
   coverage,
   canEdit = false,
+  workMedicine = [],
 }: {
   employees: GridEmployee[];
   days: Date[];
   shifts: GridShift[];
   absences?: GridAbsence[];
+  workMedicine?: GridWorkMedicine[];
   // Feriados por colaborador (nacionais para todos, regionais consoante o
   // local de trabalho) — mantidos à parte de `absences` para não bloquear
   // o botão de criar turno num feriado (muitos setores trabalham nesse
@@ -139,6 +143,9 @@ export function ScheduleGrid({
 
   const holidayCellMap = new Map<string, string>();
   for (const h of holidayEntries) holidayCellMap.set(`${h.employeeId}_${isoDate(h.date)}`, h.label);
+
+  const workMedicineMap = new Map<string, string>();
+  for (const wm of workMedicine) workMedicineMap.set(`${wm.employeeId}_${isoDate(wm.date)}`, wm.time);
 
   const plannedHoursByEmployee = new Map<string, number>();
   for (const s of shifts) {
@@ -263,6 +270,7 @@ export function ScheduleGrid({
                       const shift = shiftMap.get(key);
                       const absence = absenceMap.get(key);
                       const holidayLabel = holidayCellMap.get(key);
+                      const workMedicineTime = workMedicineMap.get(key);
                       const hasAlert = alertCells.has(key);
                       const isDragOver = dragOverKey === key;
                       return (
@@ -289,6 +297,14 @@ export function ScheduleGrid({
                                 title="Há um alerta para este dia — ver resumo acima da grelha"
                               >
                                 <AlertTriangle size={11} fill="currentColor" className="text-amber-500" />
+                              </span>
+                            )}
+                            {workMedicineTime && (
+                              <span
+                                className="absolute -top-1 -right-1 z-10 text-teal-600 dark:text-teal-400"
+                                title={`Medicina do trabalho às ${workMedicineTime}`}
+                              >
+                                <Stethoscope size={11} />
                               </span>
                             )}
                             {shift ? (

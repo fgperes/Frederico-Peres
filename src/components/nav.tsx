@@ -20,6 +20,7 @@ import {
   Banknote,
   BarChart3,
   ClipboardCheck,
+  Stethoscope,
   X,
   PanelLeftClose,
   PanelLeftOpen,
@@ -45,6 +46,7 @@ const NAV_ITEMS: { href: string; label: string; module: Module; icon: LucideIcon
   { href: "/payroll", label: "Payroll", module: "payroll", icon: Banknote },
   { href: "/relatorios", label: "Relatórios", module: "relatorios", icon: BarChart3 },
   { href: "/avaliacoes", label: "Avaliações de Desempenho", module: "avaliacoes", icon: ClipboardCheck },
+  { href: "/medicina-trabalho", label: "Medicina do Trabalho", module: "medicina_trabalho", icon: Stethoscope },
   { href: "/acessos", label: "Perfis e Acessos", module: "acessos", icon: ShieldCheck },
 ];
 

@@ -8,6 +8,7 @@ import { getAllowedRecipients } from "@/lib/messaging";
 import { getOpenTasks } from "@/lib/tasks";
 import { getTodayMealStatus } from "@/lib/meal-rules";
 import { ensureEvaluationDueTasks } from "@/lib/evaluations";
+import { ensureWorkMedicineTasks } from "@/lib/work-medicine";
 import { MobileNavProvider } from "@/components/mobile-nav-context";
 
 export default async function AppLayout({
@@ -21,6 +22,7 @@ export default async function AppLayout({
   // de avaliações agendadas para os próximos 30 dias a cada carregamento de
   // página, antes de ler as tarefas abertas do utilizador abaixo.
   await ensureEvaluationDueTasks();
+  await ensureWorkMedicineTasks();
 
   const [notifications, unreadMessageCount, recipients, messages, dbUser, tasks] = await Promise.all([
     getNotifications(user),

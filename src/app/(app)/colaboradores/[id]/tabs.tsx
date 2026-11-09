@@ -14,6 +14,7 @@ export function ColaboradorTabs({ employeeId }: { employeeId: string }) {
     { href: `/colaboradores/${employeeId}/bolsa-horas`, label: "Bolsa de Horas" },
     { href: `/colaboradores/${employeeId}/anexos`, label: "Anexos" },
     { href: `/colaboradores/${employeeId}/avaliacoes`, label: "Avaliações" },
+    { href: `/colaboradores/${employeeId}/medicina-trabalho`, label: "Medicina do Trabalho" },
   ];
 
   return (

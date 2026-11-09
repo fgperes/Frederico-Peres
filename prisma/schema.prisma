@@ -62,6 +62,9 @@ model User {
 
   anniversaryCommentsAuthored AnniversaryComment[]
 
+  workMedicineAppointmentsCreated WorkMedicineAppointment[] @relation("WorkMedicineAppointmentCreatedBy")
+  workMedicineAppointmentsClosed  WorkMedicineAppointment[] @relation("WorkMedicineAppointmentClosedBy")
+
   timeClockDayDecisionsCreated TimeClockDayDecision[] @relation("TimeClockDayDecisionCreatedBy")
   hourPoolMovementsCreated     HourPoolMovement[]     @relation("HourPoolMovementCreatedBy")
   hourPoolMovementsReversed    HourPoolMovement[]     @relation("HourPoolMovementReversedBy")
@@ -89,13 +92,15 @@ model Task {
   id           String      @id @default(cuid())
   title        String
   description  String?
-  type         String      @default("GENERAL") // GENERAL | MEAL_BREAK_SCHEDULE
+  type         String      @default("GENERAL") // GENERAL | MEAL_BREAK_SCHEDULE | EVALUATION_DUE | SELF_EVALUATION_DUE | WORK_MEDICINE_NEW_EMPLOYEE | WORK_MEDICINE_DUE | WORK_MEDICINE_CONFIRM
   assigneeId   String
   assignee     User        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
   employeeId   String?
   employee     Employee?   @relation(fields: [employeeId], references: [id])
   evaluationId String?
   evaluation   Evaluation? @relation(fields: [evaluationId], references: [id])
+  workMedicineAppointmentId String?
+  workMedicineAppointment   WorkMedicineAppointment? @relation(fields: [workMedicineAppointmentId], references: [id])
   status       String      @default("OPEN") // OPEN | DONE
   createdAt    DateTime    @default(now())
   resolvedAt   DateTime?
@@ -355,6 +360,8 @@ model Employee {
 
   evaluationAssignments EvaluationTemplateAssignment[]
   evaluations           Evaluation[]
+
+  workMedicineAppointments WorkMedicineAppointment[]
 
   anniversaryComments AnniversaryComment[]
 
@@ -1200,4 +1207,83 @@ model DocumentTemplate {
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Medicina do Trabalho
+// ---------------------------------------------------------------------------
+
+// Entidade parceira (clínica/prestador externo) que realiza os exames de
+// medicina do trabalho. Pode ter várias moradas (WorkMedicineAddress); um
+// agendamento concreto escolhe sempre uma entidade + uma das suas moradas.
+// `active=false` deixa de aparecer como opção para novos agendamentos sem
+// apagar o histórico dos já realizados com ela.
+model WorkMedicineEntity {
+  id        String   @id @default(cuid())
+  name      String
+  nif       String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addresses    WorkMedicineAddress[]
+  appointments WorkMedicineAppointment[]
+}
+
+model WorkMedicineAddress {
+  id           String             @id @default(cuid())
+  entityId     String
+  entity       WorkMedicineEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  address      String
+  postalCode   String?
+  municipality String?
+  createdAt    DateTime           @default(now())
+
+  appointments WorkMedicineAppointment[]
+}
+
+// Processo de medicina do trabalho de um colaborador, do agendamento ao
+// resultado. status:
+//   AGENDADA               — data futura, por realizar; pode ser reagendada.
+//   A_CONFIRMAR_REALIZACAO — chegou a data; aguarda confirmação de que foi
+//                            realizada (gerada por ensureWorkMedicineTasks).
+//                            Pode ainda ser reagendada (não aconteceu).
+//   PENDENTE_RESULTADO     — realização confirmada; aguarda resultado.
+//   FECHADA                — resultado registado (ver resultStatus); fim do
+//                            processo, conta como a última realizada para o
+//                            cálculo do próximo ciclo de 2 anos.
+model WorkMedicineAppointment {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  entityId  String?
+  entity    WorkMedicineEntity?  @relation(fields: [entityId], references: [id])
+  addressId String?
+  address   WorkMedicineAddress? @relation(fields: [addressId], references: [id])
+
+  scheduledAt DateTime
+  status      String   @default("AGENDADA")
+
+  resultStatus       String? // APTO | NAO_APTO — só quando FECHADA
+  resultNotes        String?
+  resultDocumentName String?
+  resultDocumentType String?
+  resultDocumentData String? // data URI (base64), como EmployeeDocument.fileData
+
+  realizationConfirmedAt DateTime?
+  closedAt               DateTime?
+
+  createdById String
+  createdBy   User    @relation("WorkMedicineAppointmentCreatedBy", fields: [createdById], references: [id])
+  closedById  String?
+  closedBy    User?   @relation("WorkMedicineAppointmentClosedBy", fields: [closedById], references: [id])
+
+  tasks Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId, status])
+  @@index([status, scheduledAt])
 }

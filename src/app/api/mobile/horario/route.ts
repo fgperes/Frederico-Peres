@@ -23,7 +23,10 @@ export async function GET(req: Request) {
       select: { location: { select: { municipality: true } } },
     });
 
-    const [shifts, absences, holidays] = await Promise.all([
+    const rangeEndExclusive = new Date(rangeEnd);
+    rangeEndExclusive.setDate(rangeEndExclusive.getDate() + 1);
+
+    const [shifts, absences, holidays, workMedicine] = await Promise.all([
       prisma.shift.findMany({
         where: { employeeId: user.employeeId, date: { in: days } },
         include: { shiftTemplate: { select: { name: true, color: true, breakMins: true } } },
@@ -39,7 +42,23 @@ export async function GET(req: Request) {
         include: { absenceType: { select: { name: true, isVacation: true } } },
       }),
       getHolidaysInRange(rangeStart, rangeEnd),
+      prisma.workMedicineAppointment.findMany({
+        where: {
+          employeeId: user.employeeId,
+          status: { not: "FECHADA" },
+          scheduledAt: { gte: rangeStart, lt: rangeEndExclusive },
+        },
+        select: { scheduledAt: true },
+      }),
     ]);
+
+    const workMedicineByDate = new Map<string, string>();
+    for (const wm of workMedicine) {
+      workMedicineByDate.set(
+        isoDate(wm.scheduledAt),
+        wm.scheduledAt.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })
+      );
+    }
 
     const municipality = employee?.location?.municipality ?? null;
     const holidayByDate = new Map<string, string>();
@@ -71,6 +90,7 @@ export async function GET(req: Request) {
           })),
         absence: absenceByDate.get(key) ?? null,
         holiday: holidayByDate.get(key) ?? null,
+        workMedicineTime: workMedicineByDate.get(key) ?? null,
       };
     });
 

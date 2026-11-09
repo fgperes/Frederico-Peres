@@ -14,6 +14,7 @@ type DayEntry = {
   shifts: Shift[];
   absence: { label: string; isVacation: boolean } | null;
   holiday: string | null;
+  workMedicineTime: string | null;
 };
 type HorarioData = { weekStart: string; week: DayEntry[] };
 
@@ -74,7 +75,7 @@ export default function HorarioScreen() {
 
         {loading || !data ? (
           <LoadingView />
-        ) : data.week.every((d) => d.shifts.length === 0 && !d.absence && !d.holiday) ? (
+        ) : data.week.every((d) => d.shifts.length === 0 && !d.absence && !d.holiday && !d.workMedicineTime) ? (
           <EmptyState message="Sem turnos nesta semana." />
         ) : (
           <View style={styles.days}>
@@ -98,6 +99,9 @@ export default function HorarioScreen() {
                   ))
                 ) : (
                   <Text style={styles.emptyDay}>Folga</Text>
+                )}
+                {day.workMedicineTime && (
+                  <Text style={styles.workMedicineLabel}>Medicina do trabalho · {day.workMedicineTime}</Text>
                 )}
               </Card>
             ))}
@@ -177,5 +181,10 @@ const styles = StyleSheet.create({
   emptyDay: {
     fontSize: 14,
     color: colors.stone400,
+  },
+  workMedicineLabel: {
+    fontSize: 12,
+    color: colors.green600,
+    fontWeight: "600",
   },
 });
