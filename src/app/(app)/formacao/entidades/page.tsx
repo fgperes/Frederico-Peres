@@ -38,7 +38,6 @@ export default async function EntidadesFormacaoPage() {
             id: a.id,
             address: a.address,
             postalCode: a.postalCode,
-            municipality: a.municipality,
           })),
         }))}
       />
