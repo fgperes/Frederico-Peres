@@ -17,14 +17,14 @@ export default async function FormacoesPage() {
   const [trainings, modalities, entities, employees] = await Promise.all([
     prisma.training.findMany({
       include: {
-        modality: { select: { name: true } },
+        modality: { select: { code: true, description: true } },
         entity: { select: { name: true } },
         sessions: { orderBy: { date: "asc" } },
         enrollments: { include: { employee: { select: { firstName: true, lastName: true } } } },
       },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.trainingModality.findMany({ orderBy: { name: "asc" } }),
+    prisma.trainingModality.findMany({ orderBy: { code: "asc" } }),
     prisma.trainingEntity.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.employee.findMany({
       where: { status: "ACTIVE" },
@@ -43,13 +43,13 @@ export default async function FormacoesPage() {
       <FormacaoTabs />
       <FormacoesPanel
         canEdit={canEdit}
-        modalities={modalities.map((m) => ({ id: m.id, name: m.name, active: m.active }))}
+        modalities={modalities.map((m) => ({ id: m.id, code: m.code, description: m.description, active: m.active }))}
         entities={entities.map((e) => ({ id: e.id, name: e.name }))}
         employees={employees.map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }))}
         initialTrainings={trainings.map((t) => ({
           id: t.id,
           name: t.name,
-          modalityName: t.modality.name,
+          modalityLabel: `${t.modality.code} — ${t.modality.description}`,
           entityName: t.entity?.name ?? null,
           description: t.description,
           totalHours: t.sessions.reduce((sum, s) => sum + s.hours, 0),

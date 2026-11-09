@@ -30,7 +30,7 @@ export default async function ColaboradorFormacaoPage({
       include: {
         training: {
           include: {
-            modality: { select: { name: true } },
+            modality: { select: { code: true, description: true } },
             entity: { select: { name: true } },
             sessions: { orderBy: { date: "asc" } },
           },
@@ -56,7 +56,7 @@ export default async function ColaboradorFormacaoPage({
           return {
             id: e.training.id,
             name: e.training.name,
-            modalityName: e.training.modality.name,
+            modalityLabel: `${e.training.modality.code} — ${e.training.modality.description}`,
             entityName: e.training.entity?.name ?? null,
             totalHours,
             firstDate: e.training.sessions[0]?.date.toISOString() ?? null,

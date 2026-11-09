@@ -727,7 +727,7 @@ async function reportFormacao(filters: ReportFilters): Promise<ReportResult> {
       employee: true,
       training: {
         include: {
-          modality: { select: { name: true } },
+          modality: { select: { code: true, description: true } },
           entity: { select: { name: true } },
           sessions: { orderBy: { date: "asc" } },
         },
@@ -742,7 +742,7 @@ async function reportFormacao(filters: ReportFilters): Promise<ReportResult> {
     return [
       `${e.employee.firstName} ${e.employee.lastName}`,
       e.training.name,
-      e.training.modality.name,
+      `${e.training.modality.code} — ${e.training.modality.description}`,
       e.training.entity?.name ?? "",
       sessions[0] ? sessions[0].date.toISOString().slice(0, 10) : "",
       sessions[sessions.length - 1] ? sessions[sessions.length - 1].date.toISOString().slice(0, 10) : "",

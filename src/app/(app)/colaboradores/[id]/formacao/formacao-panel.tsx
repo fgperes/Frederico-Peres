@@ -7,7 +7,7 @@ import type { TrainingBalances } from "@/lib/training";
 type TrainingRow = {
   id: string;
   name: string;
-  modalityName: string;
+  modalityLabel: string;
   entityName: string | null;
   totalHours: number;
   firstDate: string | null;
@@ -98,7 +98,7 @@ export function FormacaoEmployeePanel({
                 <div>
                   <p className="font-medium text-stone-900 dark:text-stone-100">{t.name}</p>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
-                    {t.modalityName}
+                    {t.modalityLabel}
                     {t.entityName ? ` · ${t.entityName}` : ""}
                     {t.firstDate &&
                       ` · ${new Date(t.firstDate).toLocaleDateString("pt-PT")}${
