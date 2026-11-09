@@ -1306,11 +1306,12 @@ model WorkMedicineAppointment {
 // Mista). Gerida dentro do próprio módulo de Formação, tal como os tipos de
 // ausência são geridos dentro de Ausências.
 model TrainingModality {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  active    Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  trainings Training[]
+  id          String     @id @default(cuid())
+  code        String     @unique // sigla, ex.: "PRES"
+  description String // ex.: "Presencial"
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  trainings   Training[]
 }
 
 // Entidade parceira que ministra formações — mesmo desenho do módulo de
@@ -1366,6 +1367,7 @@ model TrainingSession {
   trainingId String
   training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   date       DateTime
+  startTime  String // "HH:MM"
   hours      Float
   notes      String?
 
