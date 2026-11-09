@@ -72,7 +72,13 @@ export async function requestAbsenceDays(
   targetEmployeeId: string,
   absenceTypeId: string,
   dates: string[],
-  details: { reason?: string; documentName?: string; documentData?: string },
+  details: {
+    reason?: string;
+    documentName?: string;
+    documentData?: string;
+    countsAsTraining?: boolean;
+    trainingHours?: number;
+  },
   overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ): Promise<RequestAbsenceState> {
   try {
@@ -136,6 +142,8 @@ export async function requestAbsenceDays(
         reason: details.reason?.trim() || null,
         documentName: details.documentName?.trim() || null,
         documentData: details.documentData || null,
+        countsAsTraining: !!details.countsAsTraining,
+        trainingHours: details.countsAsTraining ? details.trainingHours ?? null : null,
         requestedById: user.id,
         status: "PENDING",
       },

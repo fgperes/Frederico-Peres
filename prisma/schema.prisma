@@ -65,6 +65,8 @@ model User {
   workMedicineAppointmentsCreated WorkMedicineAppointment[] @relation("WorkMedicineAppointmentCreatedBy")
   workMedicineAppointmentsClosed  WorkMedicineAppointment[] @relation("WorkMedicineAppointmentClosedBy")
 
+  trainingsCreated Training[]
+
   timeClockDayDecisionsCreated TimeClockDayDecision[] @relation("TimeClockDayDecisionCreatedBy")
   hourPoolMovementsCreated     HourPoolMovement[]     @relation("HourPoolMovementCreatedBy")
   hourPoolMovementsReversed    HourPoolMovement[]     @relation("HourPoolMovementReversedBy")
@@ -362,6 +364,7 @@ model Employee {
   evaluations           Evaluation[]
 
   workMedicineAppointments WorkMedicineAppointment[]
+  trainingEnrollments      TrainingEnrollment[]
 
   anniversaryComments AnniversaryComment[]
 
@@ -643,6 +646,13 @@ model Absence {
   approvedBy    User?       @relation("AbsenceApprover", fields: [approvedById], references: [id])
   decidedAt     DateTime?
   decisionNote  String?
+  // Ausências que correspondem a formação externa (ex.: um curso fora da
+  // empresa) podem ser marcadas para contar para as 40h/ano de formação do
+  // colaborador — ver lib/training.ts. trainingHours é indicado por quem
+  // submete o pedido (os "dias" da ausência não convertem diretamente em
+  // horas de formação).
+  countsAsTraining Boolean  @default(false)
+  trainingHours    Float?
   createdAt     DateTime    @default(now())
 
   timeClockDayDecisions TimeClockDayDecision[]
@@ -1286,4 +1296,92 @@ model WorkMedicineAppointment {
 
   @@index([employeeId, status])
   @@index([status, scheduledAt])
+}
+
+// ---------------------------------------------------------------------------
+// Formação
+// ---------------------------------------------------------------------------
+
+// Tabela de configuração — modalidade da formação (ex.: Presencial, Online,
+// Mista). Gerida dentro do próprio módulo de Formação, tal como os tipos de
+// ausência são geridos dentro de Ausências.
+model TrainingModality {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  trainings Training[]
+}
+
+// Entidade parceira que ministra formações — mesmo desenho do módulo de
+// Medicina do Trabalho (WorkMedicineEntity), mas um registo à parte: as duas
+// listas de parceiros não têm necessariamente nada em comum.
+model TrainingEntity {
+  id        String   @id @default(cuid())
+  name      String
+  nif       String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addresses TrainingAddress[]
+  trainings Training[]
+}
+
+model TrainingAddress {
+  id           String         @id @default(cuid())
+  entityId     String
+  entity       TrainingEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  address      String
+  postalCode   String?
+  municipality String?
+  createdAt    DateTime       @default(now())
+}
+
+// Uma ação de formação: nome, modalidade, entidade parceira (opcional) e um
+// cronograma de sessões (TrainingSession) — a soma das horas das sessões é
+// o total de horas que conta para o saldo de cada colaborador inscrito
+// (TrainingEnrollment). Sem aprovação/estado próprio: a formação existe
+// logo que é criada.
+model Training {
+  id          String   @id @default(cuid())
+  name        String
+  modalityId  String
+  modality    TrainingModality @relation(fields: [modalityId], references: [id])
+  entityId    String?
+  entity      TrainingEntity?  @relation(fields: [entityId], references: [id])
+  description String?
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions    TrainingSession[]
+  enrollments TrainingEnrollment[]
+}
+
+// Uma linha do cronograma: um dia e as horas dessa sessão.
+model TrainingSession {
+  id         String   @id @default(cuid())
+  trainingId String
+  training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  date       DateTime
+  hours      Float
+  notes      String?
+
+  @@index([trainingId])
+}
+
+// Associação colaborador <-> formação — cada inscrito conta com o total de
+// horas das sessões da formação para o seu saldo anual (ver lib/training.ts).
+model TrainingEnrollment {
+  id         String   @id @default(cuid())
+  trainingId String
+  training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([trainingId, employeeId])
+  @@index([employeeId])
 }

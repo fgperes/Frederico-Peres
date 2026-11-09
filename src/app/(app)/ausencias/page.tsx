@@ -114,6 +114,8 @@ export default async function AusenciasPage({
       documentName: a.documentName,
       documentData: a.documentData,
       decisionNote: a.decisionNote,
+      countsAsTraining: a.countsAsTraining,
+      trainingHours: a.trainingHours,
     }));
 
     for (const a of absenceSummaries) {

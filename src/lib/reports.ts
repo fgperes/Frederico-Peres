@@ -4,6 +4,7 @@ import { computeWorkedHoursByDay } from "@/lib/hours";
 import { formatDateTime } from "@/lib/format";
 import { shiftDurationHours } from "@/lib/schedule";
 import { getContractTypeLabels } from "@/lib/contract-types";
+import { WORK_MEDICINE_STATUS_LABELS, WORK_MEDICINE_RESULT_LABELS } from "@/lib/work-medicine";
 
 export type ReportResult = { columns: string[]; rows: (string | number)[][] };
 export type ReportFilters = { from: Date; to: Date; employeeIds?: string[] };
@@ -27,6 +28,8 @@ export const REPORT_DEFINITIONS: { key: string; label: string; usesRange: boolea
   { key: "escalas_publicacao", label: "Escalas — Publicação (Rascunho vs. Publicado)", usesRange: true },
   { key: "noticias", label: "Notícias (Publicações)", usesRange: true },
   { key: "bolsa_horas", label: "Bolsa de Horas — Movimentos", usesRange: true },
+  { key: "medicina_trabalho", label: "Medicina do Trabalho", usesRange: true },
+  { key: "formacao", label: "Formação — Horas Realizadas", usesRange: true },
 ];
 
 export async function generateReport(key: string, filters: ReportFilters): Promise<ReportResult> {
@@ -67,6 +70,10 @@ export async function generateReport(key: string, filters: ReportFilters): Promi
       return reportNoticias(filters);
     case "bolsa_horas":
       return reportBolsaHoras(filters);
+    case "medicina_trabalho":
+      return reportMedicinaTrabalho(filters);
+    case "formacao":
+      return reportFormacao(filters);
     default:
       throw new Error("Relatório desconhecido.");
   }
@@ -194,7 +201,18 @@ async function reportAusencias(filters: ReportFilters): Promise<ReportResult> {
     orderBy: { startDate: "asc" },
   });
   return {
-    columns: ["Colaborador", "Tipo", "Código SS", "Impacto salarial", "Início", "Fim", "Dias", "Estado"],
+    columns: [
+      "Colaborador",
+      "Tipo",
+      "Código SS",
+      "Impacto salarial",
+      "Início",
+      "Fim",
+      "Dias",
+      "Estado",
+      "Conta p/ Formação",
+      "Horas Formação",
+    ],
     rows: absences.map((a) => [
       `${a.employee.firstName} ${a.employee.lastName}`,
       a.absenceType.name,
@@ -204,6 +222,8 @@ async function reportAusencias(filters: ReportFilters): Promise<ReportResult> {
       a.endDate.toISOString().slice(0, 10),
       a.days,
       ABSENCE_STATUS_LABELS[a.status] ?? a.status,
+      a.countsAsTraining ? "Sim" : "Não",
+      a.countsAsTraining ? a.trainingHours ?? 0 : "",
     ]),
   };
 }
@@ -663,5 +683,76 @@ async function reportNoticias(filters: ReportFilters): Promise<ReportResult> {
       n.targetRoles.length > 0 ? n.targetRoles.map((r) => ROLE_LABELS[r] ?? r).join("; ") : "Todos",
       formatDateTime(n.createdAt),
     ]),
+  };
+}
+
+// --- Medicina do Trabalho ---------------------------------------------------
+
+async function reportMedicinaTrabalho(filters: ReportFilters): Promise<ReportResult> {
+  const appointments = await prisma.workMedicineAppointment.findMany({
+    where: {
+      employeeId: employeeFilter(filters.employeeIds),
+      scheduledAt: { gte: filters.from, lte: filters.to },
+    },
+    include: {
+      employee: true,
+      entity: { select: { name: true } },
+      address: { select: { address: true } },
+    },
+    orderBy: { scheduledAt: "asc" },
+  });
+  return {
+    columns: ["Colaborador", "Data", "Entidade", "Morada", "Estado", "Resultado", "Observações"],
+    rows: appointments.map((a) => [
+      `${a.employee.firstName} ${a.employee.lastName}`,
+      formatDateTime(a.scheduledAt),
+      a.entity?.name ?? "",
+      a.address?.address ?? "",
+      WORK_MEDICINE_STATUS_LABELS[a.status as keyof typeof WORK_MEDICINE_STATUS_LABELS] ?? a.status,
+      a.resultStatus ? WORK_MEDICINE_RESULT_LABELS[a.resultStatus] ?? a.resultStatus : "",
+      a.resultNotes ?? "",
+    ]),
+  };
+}
+
+// --- Formação ----------------------------------------------------------------
+
+async function reportFormacao(filters: ReportFilters): Promise<ReportResult> {
+  const enrollments = await prisma.trainingEnrollment.findMany({
+    where: {
+      employeeId: employeeFilter(filters.employeeIds),
+      training: { sessions: { some: { date: { gte: filters.from, lte: filters.to } } } },
+    },
+    include: {
+      employee: true,
+      training: {
+        include: {
+          modality: { select: { name: true } },
+          entity: { select: { name: true } },
+          sessions: { orderBy: { date: "asc" } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const rows: (string | number)[][] = enrollments.map((e) => {
+    const sessions = e.training.sessions;
+    const totalHours = sessions.reduce((sum, s) => sum + s.hours, 0);
+    return [
+      `${e.employee.firstName} ${e.employee.lastName}`,
+      e.training.name,
+      e.training.modality.name,
+      e.training.entity?.name ?? "",
+      sessions[0] ? sessions[0].date.toISOString().slice(0, 10) : "",
+      sessions[sessions.length - 1] ? sessions[sessions.length - 1].date.toISOString().slice(0, 10) : "",
+      sessions.length,
+      totalHours,
+    ];
+  });
+
+  return {
+    columns: ["Colaborador", "Formação", "Modalidade", "Entidade", "Início", "Fim", "Sessões", "Horas"],
+    rows,
   };
 }

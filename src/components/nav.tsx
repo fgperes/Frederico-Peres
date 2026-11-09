@@ -21,6 +21,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Stethoscope,
+  GraduationCap,
   X,
   PanelLeftClose,
   PanelLeftOpen,
@@ -47,6 +48,7 @@ const NAV_ITEMS: { href: string; label: string; module: Module; icon: LucideIcon
   { href: "/relatorios", label: "Relatórios", module: "relatorios", icon: BarChart3 },
   { href: "/avaliacoes", label: "Avaliações de Desempenho", module: "avaliacoes", icon: ClipboardCheck },
   { href: "/medicina-trabalho", label: "Medicina do Trabalho", module: "medicina_trabalho", icon: Stethoscope },
+  { href: "/formacao", label: "Formação", module: "formacao", icon: GraduationCap },
   { href: "/acessos", label: "Perfis e Acessos", module: "acessos", icon: ShieldCheck },
 ];
 
