@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { accessFor, canWrite } from "@/lib/roles";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, LinkButton } from "@/components/ui";
 import { GraduationCap } from "lucide-react";
 import { FormacaoTabs } from "../tabs";
 import { FormacoesPanel } from "./formacoes-panel";
@@ -39,6 +39,13 @@ export default async function FormacoesPage() {
         icon={GraduationCap}
         title="Formação"
         description="Registo de formações, cronograma e colaboradores inscritos."
+        action={
+          canEdit ? (
+            <LinkButton href="/formacao/formacoes/modalidades" variant="secondary">
+              Modalidades
+            </LinkButton>
+          ) : undefined
+        }
       />
       <FormacaoTabs />
       <FormacoesPanel

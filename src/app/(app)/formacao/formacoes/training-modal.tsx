@@ -142,16 +142,19 @@ export function TrainingModal({
           </div>
           <div className="space-y-2">
             {rows.map((row) => (
-              <div key={row.key} className="flex items-end gap-2">
+              <div
+                key={row.key}
+                className="flex flex-wrap items-end gap-2 rounded-lg border border-stone-100 p-2 dark:border-stone-800 sm:border-0 sm:p-0"
+              >
                 <DateField
                   value={row.date}
                   onChange={(v) => updateRow(row.key, { date: v })}
-                  className="flex-1"
+                  className="min-w-[150px] flex-1"
                 />
                 <TimeField
                   value={row.startTime}
                   onChange={(v) => updateRow(row.key, { startTime: v })}
-                  className="w-28"
+                  className="min-w-[110px] flex-1 sm:w-28 sm:flex-none"
                 />
                 <Input
                   type="number"
@@ -160,25 +163,27 @@ export function TrainingModal({
                   placeholder="Horas"
                   value={row.hours || ""}
                   onChange={(e) => updateRow(row.key, { hours: Number(e.target.value) })}
-                  className="w-24"
+                  className="w-20"
                 />
-                <button
-                  type="button"
-                  onClick={() => duplicateRow(row.key)}
-                  className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400"
-                  title="Duplicar sessão"
-                >
-                  <Copy size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeRow(row.key)}
-                  disabled={rows.length === 1}
-                  className="text-stone-400 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-rose-400"
-                  title="Remover sessão"
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div className="ml-auto flex items-center gap-2 sm:ml-0">
+                  <button
+                    type="button"
+                    onClick={() => duplicateRow(row.key)}
+                    className="text-stone-400 hover:text-violet-600 dark:hover:text-violet-400"
+                    title="Duplicar sessão"
+                  >
+                    <Copy size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.key)}
+                    disabled={rows.length === 1}
+                    className="text-stone-400 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-rose-400"
+                    title="Remover sessão"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

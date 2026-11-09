@@ -2,13 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Users, Trash2, GraduationCap } from "lucide-react";
+import { Plus, Users, Trash2, GraduationCap } from "lucide-react";
 import { Card, Badge, Button, EmptyState } from "@/components/ui";
 import { useConfirm } from "@/components/confirm-dialog";
 import { deleteTraining } from "../actions";
 import { TrainingModal } from "./training-modal";
 import { EnrollModal } from "./enroll-modal";
-import { TrainingModalityModal, type ModalityForEdit } from "./modality-modal";
 
 type Modality = { id: string; code: string; description: string; active: boolean };
 type EntityOption = { id: string; name: string };
@@ -61,8 +60,6 @@ export function FormacoesPanel({
 
   return (
     <div className="space-y-6">
-      {canEdit && <ModalitiesCard modalities={modalities} />}
-
       {canEdit && (
         <div className="flex justify-end">
           <Button onClick={() => setShowTrainingModal(true)}>
@@ -150,45 +147,5 @@ export function FormacoesPanel({
 
       {confirmDialog}
     </div>
-  );
-}
-
-function ModalitiesCard({ modalities }: { modalities: ModalityForEdit[] }) {
-  return (
-    <Card>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Modalidades</h2>
-        <TrainingModalityModal>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700"
-          >
-            <Plus size={13} /> Nova modalidade
-          </button>
-        </TrainingModalityModal>
-      </div>
-      {modalities.length === 0 ? (
-        <p className="text-sm text-stone-400 dark:text-stone-500">Sem modalidades configuradas.</p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {modalities.map((m) => (
-            <TrainingModalityModal key={m.id} modality={m}>
-              <button
-                type="button"
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
-                  m.active
-                    ? "border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-                    : "border-stone-100 text-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-600 dark:hover:bg-stone-800"
-                }`}
-              >
-                <span className="font-semibold">{m.code}</span>
-                <span className="text-stone-400 dark:text-stone-500">— {m.description}</span>
-                <Pencil size={11} />
-              </button>
-            </TrainingModalityModal>
-          ))}
-        </div>
-      )}
-    </Card>
   );
 }
