@@ -5,7 +5,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Download, X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
-import { api, ApiError, API_BASE_URL, getToken } from "@/lib/api";
+import { api, ApiError, getApiDomain, getToken } from "@/lib/api";
 import { colors, radii, spacing } from "@/lib/theme";
 import { MONTH_NAMES } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
@@ -136,9 +136,10 @@ function PayslipDetailModal({
     setDownloading(true);
     try {
       const currentToken = token ?? (await getToken());
+      const baseUrl = await getApiDomain();
       const destination = new Directory(Paths.cache);
       const file = await File.downloadFileAsync(
-        `${API_BASE_URL}/api/mobile/payroll/${year}/${month}/pdf`,
+        `${baseUrl}/api/mobile/payroll/${year}/${month}/pdf`,
         destination,
         { headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : undefined, idempotent: true }
       );
