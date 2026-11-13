@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,16 +12,30 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth";
+import { getStoredCompanyDomain, setApiDomain } from "@/lib/api";
 import { colors, radii, spacing } from "@/lib/theme";
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pré-preenche com o domínio usado da última vez que alguém entrou
+  // neste dispositivo, para não ter de o escrever sempre.
+  useEffect(() => {
+    getStoredCompanyDomain().then((stored) => {
+      if (stored) setCompany(stored);
+    });
+  }, []);
+
   const handleSubmit = async () => {
+    if (!company.trim()) {
+      setError("Indique o domínio da empresa.");
+      return;
+    }
     if (!email || !password) {
       setError("Indique o email e a password.");
       return;
@@ -29,6 +43,10 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
+      // Cada empresa corre no seu próprio ambiente — guardar o domínio
+      // primeiro garante que o login (e todos os pedidos seguintes) vão
+      // para o backend correto.
+      await setApiDomain(company);
       await login(email.trim().toLowerCase(), password);
       router.replace("/(tabs)/dashboard");
     } catch (e) {
@@ -50,6 +68,19 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          <Text style={styles.label}>Empresa</Text>
+          <TextInput
+            style={styles.input}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            placeholder="sgrh.people4people.pt"
+            placeholderTextColor={colors.stone400}
+            value={company}
+            onChangeText={setCompany}
+          />
+          <Text style={styles.hint}>Domínio de acesso da vossa organização.</Text>
+
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
@@ -124,6 +155,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.stone600,
     marginBottom: spacing.xs,
+  },
+  hint: {
+    fontSize: 12,
+    color: colors.stone400,
+    marginTop: -spacing.xs,
+    marginBottom: spacing.md,
   },
   input: {
     borderWidth: 1,
