@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -331,6 +332,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    overflow: "hidden",
   },
   legendLabel: {
     fontSize: 12,

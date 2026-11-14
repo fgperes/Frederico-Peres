@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.stone200,
     alignItems: "center",
