@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
-import { MessageCircle } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
 import { spacing, radii, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
-import { Card, EmptyState, ErrorBanner, LoadingView, PrimaryButton } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, LoadingView, PrimaryButton, SuccessBanner } from "@/components/ui";
 
 type Recipient = { id: string; name: string; email: string };
 type InboxMessage = {
@@ -173,12 +172,7 @@ export default function MensagensScreen() {
               />
 
               {sendError ? <ErrorBanner message={sendError} /> : null}
-              {sent && (
-                <Card style={styles.sentCard}>
-                  <MessageCircle color={colors.green600} size={16} />
-                  <Text style={styles.sentText}>Mensagem enviada.</Text>
-                </Card>
-              )}
+              {sent && <SuccessBanner message="Mensagem enviada." />}
 
               <View style={{ marginTop: spacing.md }}>
                 <PrimaryButton label="Enviar" onPress={handleSend} loading={submitting} />
@@ -305,16 +299,6 @@ function createStyles(colors: ThemeColors) {
       color: colors.stone900,
       textAlignVertical: "top",
       minHeight: 120,
-    },
-    sentCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-    },
-    sentText: {
-      color: colors.green600,
-      fontSize: 13,
-      fontWeight: "500",
     },
   });
 }

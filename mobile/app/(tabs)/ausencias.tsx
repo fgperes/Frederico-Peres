@@ -7,8 +7,10 @@ import { api, ApiError } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { formatDateShort, toDateKey } from "@/lib/dates";
-import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
+import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
 import { DateField } from "@/components/CalendarPicker";
+
+type Feedback = { type: "error" | "success"; text: string };
 
 type AbsenceType = { id: string; name: string; unitType: string; requiresDocument: boolean };
 type Absence = {
@@ -37,6 +39,7 @@ export default function AusenciasScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   const load = useCallback(async () => {
@@ -70,11 +73,16 @@ export default function AusenciasScreen() {
         text: "Sim, cancelar",
         style: "destructive",
         onPress: async () => {
+          setFeedback(null);
           try {
             await api.post(`/api/mobile/ausencias/${id}/cancelar`, {}, token);
             await load();
+            setFeedback({ type: "success", text: "Pedido cancelado." });
           } catch (e) {
-            Alert.alert("Erro", e instanceof ApiError ? e.message : "Não foi possível cancelar.");
+            setFeedback({
+              type: "error",
+              text: e instanceof ApiError ? e.message : "Não foi possível cancelar.",
+            });
           }
         },
       },
@@ -85,7 +93,13 @@ export default function AusenciasScreen() {
     <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.listHeader}>
         <PageHeader title="Ausências" description="Pedidos de ausência e respetivo estado." />
-        <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            setFeedback(null);
+            setModalVisible(true);
+          }}
+        >
           <Plus color={colors.onColor} size={20} />
         </TouchableOpacity>
       </View>
@@ -98,7 +112,17 @@ export default function AusenciasScreen() {
           data={absences}
           keyExtractor={(a) => a.id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.violet600} />}
-          ListHeaderComponent={error ? <ErrorBanner message={error} /> : null}
+          ListHeaderComponent={
+            error ? (
+              <ErrorBanner message={error} />
+            ) : feedback ? (
+              feedback.type === "error" ? (
+                <ErrorBanner message={feedback.text} />
+              ) : (
+                <SuccessBanner message={feedback.text} />
+              )
+            ) : null
+          }
           ListEmptyComponent={<EmptyState message="Ainda não tem pedidos de ausência." />}
           renderItem={({ item }) => (
             <Card style={styles.item}>
@@ -129,6 +153,7 @@ export default function AusenciasScreen() {
         onSuccess={async () => {
           setModalVisible(false);
           await load();
+          setFeedback({ type: "success", text: "Pedido de ausência submetido." });
         }}
       />
     </SafeAreaView>

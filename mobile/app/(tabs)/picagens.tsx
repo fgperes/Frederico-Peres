@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { X } from "lucide-react-native";
@@ -8,7 +8,9 @@ import { api, ApiError } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { formatDateTime } from "@/lib/dates";
-import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
+import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
+
+type Feedback = { type: "error" | "success"; text: string };
 
 type ClockPhase = "NOT_CLOCKED_IN" | "WORKING" | "MEAL_AVAILABLE" | "ON_MEAL" | "AFTER_MEAL" | "CLOCKED_OUT";
 type MealStatus = {
@@ -90,6 +92,7 @@ export default function PicagensScreen() {
   const [error, setError] = useState<string | null>(null);
   const [clocking, setClocking] = useState<ButtonType | null>(null);
   const [justifyEntry, setJustifyEntry] = useState<TimeClockEntry | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const load = useCallback(async () => {
     const result = await api.get<{ entries: TimeClockEntry[]; mealStatus: MealStatus }>("/api/mobile/picagens", token);
@@ -114,12 +117,17 @@ export default function PicagensScreen() {
 
   const handleClock = async (type: ButtonType) => {
     setClocking(type);
+    setFeedback(null);
     try {
       const coords = await getLocation();
       await api.post("/api/mobile/picagens", { type, ...coords }, token);
       await load();
+      setFeedback({ type: "success", text: `${TYPE_LABELS[type]} registada.` });
     } catch (e) {
-      Alert.alert("Erro", e instanceof ApiError ? e.message : "Não foi possível registar a picagem.");
+      setFeedback({
+        type: "error",
+        text: e instanceof ApiError ? e.message : "Não foi possível registar a picagem.",
+      });
     } finally {
       setClocking(null);
     }
@@ -137,7 +145,15 @@ export default function PicagensScreen() {
         ListHeaderComponent={
           <View style={styles.listHeaderWrap}>
             <PageHeader title="Picagens" description="Registe a sua entrada, saída e pausas." />
-            {error ? <ErrorBanner message={error} /> : null}
+            {error ? (
+              <ErrorBanner message={error} />
+            ) : feedback ? (
+              feedback.type === "error" ? (
+                <ErrorBanner message={feedback.text} />
+              ) : (
+                <SuccessBanner message={feedback.text} />
+              )
+            ) : null}
             {loading ? (
               <LoadingView />
             ) : (
@@ -196,6 +212,7 @@ export default function PicagensScreen() {
           onSuccess={async () => {
             setJustifyEntry(null);
             await load();
+            setFeedback({ type: "success", text: "Justificação submetida." });
           }}
         />
       )}

@@ -51,6 +51,17 @@ export function ErrorBanner({ message }: { message: string }) {
   );
 }
 
+export function SuccessBanner({ message }: { message: string }) {
+  const colors = useThemeColors();
+  const mode = useThemeMode();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <View style={[styles.successBanner, mode === "dark" && { backgroundColor: "#14532d" }]}>
+      <Text style={[styles.successText, mode === "dark" && { color: "#86efac" }]}>{message}</Text>
+    </View>
+  );
+}
+
 type BadgeColor = "violet" | "green" | "amber" | "red" | "stone";
 
 export function Badge({ children, color = "stone" }: { children: ReactNode; color?: BadgeColor }) {
@@ -172,6 +183,16 @@ function createStyles(colors: ThemeColors) {
     },
     errorText: {
       color: colors.red600,
+      fontSize: 14,
+    },
+    successBanner: {
+      backgroundColor: "#dcfce7",
+      borderRadius: radii.sm,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    successText: {
+      color: colors.green600,
       fontSize: 14,
     },
     badge: {
