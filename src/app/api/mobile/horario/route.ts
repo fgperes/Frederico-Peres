@@ -86,6 +86,7 @@ export async function GET(req: Request) {
             startTime: s.startTime,
             endTime: s.endTime,
             status: s.status,
+            editedAfterPublish: s.editedAfterPublish,
             template: s.shiftTemplate
               ? { name: s.shiftTemplate.name, color: s.shiftTemplate.color, breakMins: s.shiftTemplate.breakMins }
               : null,
