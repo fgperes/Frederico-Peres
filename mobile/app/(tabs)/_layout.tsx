@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { colors } from "@/lib/theme";
+import { AppHeader } from "@/components/Brand";
 
 export default function TabsLayout() {
   const { isLoading, token } = useAuth();
@@ -30,7 +31,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        headerShown: true,
+        header: () => <AppHeader />,
         tabBarActiveTintColor: colors.violet600,
         tabBarInactiveTintColor: colors.stone400,
         tabBarLabelStyle: { fontSize: 10 },

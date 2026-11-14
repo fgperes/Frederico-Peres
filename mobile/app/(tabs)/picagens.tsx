@@ -122,7 +122,7 @@ export default function PicagensScreen() {
   const buttons = buildButtons(mealStatus);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <FlatList
         contentContainerStyle={styles.list}
         data={entries}

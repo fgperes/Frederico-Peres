@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Plus, X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
 import { colors, radii, spacing } from "@/lib/theme";
 import { formatDateShort, toDateKey } from "@/lib/dates";
 import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
+import { DateField } from "@/components/CalendarPicker";
 
 type AbsenceType = { id: string; name: string; unitType: string; requiresDocument: boolean };
 type Absence = {
@@ -79,7 +79,7 @@ export default function AusenciasScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.listHeader}>
         <PageHeader title="Ausências" description="Pedidos de ausência e respetivo estado." />
         <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
@@ -219,21 +219,9 @@ function RequestModal({
             ))}
           </View>
 
-          <Text style={styles.label}>Data inicial</Text>
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="compact"
-            onChange={(_, date) => date && setStartDate(date)}
-          />
+          <DateField label="Data inicial" value={startDate} onChange={setStartDate} />
 
-          <Text style={styles.label}>Data final</Text>
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="compact"
-            onChange={(_, date) => date && setEndDate(date)}
-          />
+          <DateField label="Data final" value={endDate} onChange={setEndDate} minDate={startDate} />
 
           <Text style={styles.label}>Motivo (opcional)</Text>
           <TextInput

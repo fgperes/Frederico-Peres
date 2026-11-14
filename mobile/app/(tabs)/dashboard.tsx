@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { CalendarDays, Clock3, FileWarning, Plane } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -46,9 +47,10 @@ export default function DashboardScreen() {
   };
 
   const firstName = user?.name?.split(" ")[0] ?? "";
+  const nextDayOff = data?.upcomingAbsences.find((a) => a.isVacation) ?? null;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.violet600} />}
@@ -71,6 +73,18 @@ export default function DashboardScreen() {
                   : "Sem turnos agendados"}
               </Text>
             </View>
+
+            <View style={styles.card}>
+              <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
+                <Plane color={colors.violet600} size={20} />
+              </View>
+              <Text style={styles.cardLabel}>Próxima folga</Text>
+              <Text style={styles.cardValue}>{nextDayOff ? formatDate(nextDayOff.startDate) : "Sem férias marcadas"}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.ctaButton} onPress={() => router.push("/(tabs)/ausencias")}>
+              <Text style={styles.ctaButtonText}>Pedir ausência</Text>
+            </TouchableOpacity>
 
             <View style={styles.card}>
               <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
@@ -145,6 +159,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: spacing.md,
+  },
+  ctaButton: {
+    backgroundColor: colors.violet600,
+    borderRadius: radii.sm,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  ctaButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "600",
   },
   halfCard: {
     flex: 1,

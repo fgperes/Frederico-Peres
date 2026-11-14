@@ -54,7 +54,7 @@ export default function HorarioScreen() {
   const weekLabel = `${formatDateWeekday(weekStart.toISOString())} – ${formatDateWeekday(weekEnd.toISOString())}`;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.violet600} />}

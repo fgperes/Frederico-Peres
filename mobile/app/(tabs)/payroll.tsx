@@ -64,7 +64,7 @@ export default function PayrollScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {loading ? (
         <LoadingView />
       ) : (
