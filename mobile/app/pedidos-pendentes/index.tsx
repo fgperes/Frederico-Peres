@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { useAuth } from "@/lib/auth";
@@ -8,19 +8,19 @@ import { spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PrimaryButton, SuccessBanner } from "@/components/ui";
 
-type ApprovalKind = "VACATION_PERIOD" | "VACATION_CANCEL" | "ABSENCE";
-type ApprovalItem = {
+type PendingKind = "VACATION_PENDING" | "VACATION_CANCEL" | "ABSENCE";
+type PendingItem = {
   key: string;
-  kind: ApprovalKind;
-  absenceIds: string[];
-  employeeName: string;
+  kind: PendingKind;
   typeLabel: string;
   startDate: string;
   endDate: string;
   days: number;
+  dates: string[];
+  absenceId: string | null;
 };
 
-function badgeColor(kind: ApprovalKind): "violet" | "amber" {
+function badgeColor(kind: PendingKind): "violet" | "amber" {
   return kind === "VACATION_CANCEL" ? "amber" : "violet";
 }
 
@@ -28,19 +28,19 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export default function AprovacoesScreen() {
+export default function PedidosPendentesScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [decidingKey, setDecidingKey] = useState<string | null>(null);
+  const [cancelingKey, setCancelingKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const result = await api.get<{ canApprove: boolean; items: ApprovalItem[] }>("/api/mobile/aprovacoes", token);
+    const result = await api.get<{ items: PendingItem[] }>("/api/mobile/pedidos-pendentes", token);
     setItems(result.items);
   }, [token]);
 
@@ -59,32 +59,38 @@ export default function AprovacoesScreen() {
     }
   };
 
-  const decide = async (item: ApprovalItem, decision: "APPROVED" | "REJECTED") => {
-    setDecidingKey(item.key);
+  const doCancel = async (item: PendingItem) => {
+    setCancelingKey(item.key);
     setError(null);
     setSuccess(null);
     try {
-      const result = await api.post<{ error?: string }>(
-        "/api/mobile/aprovacoes",
-        { kind: item.kind, absenceIds: item.absenceIds, decision },
-        token
-      );
+      const result =
+        item.kind === "ABSENCE"
+          ? await api.post<{ error?: string }>(`/api/mobile/ausencias/${item.absenceId}/cancelar`, {}, token)
+          : await api.post<{ error?: string }>("/api/mobile/ferias/toggle-dia", { dates: item.dates }, token);
       if (result.error) {
         setError(result.error);
         return;
       }
-      setSuccess(decision === "APPROVED" ? "Pedido aprovado." : "Pedido rejeitado.");
+      setSuccess("Pedido cancelado.");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Não foi possível decidir o pedido.");
+      setError(e instanceof ApiError ? e.message : "Não foi possível cancelar o pedido.");
     } finally {
-      setDecidingKey(null);
+      setCancelingKey(null);
     }
+  };
+
+  const confirmCancel = (item: PendingItem) => {
+    Alert.alert("Cancelar pedido", "Tem a certeza que quer cancelar este pedido?", [
+      { text: "Não", style: "cancel" },
+      { text: "Sim, cancelar", style: "destructive", onPress: () => doCancel(item) },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
-      <Stack.Screen options={{ title: "Aprovações", headerShown: true }} />
+      <Stack.Screen options={{ title: "Pedidos pendentes", headerShown: true }} />
       {loading ? (
         <LoadingView />
       ) : (
@@ -101,32 +107,21 @@ export default function AprovacoesScreen() {
               </View>
             ) : null
           }
-          ListEmptyComponent={<EmptyState message="Sem pedidos pendentes de aprovação." />}
+          ListEmptyComponent={<EmptyState message="Sem pedidos pendentes." />}
           renderItem={({ item }) => (
             <Card style={styles.item}>
               <Badge color={badgeColor(item.kind)}>{item.typeLabel}</Badge>
-              <Text style={styles.employeeName}>{item.employeeName}</Text>
               <Text style={styles.dates}>
                 {formatDate(item.startDate)}
                 {item.endDate !== item.startDate ? ` – ${formatDate(item.endDate)}` : ""} · {item.days} dia(s)
               </Text>
-              <View style={styles.actions}>
-                <View style={styles.actionButton}>
-                  <PrimaryButton
-                    label="Rejeitar"
-                    variant="danger"
-                    loading={decidingKey === item.key}
-                    onPress={() => decide(item, "REJECTED")}
-                  />
-                </View>
-                <View style={styles.actionButton}>
-                  <PrimaryButton
-                    label="Aprovar"
-                    variant="success"
-                    loading={decidingKey === item.key}
-                    onPress={() => decide(item, "APPROVED")}
-                  />
-                </View>
+              <View style={styles.actionButton}>
+                <PrimaryButton
+                  label="Cancelar pedido"
+                  variant="danger"
+                  loading={cancelingKey === item.key}
+                  onPress={() => confirmCancel(item)}
+                />
               </View>
             </Card>
           )}
@@ -153,22 +148,12 @@ function createStyles(colors: ThemeColors) {
     item: {
       gap: spacing.xs,
     },
-    employeeName: {
-      fontSize: 15,
-      fontWeight: "600",
-      color: colors.stone900,
-    },
     dates: {
       fontSize: 13,
       color: colors.stone600,
     },
-    actions: {
-      flexDirection: "row",
-      gap: spacing.sm,
-      marginTop: spacing.sm,
-    },
     actionButton: {
-      flex: 1,
+      marginTop: spacing.sm,
     },
   });
 }

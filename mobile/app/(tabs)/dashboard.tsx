@@ -38,8 +38,8 @@ export default function DashboardScreen() {
     const result = await api.get<DashboardData>("/api/mobile/dashboard", token);
     setData(result);
     try {
-      const approvals = await api.get<{ canApprove: boolean; items: unknown[] }>("/api/mobile/aprovacoes", token);
-      setPendingApprovals(approvals.canApprove ? approvals.items.length : null);
+      const pending = await api.get<{ items: unknown[] }>("/api/mobile/pedidos-pendentes", token);
+      setPendingApprovals(pending.items.length);
     } catch {
       // Cartão opcional — uma falha aqui não deve impedir o resto do Início de aparecer.
       setPendingApprovals(null);
@@ -80,7 +80,7 @@ export default function DashboardScreen() {
         ) : data ? (
           <View style={styles.cards}>
             {pendingApprovals !== null && (
-              <TouchableOpacity style={styles.card} onPress={() => router.push("/aprovacoes")}>
+              <TouchableOpacity style={styles.card} onPress={() => router.push("/pedidos-pendentes")}>
                 <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
                   <ClipboardCheck color={colors.violet600} size={20} />
                 </View>
