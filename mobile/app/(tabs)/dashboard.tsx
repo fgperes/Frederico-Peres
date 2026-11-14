@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { CalendarDays, Clock3, FileWarning, Plane } from "lucide-react-native";
+import { CalendarDays, ClipboardCheck, Clock3, FileWarning, Plane } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
@@ -28,12 +28,17 @@ export default function DashboardScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const result = await api.get<DashboardData>("/api/mobile/dashboard", token);
+    const [result, approvals] = await Promise.all([
+      api.get<DashboardData>("/api/mobile/dashboard", token),
+      api.get<{ canApprove: boolean; items: unknown[] }>("/api/mobile/aprovacoes", token),
+    ]);
     setData(result);
+    setPendingApprovals(approvals.canApprove ? approvals.items.length : null);
   }, [token]);
 
   useEffect(() => {
@@ -65,7 +70,17 @@ export default function DashboardScreen() {
           <ActivityIndicator style={styles.loading} size="large" color={colors.violet600} />
         ) : data ? (
           <View style={styles.cards}>
-            <View style={styles.card}>
+            {pendingApprovals !== null && (
+              <TouchableOpacity style={styles.card} onPress={() => router.push("/aprovacoes")}>
+                <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
+                  <ClipboardCheck color={colors.violet600} size={20} />
+                </View>
+                <Text style={styles.cardLabel}>Pedidos pendentes</Text>
+                <Text style={styles.cardValueSmall}>{pendingApprovals}</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.card} onPress={() => router.push("/(tabs)/horario")}>
               <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
                 <Clock3 color={colors.violet600} size={20} />
               </View>
@@ -75,21 +90,21 @@ export default function DashboardScreen() {
                   ? `${formatDate(data.nextShift.date)} · ${data.nextShift.startTime}–${data.nextShift.endTime}`
                   : "Sem turnos agendados"}
               </Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.card}>
+            <TouchableOpacity style={styles.card} onPress={() => router.push("/(tabs)/horario")}>
               <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
                 <Plane color={colors.violet600} size={20} />
               </View>
               <Text style={styles.cardLabel}>Próxima folga</Text>
               <Text style={styles.cardValue}>{nextDayOff ? formatDate(nextDayOff.startDate) : "Sem férias marcadas"}</Text>
-            </View>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.ctaButton} onPress={() => router.push("/(tabs)/ausencias")}>
               <Text style={styles.ctaButtonText}>Pedir ausência</Text>
             </TouchableOpacity>
 
-            <View style={styles.card}>
+            <TouchableOpacity style={styles.card} onPress={() => router.push("/(tabs)/ferias")}>
               <View style={[styles.iconBadge, { backgroundColor: colors.violet100 }]}>
                 <Plane color={colors.violet600} size={20} />
               </View>
@@ -97,24 +112,30 @@ export default function DashboardScreen() {
               <Text style={styles.cardValue}>
                 {data.feriasDisponiveis !== null ? `${data.feriasDisponiveis} dias` : "—"}
               </Text>
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.row}>
-              <View style={[styles.card, styles.halfCard]}>
+              <TouchableOpacity
+                style={[styles.card, styles.halfCard]}
+                onPress={() => router.push("/(tabs)/ausencias")}
+              >
                 <Text style={styles.cardLabel}>Ausências pendentes</Text>
                 <Text style={styles.cardValueSmall}>{data.pendingAbsences}</Text>
-              </View>
-              <View style={[styles.card, styles.halfCard]}>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.card, styles.halfCard]}
+                onPress={() => router.push("/(tabs)/picagens")}
+              >
                 <View style={styles.inlineLabel}>
                   <FileWarning color={colors.amber500} size={16} />
                   <Text style={styles.cardLabel}>Desvios por justificar</Text>
                 </View>
                 <Text style={styles.cardValueSmall}>{data.unjustifiedDeviations}</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {data.upcomingAbsences.length > 0 && (
-              <View style={styles.card}>
+              <TouchableOpacity style={styles.card} onPress={() => router.push("/(tabs)/ausencias")}>
                 <View style={styles.inlineLabel}>
                   <CalendarDays color={colors.violet600} size={18} />
                   <Text style={styles.cardLabel}>As minhas próximas ausências</Text>
@@ -125,7 +146,7 @@ export default function DashboardScreen() {
                     {a.endDate !== a.startDate ? ` – ${formatDate(a.endDate)}` : ""}
                   </Text>
                 ))}
-              </View>
+              </TouchableOpacity>
             )}
           </View>
         ) : null}

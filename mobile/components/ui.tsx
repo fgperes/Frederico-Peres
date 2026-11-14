@@ -109,7 +109,7 @@ export function PrimaryButton({
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "success";
 }) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -119,6 +119,7 @@ export function PrimaryButton({
         styles.button,
         variant === "secondary" && styles.buttonSecondary,
         variant === "danger" && styles.buttonDanger,
+        variant === "success" && styles.buttonSuccess,
         (disabled || loading) && styles.buttonDisabled,
       ]}
       onPress={onPress}
@@ -219,6 +220,9 @@ function createStyles(colors: ThemeColors) {
     },
     buttonDanger: {
       backgroundColor: colors.red600,
+    },
+    buttonSuccess: {
+      backgroundColor: colors.green600,
     },
     buttonDisabled: {
       opacity: 0.6,
