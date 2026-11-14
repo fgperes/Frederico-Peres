@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { CalendarDays, Clock3, FileWarning, Plane } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 
 type Shift = { date: string; startTime: string; endTime: string } | null;
 
@@ -24,6 +25,8 @@ function formatDate(iso: string): string {
 
 export default function DashboardScreen() {
   const { user, token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,7 +134,8 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -167,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaButtonText: {
-    color: colors.white,
+    color: colors.onColor,
     fontSize: 15,
     fontWeight: "600",
   },
@@ -216,4 +220,5 @@ const styles = StyleSheet.create({
     color: colors.stone600,
     marginTop: spacing.sm,
   },
-});
+  });
+}

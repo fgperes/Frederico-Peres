@@ -4,7 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, spacing } from "@/lib/theme";
+import { spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { MONTH_NAMES, WEEKDAY_LABELS } from "@/lib/dates";
 import { Card, ErrorBanner, LoadingView, PageHeader } from "@/components/ui";
 
@@ -25,15 +26,17 @@ function toDateKey(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-function markColor(status: DayMark["status"] | undefined): { bg: string; text: string } | null {
-  if (status === "APPROVED") return { bg: colors.green600, text: colors.white };
-  if (status === "CANCEL_PENDING") return { bg: colors.stone400, text: colors.white };
-  if (status === "PENDING") return { bg: colors.amber500, text: colors.white };
+function markColor(colors: ThemeColors, status: DayMark["status"] | undefined): { bg: string; text: string } | null {
+  if (status === "APPROVED") return { bg: colors.green600, text: colors.onColor };
+  if (status === "CANCEL_PENDING") return { bg: colors.stone400, text: colors.onColor };
+  if (status === "PENDING") return { bg: colors.amber500, text: colors.onColor };
   return null;
 }
 
 export default function FeriasScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -169,7 +172,7 @@ export default function FeriasScreen() {
                     const dateKey = toDateKey(year, month, d);
                     const mark = data.marks[dateKey];
                     const isHoliday = Boolean(data.holidayDates[dateKey]);
-                    const colorSet = markColor(mark?.status);
+                    const colorSet = markColor(colors, mark?.status);
                     const isToggling = togglingDay === dateKey;
                     return (
                       <TouchableOpacity
@@ -218,149 +221,151 @@ export default function FeriasScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+
+  function SummaryItem({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+    return (
+      <View style={styles.summaryItem}>
+        <Text style={[styles.summaryValue, highlight && { color: colors.violet600 }]}>{value}</Text>
+        <Text style={styles.summaryLabel}>{label}</Text>
+      </View>
+    );
+  }
+
+  function LegendItem({ color, label }: { color: string; label: string }) {
+    return (
+      <View style={styles.legendItem}>
+        <View style={[styles.legendDot, { backgroundColor: color }]} />
+        <Text style={styles.legendLabel}>{label}</Text>
+      </View>
+    );
+  }
 }
 
-function SummaryItem({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
-  return (
-    <View style={styles.summaryItem}>
-      <Text style={[styles.summaryValue, highlight && { color: colors.violet600 }]}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
-  );
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.stone50,
+    },
+    content: {
+      padding: spacing.lg,
+      gap: spacing.md,
+    },
+    summaryCard: {
+      marginTop: -spacing.sm,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+    },
+    summaryItem: {
+      alignItems: "center",
+    },
+    summaryValue: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: colors.stone900,
+    },
+    summaryLabel: {
+      fontSize: 12,
+      color: colors.stone500,
+      marginTop: 2,
+    },
+    monthNav: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.lg,
+    },
+    navButton: {
+      padding: spacing.xs,
+    },
+    monthLabel: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.stone900,
+      minWidth: 140,
+      textAlign: "center",
+    },
+    weekdayRow: {
+      flexDirection: "row",
+      marginBottom: spacing.xs,
+    },
+    weekdayLabel: {
+      flex: 1,
+      textAlign: "center",
+      fontSize: 11,
+      color: colors.stone400,
+      fontWeight: "600",
+    },
+    weekRow: {
+      flexDirection: "row",
+    },
+    dayCell: {
+      flex: 1,
+      aspectRatio: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dayCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      overflow: "hidden",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dayCircleHoliday: {
+      backgroundColor: colors.violet50,
+    },
+    dayText: {
+      fontSize: 13,
+      color: colors.stone600,
+    },
+    legend: {
+      flexDirection: "row",
+      gap: spacing.md,
+      justifyContent: "center",
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    legendDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      overflow: "hidden",
+    },
+    legendLabel: {
+      fontSize: 12,
+      color: colors.stone500,
+    },
+    historyCard: {
+      gap: spacing.xs,
+    },
+    historyTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.stone900,
+      marginBottom: spacing.xs,
+    },
+    historyRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.stone100,
+    },
+    historyYear: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.stone600,
+    },
+    historyValue: {
+      fontSize: 13,
+      color: colors.stone500,
+    },
+  });
 }
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendLabel}>{label}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.stone50,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  summaryCard: {
-    marginTop: -spacing.sm,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  summaryItem: {
-    alignItems: "center",
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.stone900,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: colors.stone500,
-    marginTop: 2,
-  },
-  monthNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.lg,
-  },
-  navButton: {
-    padding: spacing.xs,
-  },
-  monthLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.stone900,
-    minWidth: 140,
-    textAlign: "center",
-  },
-  weekdayRow: {
-    flexDirection: "row",
-    marginBottom: spacing.xs,
-  },
-  weekdayLabel: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 11,
-    color: colors.stone400,
-    fontWeight: "600",
-  },
-  weekRow: {
-    flexDirection: "row",
-  },
-  dayCell: {
-    flex: 1,
-    aspectRatio: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayCircleHoliday: {
-    backgroundColor: colors.violet50,
-  },
-  dayText: {
-    fontSize: 13,
-    color: colors.stone600,
-  },
-  legend: {
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "center",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  legendLabel: {
-    fontSize: 12,
-    color: colors.stone500,
-  },
-  historyCard: {
-    gap: spacing.xs,
-  },
-  historyTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.stone900,
-    marginBottom: spacing.xs,
-  },
-  historyRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.stone100,
-  },
-  historyYear: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.stone600,
-  },
-  historyValue: {
-    fontSize: 13,
-    color: colors.stone500,
-  },
-});

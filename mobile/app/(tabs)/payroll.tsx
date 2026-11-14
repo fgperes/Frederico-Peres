@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Directory, File, Paths } from "expo-file-system";
@@ -6,7 +6,8 @@ import * as Sharing from "expo-sharing";
 import { Download, X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError, getApiDomain, getToken } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { MONTH_NAMES } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
 
@@ -37,6 +38,8 @@ function fmt(value: number): string {
 
 export default function PayrollScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState<PayrollListData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -119,6 +122,8 @@ function PayslipDetailModal({
   token: string | null;
   onClose: () => void;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [detail, setDetail] = useState<PayslipDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,14 +183,14 @@ function PayslipDetailModal({
             <Card style={styles.section}>
               <Text style={styles.sectionTitle}>Vencimentos</Text>
               {detail.earnings.map((l, i) => (
-                <LineRow key={i} label={l.label} value={l.value} />
+                <LineRow key={i} label={l.label} value={l.value} colors={colors} styles={styles} />
               ))}
             </Card>
 
             <Card style={styles.section}>
               <Text style={styles.sectionTitle}>Descontos</Text>
               {detail.deductions.map((l, i) => (
-                <LineRow key={i} label={l.label} value={l.value} />
+                <LineRow key={i} label={l.label} value={l.value} colors={colors} styles={styles} />
               ))}
             </Card>
 
@@ -213,7 +218,17 @@ function PayslipDetailModal({
   );
 }
 
-function LineRow({ label, value }: { label: string; value: number }) {
+function LineRow({
+  label,
+  value,
+  colors,
+  styles,
+}: {
+  label: string;
+  value: number;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.lineRow}>
       <Text style={styles.lineLabel}>{label}</Text>
@@ -222,7 +237,8 @@ function LineRow({ label, value }: { label: string; value: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -327,4 +343,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.violet600,
   },
-});
+  });
+}

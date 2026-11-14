@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { formatDateTime } from "@/lib/dates";
 import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
 
@@ -35,7 +36,10 @@ const TYPE_LABELS: Record<TimeClockEntry["type"], string> = {
 
 type ButtonType = TimeClockEntry["type"];
 
-function buildButtons(status: MealStatus): { type: ButtonType; label: string; enabled: boolean; color: string }[] {
+function buildButtons(
+  colors: ThemeColors,
+  status: MealStatus
+): { type: ButtonType; label: string; enabled: boolean; color: string }[] {
   const phase = status?.phase ?? "NOT_CLOCKED_IN";
   const showMealButtons = status?.showMealButtons ?? true;
 
@@ -77,6 +81,8 @@ async function getLocation(): Promise<{ latitude: number; longitude: number; acc
 
 export default function PicagensScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [entries, setEntries] = useState<TimeClockEntry[]>([]);
   const [mealStatus, setMealStatus] = useState<MealStatus>(null);
   const [loading, setLoading] = useState(true);
@@ -119,7 +125,7 @@ export default function PicagensScreen() {
     }
   };
 
-  const buttons = buildButtons(mealStatus);
+  const buttons = buildButtons(colors, mealStatus);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
@@ -208,6 +214,8 @@ function JustifyModal({
   onClose: () => void;
   onSuccess: () => Promise<void>;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,7 +269,8 @@ function JustifyModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -290,7 +299,7 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   clockButtonText: {
-    color: colors.white,
+    color: colors.onColor,
     fontWeight: "700",
     fontSize: 15,
   },
@@ -368,4 +377,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 100,
   },
-});
+  });
+}

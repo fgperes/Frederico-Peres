@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react-native";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { MONTH_NAMES, WEEKDAY_LABELS } from "@/lib/dates";
 
 function sameDay(a: Date, b: Date): boolean {
@@ -25,6 +26,8 @@ export function DateField({
   onChange: (date: Date) => void;
   minDate?: Date;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [open, setOpen] = useState(false);
   const [viewYear, setViewYear] = useState(value.getFullYear());
   const [viewMonth, setViewMonth] = useState(value.getMonth());
@@ -120,7 +123,7 @@ export function DateField({
                         <Text
                           style={[
                             styles.dayText,
-                            isSelected && styles.dayTextSelected,
+                            isSelected && { color: colors.onColor, fontWeight: "700" as const },
                             isDisabled && styles.dayTextDisabled,
                           ]}
                         >
@@ -143,7 +146,8 @@ export function DateField({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: "600",
@@ -232,10 +236,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.stone600,
   },
-  dayTextSelected: {
-    color: colors.white,
-    fontWeight: "700",
-  },
   dayTextDisabled: {
     color: colors.stone200,
   },
@@ -249,4 +249,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 14,
   },
-});
+  });
+}

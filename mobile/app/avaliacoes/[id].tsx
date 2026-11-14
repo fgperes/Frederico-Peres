@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { Badge, Card, ErrorBanner, LoadingView, PrimaryButton } from "@/components/ui";
 
 type Option = { id: string; label: string; order: number };
@@ -30,6 +31,8 @@ type AnswerDraft = { rawValue?: number; selectedOptionId?: string; textValue?: s
 export default function AvaliacaoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState<EvaluationDetail | null>(null);
   const [canSubmitSelf, setCanSubmitSelf] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -179,7 +182,8 @@ export default function AvaliacaoDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -219,7 +223,7 @@ const styles = StyleSheet.create({
     color: colors.stone600,
   },
   scaleOptionTextSelected: {
-    color: colors.white,
+    color: colors.onColor,
     fontWeight: "700",
   },
   optionsList: {
@@ -253,4 +257,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 80,
   },
-});
+  });
+}

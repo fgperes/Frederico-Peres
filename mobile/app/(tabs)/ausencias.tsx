@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { formatDateShort, toDateKey } from "@/lib/dates";
 import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
 import { DateField } from "@/components/CalendarPicker";
@@ -29,6 +30,8 @@ function statusBadge(status: string) {
 
 export default function AusenciasScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +86,7 @@ export default function AusenciasScreen() {
       <View style={styles.listHeader}>
         <PageHeader title="Ausências" description="Pedidos de ausência e respetivo estado." />
         <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-          <Plus color={colors.white} size={20} />
+          <Plus color={colors.onColor} size={20} />
         </TouchableOpacity>
       </View>
 
@@ -145,6 +148,8 @@ function RequestModal({
   token: string | null;
   onSuccess: () => Promise<void>;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [typeId, setTypeId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
@@ -243,7 +248,8 @@ function RequestModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -346,7 +352,7 @@ const styles = StyleSheet.create({
     color: colors.stone600,
   },
   typeChipTextSelected: {
-    color: colors.white,
+    color: colors.onColor,
     fontWeight: "600",
   },
   textArea: {
@@ -359,4 +365,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 80,
   },
-});
+  });
+}
