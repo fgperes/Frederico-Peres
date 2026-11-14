@@ -178,10 +178,31 @@ Ou as duas lojas de uma vez, com `--platform all`. O número de versão
 incrementa sozinho em ambas (`eas.json` tem `cli.appVersionSource: "remote"`
 e `build.production.autoIncrement: true`).
 
-Para alterações pequenas de JavaScript (sem adicionar módulos nativos
-novos), também é possível usar **EAS Update** para publicar sem passar pela
-revisão da Play Store/App Store — mas isso fica fora do âmbito desta
-primeira versão.
+### 7.1. EAS Update — para alterações só de JavaScript
+
+O projeto já está preparado para isto (`expo-updates` instalado, canais
+`development`/`preview`/`production` configurados no `eas.json`, `updates.url`
+e `runtimeVersion` no `app.json`).
+
+Para uma alteração que não acrescenta módulos nativos novos (a grande
+maioria das correções/ajustes de ecrãs, texto, lógica), em vez de gerar
+nova build e passar pela Play Store, basta:
+
+```bash
+eas update --branch production
+```
+
+Isto publica a atualização diretamente; quem já tem a app instalada
+recebe-a sozinho da próxima vez que a abrir (normalmente no arranque
+seguinte), sem precisar de ir à Play Store. **Nota**: isto só funciona a
+partir da build que já tiver o `expo-updates` embutido — a primeira build
+gerada depois desta configuração (`eas build` + submissão normal) é
+obrigatória uma única vez; depois disso, as próximas alterações de JS
+podem usar `eas update` em vez do ciclo completo de build+submissão.
+
+Uma alteração que acrescente um módulo nativo novo (ex.: uma nova
+dependência com código nativo) continua a exigir sempre `eas build` +
+nova submissão à loja, como até agora.
 
 ## Itens que preciso de confirmar contigo
 

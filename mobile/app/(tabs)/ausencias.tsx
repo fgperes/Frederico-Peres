@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Plus, X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { formatDateShort, toDateKey } from "@/lib/dates";
-import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
+import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
+import { DateField } from "@/components/CalendarPicker";
+
+type Feedback = { type: "error" | "success"; text: string };
 
 type AbsenceType = { id: string; name: string; unitType: string; requiresDocument: boolean };
 type Absence = {
@@ -29,11 +32,14 @@ function statusBadge(status: string) {
 
 export default function AusenciasScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   const load = useCallback(async () => {
@@ -67,11 +73,16 @@ export default function AusenciasScreen() {
         text: "Sim, cancelar",
         style: "destructive",
         onPress: async () => {
+          setFeedback(null);
           try {
             await api.post(`/api/mobile/ausencias/${id}/cancelar`, {}, token);
             await load();
+            setFeedback({ type: "success", text: "Pedido cancelado." });
           } catch (e) {
-            Alert.alert("Erro", e instanceof ApiError ? e.message : "Não foi possível cancelar.");
+            setFeedback({
+              type: "error",
+              text: e instanceof ApiError ? e.message : "Não foi possível cancelar.",
+            });
           }
         },
       },
@@ -79,11 +90,17 @@ export default function AusenciasScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.listHeader}>
         <PageHeader title="Ausências" description="Pedidos de ausência e respetivo estado." />
-        <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-          <Plus color={colors.white} size={20} />
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            setFeedback(null);
+            setModalVisible(true);
+          }}
+        >
+          <Plus color={colors.onColor} size={20} />
         </TouchableOpacity>
       </View>
 
@@ -95,7 +112,17 @@ export default function AusenciasScreen() {
           data={absences}
           keyExtractor={(a) => a.id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.violet600} />}
-          ListHeaderComponent={error ? <ErrorBanner message={error} /> : null}
+          ListHeaderComponent={
+            error ? (
+              <ErrorBanner message={error} />
+            ) : feedback ? (
+              feedback.type === "error" ? (
+                <ErrorBanner message={feedback.text} />
+              ) : (
+                <SuccessBanner message={feedback.text} />
+              )
+            ) : null
+          }
           ListEmptyComponent={<EmptyState message="Ainda não tem pedidos de ausência." />}
           renderItem={({ item }) => (
             <Card style={styles.item}>
@@ -126,6 +153,7 @@ export default function AusenciasScreen() {
         onSuccess={async () => {
           setModalVisible(false);
           await load();
+          setFeedback({ type: "success", text: "Pedido de ausência submetido." });
         }}
       />
     </SafeAreaView>
@@ -145,6 +173,8 @@ function RequestModal({
   token: string | null;
   onSuccess: () => Promise<void>;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [typeId, setTypeId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
@@ -219,21 +249,9 @@ function RequestModal({
             ))}
           </View>
 
-          <Text style={styles.label}>Data inicial</Text>
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="compact"
-            onChange={(_, date) => date && setStartDate(date)}
-          />
+          <DateField label="Data inicial" value={startDate} onChange={setStartDate} />
 
-          <Text style={styles.label}>Data final</Text>
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="compact"
-            onChange={(_, date) => date && setEndDate(date)}
-          />
+          <DateField label="Data final" value={endDate} onChange={setEndDate} minDate={startDate} />
 
           <Text style={styles.label}>Motivo (opcional)</Text>
           <TextInput
@@ -255,7 +273,8 @@ function RequestModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -271,7 +290,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.violet600,
     width: 40,
     height: 40,
-    borderRadius: radii.full,
+    borderRadius: 20,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -357,7 +377,7 @@ const styles = StyleSheet.create({
     color: colors.stone600,
   },
   typeChipTextSelected: {
-    color: colors.white,
+    color: colors.onColor,
     fontWeight: "600",
   },
   textArea: {
@@ -370,4 +390,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 80,
   },
-});
+  });
+}

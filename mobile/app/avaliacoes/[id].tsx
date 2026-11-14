@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
-import { Badge, Card, ErrorBanner, LoadingView, PrimaryButton } from "@/components/ui";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
+import { Badge, Card, ErrorBanner, LoadingView, PrimaryButton, SuccessBanner } from "@/components/ui";
 
 type Option = { id: string; label: string; order: number };
 type Question = {
@@ -30,12 +31,16 @@ type AnswerDraft = { rawValue?: number; selectedOptionId?: string; textValue?: s
 export default function AvaliacaoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState<EvaluationDetail | null>(null);
   const [canSubmitSelf, setCanSubmitSelf] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, AnswerDraft>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const result = await api.get<{ evaluation: EvaluationDetail; canSubmitSelf: boolean }>(
@@ -66,6 +71,8 @@ export default function AvaliacaoDetailScreen() {
     if (!data) return;
     const answers = data.template.questions.map((q) => ({ questionId: q.id, ...drafts[q.id] }));
     setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
     try {
       const result = await api.post<{ error?: string }>(
         `/api/mobile/avaliacoes/${id}/autoavaliacao`,
@@ -73,13 +80,13 @@ export default function AvaliacaoDetailScreen() {
         token
       );
       if (result.error) {
-        Alert.alert("Erro", result.error);
+        setSubmitError(result.error);
         return;
       }
-      Alert.alert("Autoavaliação submetida", "Obrigado por preencher a sua autoavaliação.");
       await load();
+      setSubmitSuccess("Autoavaliação submetida. Obrigado por preencher.");
     } catch (e) {
-      Alert.alert("Erro", e instanceof ApiError ? e.message : "Não foi possível submeter.");
+      setSubmitError(e instanceof ApiError ? e.message : "Não foi possível submeter.");
     } finally {
       setSubmitting(false);
     }
@@ -170,6 +177,9 @@ export default function AvaliacaoDetailScreen() {
               </Card>
             ))}
 
+          {submitError ? <ErrorBanner message={submitError} /> : null}
+          {submitSuccess ? <SuccessBanner message={submitSuccess} /> : null}
+
           {canSubmitSelf && (
             <PrimaryButton label="Submeter autoavaliação" onPress={handleSubmit} loading={submitting} />
           )}
@@ -179,7 +189,8 @@ export default function AvaliacaoDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -203,7 +214,8 @@ const styles = StyleSheet.create({
   scaleOption: {
     width: 40,
     height: 40,
-    borderRadius: radii.full,
+    borderRadius: 20,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.stone200,
     alignItems: "center",
@@ -218,7 +230,7 @@ const styles = StyleSheet.create({
     color: colors.stone600,
   },
   scaleOptionTextSelected: {
-    color: colors.white,
+    color: colors.onColor,
     fontWeight: "700",
   },
   optionsList: {
@@ -252,4 +264,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 80,
   },
-});
+  });
+}

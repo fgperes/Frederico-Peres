@@ -10,8 +10,8 @@ import { countDays } from "@/lib/business-days";
 import { shiftDurationHours } from "@/lib/schedule";
 import { isoDate, eachDayBetween } from "@/lib/dates";
 
-async function assertCanManage() {
-  const user = await requireUser();
+async function assertCanManage(overrideUser?: Awaited<ReturnType<typeof requireUser>>) {
+  const user = overrideUser ?? (await requireUser());
   if (!canWrite(user.roles, "ausencias")) {
     throw new Error("Sem permissão para gerir ausências.");
   }
@@ -168,10 +168,11 @@ export async function requestAbsenceDays(
 export async function decideAbsence(
   absenceId: string,
   decision: "APPROVED" | "REJECTED",
-  formData: FormData
+  formData: FormData,
+  overrideUser?: Awaited<ReturnType<typeof requireUser>>
 ): Promise<{ error?: string }> {
   try {
-    const user = await assertCanManage();
+    const user = await assertCanManage(overrideUser);
     const decisionNote = String(formData.get("decisionNote") ?? "").trim() || null;
 
     const absence = await prisma.absence.findUniqueOrThrow({

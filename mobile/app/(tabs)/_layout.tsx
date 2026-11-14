@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import {
@@ -10,10 +11,14 @@ import {
   User,
 } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
-import { colors } from "@/lib/theme";
+import { type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
+import { AppHeader } from "@/components/Brand";
 
 export default function TabsLayout() {
   const { isLoading, token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (isLoading) {
     return (
@@ -30,7 +35,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        headerShown: true,
+        header: () => <AppHeader />,
         tabBarActiveTintColor: colors.violet600,
         tabBarInactiveTintColor: colors.stone400,
         tabBarLabelStyle: { fontSize: 10 },
@@ -68,11 +74,13 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.white,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    loading: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.white,
+    },
+  });
+}
