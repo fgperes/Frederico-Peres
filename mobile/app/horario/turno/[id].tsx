@@ -36,9 +36,12 @@ function timeAt(dateIso: string, time: string): Date {
   return d;
 }
 
-function formatDuration(startTime: string, endTime: string): string {
+// Mesma fórmula que a app web usa em shiftDurationHours (src/lib/schedule.ts):
+// desconta a pausa (breakMins) do modelo de turno, nunca fica negativa.
+function formatDuration(startTime: string, endTime: string, breakMins: number): string {
   const diff = timeToMinutes(endTime) - timeToMinutes(startTime);
-  const minutes = diff > 0 ? diff : diff + 24 * 60;
+  const rawMinutes = diff > 0 ? diff : diff + 24 * 60;
+  const minutes = Math.max(0, rawMinutes - breakMins);
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins === 0 ? `${hours} h` : `${hours}h${String(mins).padStart(2, "0")}`;
@@ -210,7 +213,7 @@ export default function TurnoDetailScreen() {
               <Hourglass color={colors.stone500} size={16} />
               <Text style={styles.detailLabel}>Duração</Text>
             </View>
-            <Text style={styles.detailValue}>{formatDuration(data.startTime, data.endTime)}</Text>
+            <Text style={styles.detailValue}>{formatDuration(data.startTime, data.endTime, data.breakMins)}</Text>
           </View>
         </Card>
 
