@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, spacing } from "@/lib/theme";
 import { MONTH_NAMES, WEEKDAY_LABELS } from "@/lib/dates";
 import { Card, ErrorBanner, LoadingView, PageHeader } from "@/components/ui";
 
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   dayCircle: {
     width: 32,
     height: 32,
-    borderRadius: radii.full,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   legendDot: {
     width: 10,
     height: 10,
-    borderRadius: radii.full,
+    borderRadius: 5,
   },
   legendLabel: {
     fontSize: 12,

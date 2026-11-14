@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   scaleOption: {
     width: 40,
     height: 40,
-    borderRadius: radii.full,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.stone200,
     alignItems: "center",

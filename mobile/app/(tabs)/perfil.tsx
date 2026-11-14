@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 80,
     height: 80,
-    borderRadius: radii.full,
+    borderRadius: 40,
     backgroundColor: colors.violet600,
     alignItems: "center",
     justifyContent: "center",

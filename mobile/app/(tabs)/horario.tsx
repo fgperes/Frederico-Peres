@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { colors, spacing } from "@/lib/theme";
 import { addDays, formatDateWeekday, getWeekStart, toDateKey } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader } from "@/components/ui";
 
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   shiftDot: {
     width: 8,
     height: 8,
-    borderRadius: radii.full,
+    borderRadius: 4,
   },
   shiftText: {
     fontSize: 14,
