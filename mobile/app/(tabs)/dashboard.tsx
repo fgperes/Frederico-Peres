@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
+import { ErrorBanner } from "@/components/ui";
 
 type Shift = { date: string; startTime: string; endTime: string } | null;
 
@@ -31,18 +32,24 @@ export default function DashboardScreen() {
   const [pendingApprovals, setPendingApprovals] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [result, approvals] = await Promise.all([
-      api.get<DashboardData>("/api/mobile/dashboard", token),
-      api.get<{ canApprove: boolean; items: unknown[] }>("/api/mobile/aprovacoes", token),
-    ]);
+    const result = await api.get<DashboardData>("/api/mobile/dashboard", token);
     setData(result);
-    setPendingApprovals(approvals.canApprove ? approvals.items.length : null);
+    try {
+      const approvals = await api.get<{ canApprove: boolean; items: unknown[] }>("/api/mobile/aprovacoes", token);
+      setPendingApprovals(approvals.canApprove ? approvals.items.length : null);
+    } catch {
+      // Cartão opcional — uma falha aqui não deve impedir o resto do Início de aparecer.
+      setPendingApprovals(null);
+    }
   }, [token]);
 
   useEffect(() => {
-    load().finally(() => setLoading(false));
+    load()
+      .catch((e) => setError(e instanceof Error ? e.message : "Erro ao carregar."))
+      .finally(() => setLoading(false));
   }, [load]);
 
   const onRefresh = async () => {
@@ -65,6 +72,8 @@ export default function DashboardScreen() {
       >
         <Text style={styles.greeting}>Olá{firstName ? `, ${firstName}` : ""}</Text>
         <Text style={styles.subtitle}>O resumo do teu dia</Text>
+
+        {error ? <ErrorBanner message={error} /> : null}
 
         {loading ? (
           <ActivityIndicator style={styles.loading} size="large" color={colors.violet600} />
