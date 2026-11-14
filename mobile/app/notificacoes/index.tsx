@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { Bell } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { colors, spacing } from "@/lib/theme";
+import { spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { Card, EmptyState, ErrorBanner, LoadingView } from "@/components/ui";
 
 type NotificationItem = { id: string; label: string; count: number };
 
 export default function NotificacoesScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -79,41 +82,43 @@ export default function NotificacoesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.stone50,
-  },
-  list: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  header: {
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  messageCard: {
-    backgroundColor: colors.violet50,
-    borderColor: colors.violet200,
-  },
-  messageText: {
-    color: colors.violet700,
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  itemLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.stone900,
-  },
-  itemCount: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.violet600,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.stone50,
+    },
+    list: {
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    header: {
+      gap: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    messageCard: {
+      backgroundColor: colors.violet50,
+      borderColor: colors.violet200,
+    },
+    messageText: {
+      color: colors.violet700,
+      fontSize: 13,
+      fontWeight: "500",
+    },
+    item: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    itemLabel: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.stone900,
+    },
+    itemCount: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.violet600,
+    },
+  });
+}

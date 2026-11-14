@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { addDays, formatDateWeekday, getWeekStart, toDateKey } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader } from "@/components/ui";
 
@@ -20,6 +21,8 @@ type HorarioData = { weekStart: string; week: DayEntry[] };
 
 export default function HorarioScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [weekStart, setWeekStart] = useState(() => getWeekStart());
   const [data, setData] = useState<HorarioData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +57,7 @@ export default function HorarioScreen() {
   const weekLabel = `${formatDateWeekday(weekStart.toISOString())} – ${formatDateWeekday(weekEnd.toISOString())}`;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.violet600} />}
@@ -112,79 +115,82 @@ export default function HorarioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.stone50,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  weekNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.lg,
-  },
-  navButton: {
-    padding: spacing.xs,
-  },
-  weekLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.stone900,
-    minWidth: 160,
-    textAlign: "center",
-  },
-  days: {
-    gap: spacing.sm,
-  },
-  dayCard: {
-    gap: spacing.xs,
-  },
-  dayLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.stone500,
-    textTransform: "capitalize",
-  },
-  shiftRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  shiftDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radii.full,
-  },
-  shiftText: {
-    fontSize: 14,
-    color: colors.stone900,
-  },
-  draftTag: {
-    fontSize: 11,
-    color: colors.amber500,
-    fontWeight: "600",
-  },
-  absenceLabel: {
-    fontSize: 14,
-    color: colors.violet600,
-    fontWeight: "500",
-  },
-  holidayLabel: {
-    fontSize: 14,
-    color: colors.stone500,
-    fontWeight: "500",
-  },
-  emptyDay: {
-    fontSize: 14,
-    color: colors.stone400,
-  },
-  workMedicineLabel: {
-    fontSize: 12,
-    color: colors.green600,
-    fontWeight: "600",
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.stone50,
+    },
+    content: {
+      padding: spacing.lg,
+      gap: spacing.md,
+    },
+    weekNav: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.lg,
+    },
+    navButton: {
+      padding: spacing.xs,
+    },
+    weekLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.stone900,
+      minWidth: 160,
+      textAlign: "center",
+    },
+    days: {
+      gap: spacing.sm,
+    },
+    dayCard: {
+      gap: spacing.xs,
+    },
+    dayLabel: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: colors.stone500,
+      textTransform: "capitalize",
+    },
+    shiftRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    shiftDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      overflow: "hidden",
+    },
+    shiftText: {
+      fontSize: 14,
+      color: colors.stone900,
+    },
+    draftTag: {
+      fontSize: 11,
+      color: colors.amber500,
+      fontWeight: "600",
+    },
+    absenceLabel: {
+      fontSize: 14,
+      color: colors.violet600,
+      fontWeight: "500",
+    },
+    holidayLabel: {
+      fontSize: 14,
+      color: colors.stone500,
+      fontWeight: "500",
+    },
+    emptyDay: {
+      fontSize: 14,
+      color: colors.stone400,
+    },
+    workMedicineLabel: {
+      fontSize: 12,
+      color: colors.green600,
+      fontWeight: "600",
+    },
+  });
+}

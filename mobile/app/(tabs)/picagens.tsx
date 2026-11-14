@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-import { Alert, FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FlatList, Modal, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { X } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { formatDateTime } from "@/lib/dates";
-import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton } from "@/components/ui";
+import { Badge, Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
+
+type Feedback = { type: "error" | "success"; text: string };
 
 type ClockPhase = "NOT_CLOCKED_IN" | "WORKING" | "MEAL_AVAILABLE" | "ON_MEAL" | "AFTER_MEAL" | "CLOCKED_OUT";
 type MealStatus = {
@@ -35,7 +38,10 @@ const TYPE_LABELS: Record<TimeClockEntry["type"], string> = {
 
 type ButtonType = TimeClockEntry["type"];
 
-function buildButtons(status: MealStatus): { type: ButtonType; label: string; enabled: boolean; color: string }[] {
+function buildButtons(
+  colors: ThemeColors,
+  status: MealStatus
+): { type: ButtonType; label: string; enabled: boolean; color: string }[] {
   const phase = status?.phase ?? "NOT_CLOCKED_IN";
   const showMealButtons = status?.showMealButtons ?? true;
 
@@ -77,6 +83,8 @@ async function getLocation(): Promise<{ latitude: number; longitude: number; acc
 
 export default function PicagensScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [entries, setEntries] = useState<TimeClockEntry[]>([]);
   const [mealStatus, setMealStatus] = useState<MealStatus>(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +92,7 @@ export default function PicagensScreen() {
   const [error, setError] = useState<string | null>(null);
   const [clocking, setClocking] = useState<ButtonType | null>(null);
   const [justifyEntry, setJustifyEntry] = useState<TimeClockEntry | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const load = useCallback(async () => {
     const result = await api.get<{ entries: TimeClockEntry[]; mealStatus: MealStatus }>("/api/mobile/picagens", token);
@@ -108,21 +117,26 @@ export default function PicagensScreen() {
 
   const handleClock = async (type: ButtonType) => {
     setClocking(type);
+    setFeedback(null);
     try {
       const coords = await getLocation();
       await api.post("/api/mobile/picagens", { type, ...coords }, token);
       await load();
+      setFeedback({ type: "success", text: `${TYPE_LABELS[type]} registada.` });
     } catch (e) {
-      Alert.alert("Erro", e instanceof ApiError ? e.message : "Não foi possível registar a picagem.");
+      setFeedback({
+        type: "error",
+        text: e instanceof ApiError ? e.message : "Não foi possível registar a picagem.",
+      });
     } finally {
       setClocking(null);
     }
   };
 
-  const buttons = buildButtons(mealStatus);
+  const buttons = buildButtons(colors, mealStatus);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <FlatList
         contentContainerStyle={styles.list}
         data={entries}
@@ -131,7 +145,15 @@ export default function PicagensScreen() {
         ListHeaderComponent={
           <View style={styles.listHeaderWrap}>
             <PageHeader title="Picagens" description="Registe a sua entrada, saída e pausas." />
-            {error ? <ErrorBanner message={error} /> : null}
+            {error ? (
+              <ErrorBanner message={error} />
+            ) : feedback ? (
+              feedback.type === "error" ? (
+                <ErrorBanner message={feedback.text} />
+              ) : (
+                <SuccessBanner message={feedback.text} />
+              )
+            ) : null}
             {loading ? (
               <LoadingView />
             ) : (
@@ -190,6 +212,7 @@ export default function PicagensScreen() {
           onSuccess={async () => {
             setJustifyEntry(null);
             await load();
+            setFeedback({ type: "success", text: "Justificação submetida." });
           }}
         />
       )}
@@ -208,6 +231,8 @@ function JustifyModal({
   onClose: () => void;
   onSuccess: () => Promise<void>;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,7 +286,8 @@ function JustifyModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.stone50,
@@ -290,7 +316,7 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   clockButtonText: {
-    color: colors.white,
+    color: colors.onColor,
     fontWeight: "700",
     fontSize: 15,
   },
@@ -368,4 +394,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 100,
   },
-});
+  });
+}

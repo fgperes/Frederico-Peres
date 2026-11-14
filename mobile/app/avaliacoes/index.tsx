@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { colors, spacing } from "@/lib/theme";
+import { spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { formatDateShort } from "@/lib/dates";
 import { Badge, Card, EmptyState, ErrorBanner, LoadingView } from "@/components/ui";
 
@@ -19,6 +20,8 @@ type EvaluationSummary = {
 
 export default function AvaliacoesScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [evaluations, setEvaluations] = useState<EvaluationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,30 +80,32 @@ export default function AvaliacoesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.stone50,
-  },
-  list: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  item: {
-    gap: spacing.xs,
-  },
-  itemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  itemName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.stone900,
-  },
-  itemDate: {
-    fontSize: 13,
-    color: colors.stone500,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.stone50,
+    },
+    list: {
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    item: {
+      gap: spacing.xs,
+    },
+    itemRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    itemName: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.stone900,
+    },
+    itemDate: {
+      fontSize: 13,
+      color: colors.stone500,
+    },
+  });
+}

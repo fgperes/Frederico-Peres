@@ -1,13 +1,17 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Bell, ChevronRight, ClipboardList, LogOut } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
-import { colors, radii, spacing } from "@/lib/theme";
+import { radii, spacing, type ThemeColors } from "@/lib/theme";
+import { useThemeColors } from "@/lib/theme-context";
 import { Card } from "@/components/ui";
 
 export default function PerfilScreen() {
   const { user, logout } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleLogout = async () => {
     await logout();
@@ -15,7 +19,7 @@ export default function PerfilScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.content}>
         <View style={styles.avatar}>
           <Text style={styles.avatarInitial}>{(user?.name ?? "?").charAt(0).toUpperCase()}</Text>
@@ -67,99 +71,102 @@ export default function PerfilScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.stone50,
-  },
-  content: {
-    padding: spacing.lg,
-    alignItems: "center",
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: radii.full,
-    backgroundColor: colors.violet600,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.lg,
-  },
-  avatarInitial: {
-    color: colors.white,
-    fontSize: 32,
-    fontWeight: "700",
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.stone900,
-    marginTop: spacing.md,
-  },
-  email: {
-    fontSize: 14,
-    color: colors.stone500,
-    marginTop: spacing.xs,
-  },
-  roles: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    marginTop: spacing.md,
-    justifyContent: "center",
-  },
-  roleBadge: {
-    backgroundColor: colors.violet100,
-    borderRadius: radii.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-  },
-  roleBadgeText: {
-    color: colors.violet700,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  warning: {
-    backgroundColor: colors.violet50,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-    width: "100%",
-  },
-  warningText: {
-    color: colors.stone600,
-    fontSize: 13,
-  },
-  menu: {
-    width: "100%",
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
-    color: colors.stone900,
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    marginTop: spacing.xl,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.stone200,
-  },
-  logoutText: {
-    color: colors.red600,
-    fontWeight: "600",
-    fontSize: 15,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.stone50,
+    },
+    content: {
+      padding: spacing.lg,
+      alignItems: "center",
+    },
+    avatar: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      overflow: "hidden",
+      backgroundColor: colors.violet600,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: spacing.lg,
+    },
+    avatarInitial: {
+      color: colors.onColor,
+      fontSize: 32,
+      fontWeight: "700",
+    },
+    name: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: colors.stone900,
+      marginTop: spacing.md,
+    },
+    email: {
+      fontSize: 14,
+      color: colors.stone500,
+      marginTop: spacing.xs,
+    },
+    roles: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      marginTop: spacing.md,
+      justifyContent: "center",
+    },
+    roleBadge: {
+      backgroundColor: colors.violet100,
+      borderRadius: radii.full,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 4,
+    },
+    roleBadgeText: {
+      color: colors.violet700,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    warning: {
+      backgroundColor: colors.violet50,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      marginTop: spacing.lg,
+      width: "100%",
+    },
+    warningText: {
+      color: colors.stone600,
+      fontSize: 13,
+    },
+    menu: {
+      width: "100%",
+      gap: spacing.sm,
+      marginTop: spacing.xl,
+    },
+    menuItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    menuLabel: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: "500",
+      color: colors.stone900,
+    },
+    logoutButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      marginTop: spacing.xl,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      borderColor: colors.stone200,
+    },
+    logoutText: {
+      color: colors.red600,
+      fontWeight: "600",
+      fontSize: 15,
+    },
+  });
+}
