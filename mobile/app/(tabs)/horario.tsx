@@ -17,7 +17,13 @@ import {
 } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader } from "@/components/ui";
 
-type Shift = { id: string; startTime: string; endTime: string; status: string; template: { name: string; color: string } | null };
+type Shift = {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  template: { name: string; color: string; breakMins: number } | null;
+};
 type DayEntry = {
   date: string;
   shifts: Shift[];
@@ -44,9 +50,12 @@ function timelinePosition(startTime: string, endTime: string): { leftPct: number
   return { leftPct, widthPct: Math.max(rightPct - leftPct, 4) };
 }
 
-function shiftDurationMinutes(startTime: string, endTime: string): number {
+// Mesma fórmula que a app web usa em shiftDurationHours (src/lib/schedule.ts):
+// desconta a pausa (breakMins) do modelo de turno, nunca fica negativa.
+function shiftDurationMinutes(startTime: string, endTime: string, breakMins: number): number {
   const diff = timeToMinutes(endTime) - timeToMinutes(startTime);
-  return diff > 0 ? diff : diff + 24 * 60;
+  const minutes = diff > 0 ? diff : diff + 24 * 60;
+  return Math.max(0, minutes - breakMins);
 }
 
 function formatHours(totalMinutes: number): string {
@@ -109,7 +118,7 @@ export default function HorarioScreen() {
     let folgas = 0;
     for (const day of data.week) {
       turnos += day.shifts.length;
-      for (const s of day.shifts) totalMinutes += shiftDurationMinutes(s.startTime, s.endTime);
+      for (const s of day.shifts) totalMinutes += shiftDurationMinutes(s.startTime, s.endTime, s.template?.breakMins ?? 0);
       if (day.shifts.length === 0 && !day.absence && !day.holiday) folgas++;
     }
     return { hours: formatHours(totalMinutes), turnos, folgas };
