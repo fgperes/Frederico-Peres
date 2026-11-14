@@ -5,7 +5,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import * as Calendar from "expo-calendar";
 import { MapPin, Hourglass, Coffee } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { timeToMinutes } from "@/lib/dates";
@@ -99,16 +99,21 @@ export default function TurnoDetailScreen() {
         return;
       }
 
+      const dayStart = new Date(`${data.date.slice(0, 10)}T00:00:00`);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
       await Calendar.createEventAsync(calendarId, {
-        title: data.template?.name ?? "Turno",
-        startDate: timeAt(data.date, data.startTime),
-        endDate: timeAt(data.date, data.endTime),
+        title: `${data.template?.name ?? "Turno"} (${data.startTime}–${data.endTime})`,
+        startDate: dayStart,
+        endDate: dayEnd,
+        allDay: true,
         location: data.locationName ?? undefined,
         notes: "people4people",
       });
       setCalendarSuccess("Adicionado ao calendário.");
     } catch (e) {
-      setCalendarError(e instanceof ApiError ? e.message : "Não foi possível adicionar ao calendário.");
+      setCalendarError(e instanceof Error ? e.message : "Não foi possível adicionar ao calendário.");
     } finally {
       setAddingToCalendar(false);
     }
@@ -199,6 +204,13 @@ export default function TurnoDetailScreen() {
               <Text style={styles.detailValue}>{data.locationName}</Text>
             </View>
           )}
+          <View style={styles.detailRow}>
+            <View style={styles.detailLabelRow}>
+              <Hourglass color={colors.stone500} size={16} />
+              <Text style={styles.detailLabel}>Duração</Text>
+            </View>
+            <Text style={styles.detailValue}>{formatDuration(data.startTime, data.endTime, data.breakMins)}</Text>
+          </View>
           {breakLabel && (
             <View style={styles.detailRow}>
               <View style={styles.detailLabelRow}>
@@ -208,13 +220,6 @@ export default function TurnoDetailScreen() {
               <Text style={styles.detailValue}>{breakLabel}</Text>
             </View>
           )}
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <Hourglass color={colors.stone500} size={16} />
-              <Text style={styles.detailLabel}>Duração</Text>
-            </View>
-            <Text style={styles.detailValue}>{formatDuration(data.startTime, data.endTime, data.breakMins)}</Text>
-          </View>
         </Card>
 
         {data.colleagues.length > 0 && (
