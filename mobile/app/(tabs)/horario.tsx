@@ -22,6 +22,7 @@ type Shift = {
   startTime: string;
   endTime: string;
   status: string;
+  editedAfterPublish: boolean;
   template: { name: string; color: string; breakMins: number } | null;
 };
 type DayEntry = {
@@ -48,6 +49,32 @@ function timelinePosition(startTime: string, endTime: string): { leftPct: number
   const leftPct = clampPct((startMin / HOUR_RANGE_MIN) * 100);
   const rightPct = clampPct((endMin / HOUR_RANGE_MIN) * 100);
   return { leftPct, widthPct: Math.max(rightPct - leftPct, 4) };
+}
+
+// Mesmo "chipTint" da grelha de Escalas na app web (schedule-grid.tsx):
+// fundo e contorno derivados da cor do modelo a baixa opacidade, texto na
+// própria cor do modelo. Sem modelo válido, cai nos tons neutros do tema
+// (equivalente ao "violeta por omissão" da web, mas já preparado para tema
+// escuro em vez de um hex fixo).
+function chipTint(colors: ThemeColors, hex: string | undefined): { bg: string; border: string; text: string } {
+  if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    return { bg: colors.violet100, border: colors.violet200, text: colors.violet700 };
+  }
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return {
+    bg: `rgba(${r}, ${g}, ${b}, 0.12)`,
+    border: `rgba(${r}, ${g}, ${b}, 0.35)`,
+    text: hex,
+  };
+}
+
+// Mesma semântica da web: ponto de estado no canto do chip — alterado
+// depois de publicado (vermelho), publicado (verde), ou rascunho (âmbar).
+function statusDotColor(colors: ThemeColors, status: string, editedAfterPublish: boolean): string {
+  if (editedAfterPublish) return colors.red500;
+  return status === "PUBLISHED" ? colors.green600 : colors.amber500;
 }
 
 // Mesma fórmula que a app web usa em shiftDurationHours (src/lib/schedule.ts):
@@ -290,26 +317,32 @@ function ListaView({
                 <View style={styles.listTrackBase}>
                   {day.shifts.map((s) => {
                     const { leftPct, widthPct } = timelinePosition(s.startTime, s.endTime);
-                    const bg = s.template?.color ?? colors.violet500;
+                    const tint = chipTint(colors, s.template?.color);
+                    const dot = statusDotColor(colors, s.status, s.editedAfterPublish);
                     return (
                       <TouchableOpacity
                         key={s.id}
-                        style={[styles.listBlock, { left: `${leftPct}%`, width: `${widthPct}%`, backgroundColor: bg }]}
+                        style={[
+                          styles.listBlock,
+                          { left: `${leftPct}%`, width: `${widthPct}%`, backgroundColor: tint.bg, borderColor: tint.border },
+                        ]}
                         onPress={() => onPressShift(s.id)}
                       >
-                        <Text style={styles.listBlockLabel} numberOfLines={1}>
-                          {s.template?.name ?? "Turno"}
-                        </Text>
-                        <Text style={styles.listBlockTime} numberOfLines={1}>
+                        <View style={[styles.statusDot, { backgroundColor: dot }]} />
+                        <Text style={[styles.listBlockTime, { color: tint.text }]} numberOfLines={1}>
                           {s.startTime} – {s.endTime}
                         </Text>
-                        {s.status === "DRAFT" && <Text style={styles.draftTag}>rascunho</Text>}
+                        {s.template?.name && (
+                          <Text style={styles.listBlockLabel} numberOfLines={1}>
+                            {s.template.name}
+                          </Text>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
               ) : (
-                <View style={styles.listTrackMuted}>
+                <View style={styles.listFolgaWrap}>
                   <Text style={styles.listMutedText}>Folga</Text>
                 </View>
               )}
@@ -410,18 +443,25 @@ function GrelhaView({
               ) : (
                 day.shifts.map((s) => {
                   const { leftPct: topPct, widthPct: heightPct } = timelinePosition(s.startTime, s.endTime);
-                  const bg = s.template?.color ?? colors.violet500;
+                  const tint = chipTint(colors, s.template?.color);
+                  const dot = statusDotColor(colors, s.status, s.editedAfterPublish);
                   return (
                     <TouchableOpacity
                       key={s.id}
-                      style={[styles.gridBar, { top: `${topPct}%`, height: `${heightPct}%`, backgroundColor: bg }]}
+                      style={[
+                        styles.gridBar,
+                        { top: `${topPct}%`, height: `${heightPct}%`, backgroundColor: tint.bg, borderColor: tint.border },
+                      ]}
                       onPress={() => onPressShift(s.id)}
                     >
-                      <Text style={styles.gridBarTime}>{s.startTime}</Text>
-                      <Text style={styles.gridBarName} numberOfLines={1}>
-                        {s.template?.name ?? "Turno"}
-                      </Text>
-                      <Text style={styles.gridBarTime}>{s.endTime}</Text>
+                      <View style={[styles.statusDot, { backgroundColor: dot }]} />
+                      <Text style={[styles.gridBarTime, { color: tint.text }]}>{s.startTime}</Text>
+                      {s.template?.name && (
+                        <Text style={styles.gridBarName} numberOfLines={1}>
+                          {s.template.name}
+                        </Text>
+                      )}
+                      <Text style={[styles.gridBarTime, { color: tint.text }]}>{s.endTime}</Text>
                     </TouchableOpacity>
                   );
                 })
@@ -597,37 +637,44 @@ function createStyles(colors: ThemeColors) {
       alignItems: "center",
       justifyContent: "center",
     },
+    listFolgaWrap: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     listMutedText: {
       fontSize: 12,
       color: colors.stone400,
       fontWeight: "500",
+      fontStyle: "italic",
     },
     listBlock: {
       position: "absolute",
       top: 0,
       bottom: 0,
       borderRadius: 10,
+      borderWidth: 1,
       paddingHorizontal: 6,
       paddingVertical: 4,
       justifyContent: "center",
     },
-    listBlockLabel: {
+    listBlockTime: {
       fontSize: 11,
       fontWeight: "700",
-      color: colors.onColor,
     },
-    listBlockTime: {
+    listBlockLabel: {
       fontSize: 10,
-      color: colors.onColor,
+      fontWeight: "500",
+      color: colors.stone500,
     },
-    draftTag: {
+    statusDot: {
       position: "absolute",
-      top: 2,
+      top: 4,
       right: 4,
-      fontSize: 9,
-      color: colors.onColor,
-      fontWeight: "700",
-      opacity: 0.85,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      overflow: "hidden",
     },
     workMedicineBlock: {
       marginTop: spacing.xs,
@@ -735,6 +782,7 @@ function createStyles(colors: ThemeColors) {
       fontSize: 10,
       color: colors.stone400,
       fontWeight: "500",
+      fontStyle: "italic",
       transform: [{ rotate: "-90deg" }],
     },
     gridBar: {
@@ -742,19 +790,19 @@ function createStyles(colors: ThemeColors) {
       left: 0,
       right: 0,
       borderRadius: 8,
+      borderWidth: 1,
       alignItems: "center",
       paddingVertical: 4,
       justifyContent: "space-between",
     },
     gridBarTime: {
       fontSize: 9,
-      color: colors.onColor,
-      fontWeight: "600",
+      fontWeight: "700",
     },
     gridBarName: {
-      fontSize: 10,
-      color: colors.onColor,
-      fontWeight: "700",
+      fontSize: 9,
+      fontWeight: "500",
+      color: colors.stone500,
       transform: [{ rotate: "-90deg" }],
     },
     nowLine: {
