@@ -86,7 +86,9 @@ export async function GET(req: Request) {
             startTime: s.startTime,
             endTime: s.endTime,
             status: s.status,
-            template: s.shiftTemplate ? { name: s.shiftTemplate.name, color: s.shiftTemplate.color } : null,
+            template: s.shiftTemplate
+              ? { name: s.shiftTemplate.name, color: s.shiftTemplate.color, breakMins: s.shiftTemplate.breakMins }
+              : null,
           })),
         absence: absenceByDate.get(key) ?? null,
         holiday: holidayByDate.get(key) ?? null,
