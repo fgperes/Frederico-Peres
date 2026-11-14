@@ -339,11 +339,10 @@ export async function toggleVacationDays(
 export async function decideVacationPeriod(
   absenceIds: string[],
   decision: "APPROVED" | "REJECTED",
-  formData: FormData,
-  overrideUser?: Awaited<ReturnType<typeof requireUser>>
+  formData: FormData
 ): Promise<{ error?: string }> {
   try {
-    const user = overrideUser ?? (await requireUser());
+    const user = await requireUser();
     if (!canWrite(user.roles, "ferias")) throw new Error("Sem permissão para aprovar férias.");
 
     const decisionNote = String(formData.get("decisionNote") ?? "").trim() || null;
