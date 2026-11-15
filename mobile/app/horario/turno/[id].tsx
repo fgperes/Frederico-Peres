@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams } from "expo-router";
-import * as Calendar from "expo-calendar";
 import { MapPin, Hourglass, Coffee } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { timeToMinutes } from "@/lib/dates";
+import { getWritableCalendarId, addShiftToCalendar } from "@/lib/calendar";
 import { Card, ErrorBanner, LoadingView, PrimaryButton, SuccessBanner } from "@/components/ui";
 
 type ShiftDetail = {
@@ -76,40 +76,13 @@ export default function TurnoDetailScreen() {
     setCalendarError(null);
     setCalendarSuccess(null);
     try {
-      const { status } = await Calendar.requestCalendarPermissionsAsync();
-      if (status !== "granted") {
-        setCalendarError("Sem permissão para aceder ao calendário.");
-        return;
-      }
-
-      let calendarId: string | null = null;
-      try {
-        const defaultCalendar = await Calendar.getDefaultCalendarAsync();
-        calendarId = defaultCalendar?.id ?? null;
-      } catch {
-        // alguns dispositivos/Android não têm um calendário por omissão — tenta a lista completa a seguir.
-      }
-      if (!calendarId) {
-        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-        const writable = calendars.find((c) => c.allowsModifications);
-        calendarId = writable?.id ?? null;
-      }
-      if (!calendarId) {
-        setCalendarError("Não foi encontrado nenhum calendário disponível neste dispositivo.");
-        return;
-      }
-
-      const dayStart = new Date(`${data.date.slice(0, 10)}T00:00:00`);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-
-      await Calendar.createEventAsync(calendarId, {
-        title: `${data.template?.name ?? "Turno"} (${data.startTime}–${data.endTime})`,
-        startDate: dayStart,
-        endDate: dayEnd,
-        allDay: true,
-        location: data.locationName ?? undefined,
-        notes: "people4people",
+      const calendarId = await getWritableCalendarId();
+      await addShiftToCalendar(calendarId, {
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        title: data.template?.name ?? "Turno",
+        location: data.locationName,
       });
       setCalendarSuccess("Adicionado ao calendário.");
     } catch (e) {

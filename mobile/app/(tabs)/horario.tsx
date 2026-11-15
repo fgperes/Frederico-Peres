@@ -15,7 +15,8 @@ import {
   toDateKey,
   WEEKDAY_LABELS,
 } from "@/lib/dates";
-import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
+import { getWritableCalendarId, addShiftToCalendar } from "@/lib/calendar";
 
 type Shift = {
   id: string;
@@ -109,6 +110,9 @@ export default function HorarioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"lista" | "grelha">("lista");
+  const [addingWeekToCalendar, setAddingWeekToCalendar] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarSuccess, setCalendarSuccess] = useState<string | null>(null);
 
   const load = useCallback(
     async (ws: Date) => {
@@ -166,6 +170,46 @@ export default function HorarioScreen() {
 
   const openShift = (shiftId: string) => router.push(`/horario/turno/${shiftId}`);
 
+  const addWeekToCalendar = async () => {
+    if (!data) return;
+    const shifts = data.week.flatMap((day) => day.shifts.map((s) => ({ day, s })));
+    if (shifts.length === 0) return;
+
+    setAddingWeekToCalendar(true);
+    setCalendarError(null);
+    setCalendarSuccess(null);
+    try {
+      const calendarId = await getWritableCalendarId();
+      let added = 0;
+      for (const { day, s } of shifts) {
+        try {
+          await addShiftToCalendar(calendarId, {
+            date: day.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            title: s.template?.name ?? "Turno",
+          });
+          added++;
+        } catch {
+          // continua os restantes — um turno que falhe não deve travar os outros
+        }
+      }
+      if (added === shifts.length) {
+        setCalendarSuccess(
+          added === 1 ? "1 turno adicionado ao calendário." : `${added} turnos adicionados ao calendário.`
+        );
+      } else if (added > 0) {
+        setCalendarError(`Apenas ${added} de ${shifts.length} turno(s) foram adicionados ao calendário.`);
+      } else {
+        setCalendarError("Não foi possível adicionar os turnos ao calendário.");
+      }
+    } catch (e) {
+      setCalendarError(e instanceof Error ? e.message : "Não foi possível adicionar ao calendário.");
+    } finally {
+      setAddingWeekToCalendar(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
@@ -217,6 +261,17 @@ export default function HorarioScreen() {
                 <Text style={[styles.segTabText, viewMode === "grelha" && styles.segTabTextActive]}>Grelha</Text>
               </TouchableOpacity>
             </View>
+
+            <View style={styles.calendarButtonWrap}>
+              <PrimaryButton
+                label="Adicionar semana ao calendário"
+                variant="secondary"
+                loading={addingWeekToCalendar}
+                onPress={addWeekToCalendar}
+              />
+            </View>
+            {calendarError ? <ErrorBanner message={calendarError} /> : null}
+            {calendarSuccess ? <SuccessBanner message={calendarSuccess} /> : null}
 
             {viewMode === "lista" ? (
               <ListaView data={data} colors={colors} styles={styles} todayKey={todayKey} onPressShift={openShift} />
@@ -548,6 +603,9 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.stone100,
       borderRadius: 999,
       padding: 3,
+    },
+    calendarButtonWrap: {
+      marginTop: spacing.sm,
     },
     segTab: {
       flex: 1,
