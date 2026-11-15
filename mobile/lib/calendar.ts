@@ -1,10 +1,14 @@
-import * as Calendar from "expo-calendar";
+// A API "nova" (orientada a objetos) do expo-calendar 57.x não tem as
+// funções que usamos aqui — ficam só na "legacy", que é a forma estável
+// de continuar a usar os mesmos nomes (requestPermissionsAsync,
+// getDefaultCalendarAsync, getCalendarsAsync, createEventAsync).
+import * as Calendar from "expo-calendar/legacy";
 
 // Procura um calendário do dispositivo onde seja possível criar eventos —
 // primeiro o calendário por omissão (só existe em alguns dispositivos/
 // contas), senão o primeiro que permita modificações.
 export async function getWritableCalendarId(): Promise<string> {
-  const { status } = await Calendar.requestCalendarPermissionsAsync();
+  const { status } = await Calendar.requestPermissionsAsync();
   if (status !== "granted") {
     throw new Error("Sem permissão para aceder ao calendário.");
   }
