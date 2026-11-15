@@ -148,9 +148,14 @@ export default function HorarioScreen() {
     let turnos = 0;
     let folgas = 0;
     for (const day of data.week) {
+      // Um dia com ausência ou feriado não é trabalhado, mesmo que ainda
+      // exista um turno agendado nesse dia (ex.: baixa médica pedida depois
+      // da escala feita) — a vista já dá prioridade à ausência/feriado sobre
+      // o turno, as estatísticas devem seguir a mesma regra.
+      if (day.absence || day.holiday) continue;
       turnos += day.shifts.length;
       for (const s of day.shifts) totalMinutes += shiftDurationMinutes(s.startTime, s.endTime, s.template?.breakMins ?? 0);
-      if (day.shifts.length === 0 && !day.absence && !day.holiday) folgas++;
+      if (day.shifts.length === 0) folgas++;
     }
     return { hours: formatHours(totalMinutes), turnos, folgas };
   }, [data]);
