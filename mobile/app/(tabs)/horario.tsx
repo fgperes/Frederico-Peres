@@ -16,7 +16,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
-import { getWritableCalendarId, addShiftToCalendar } from "@/lib/calendar";
+import { getWritableCalendar, addShiftToCalendar } from "@/lib/calendar";
 
 type Shift = {
   id: string;
@@ -184,11 +184,11 @@ export default function HorarioScreen() {
     setCalendarError(null);
     setCalendarSuccess(null);
     try {
-      const calendarId = await getWritableCalendarId();
+      const calendar = await getWritableCalendar();
       let added = 0;
       for (const { day, s } of shifts) {
         try {
-          await addShiftToCalendar(calendarId, {
+          await addShiftToCalendar(calendar.id, {
             date: day.date,
             startTime: s.startTime,
             endTime: s.endTime,
@@ -201,7 +201,9 @@ export default function HorarioScreen() {
       }
       if (added === shifts.length) {
         setCalendarSuccess(
-          added === 1 ? "1 turno adicionado ao calendário." : `${added} turnos adicionados ao calendário.`
+          added === 1
+            ? `1 turno adicionado ao calendário "${calendar.label}".`
+            : `${added} turnos adicionados ao calendário "${calendar.label}".`
         );
       } else if (added > 0) {
         setCalendarError(`Apenas ${added} de ${shifts.length} turno(s) foram adicionados ao calendário.`);

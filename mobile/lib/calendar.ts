@@ -4,31 +4,35 @@
 // getDefaultCalendarAsync, getCalendarsAsync, createEventAsync).
 import * as Calendar from "expo-calendar/legacy";
 
+export type WritableCalendar = { id: string; label: string };
+
 // Procura um calendário do dispositivo onde seja possível criar eventos —
 // primeiro o calendário por omissão (só existe em alguns dispositivos/
-// contas), senão o primeiro que permita modificações.
-export async function getWritableCalendarId(): Promise<string> {
+// contas), senão o primeiro que permita modificações. Devolve também um
+// nome identificável (calendário + conta) para dizer ao utilizador onde
+// foi parar o evento — em dispositivos com várias contas/calendários não
+// é óbvio qual foi escolhido.
+export async function getWritableCalendar(): Promise<WritableCalendar> {
   const { status } = await Calendar.requestPermissionsAsync();
   if (status !== "granted") {
     throw new Error("Sem permissão para aceder ao calendário.");
   }
 
-  let calendarId: string | null = null;
+  let calendar: Calendar.Calendar | null = null;
   try {
-    const defaultCalendar = await Calendar.getDefaultCalendarAsync();
-    calendarId = defaultCalendar?.id ?? null;
+    calendar = await Calendar.getDefaultCalendarAsync();
   } catch {
     // Alguns dispositivos/contas Android não têm um calendário por omissão.
   }
-  if (!calendarId) {
+  if (!calendar) {
     const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    const writable = calendars.find((c) => c.allowsModifications);
-    calendarId = writable?.id ?? null;
+    calendar = calendars.find((c) => c.allowsModifications) ?? null;
   }
-  if (!calendarId) {
+  if (!calendar) {
     throw new Error("Não foi encontrado nenhum calendário disponível neste dispositivo.");
   }
-  return calendarId;
+  const account = calendar.source?.name ?? calendar.source?.id;
+  return { id: calendar.id, label: account ? `${calendar.title} (${account})` : calendar.title };
 }
 
 // Evento de dia inteiro (mais simples e fiável entre calendários/dispositivos

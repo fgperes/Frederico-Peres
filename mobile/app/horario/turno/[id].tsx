@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { timeToMinutes } from "@/lib/dates";
-import { getWritableCalendarId, addShiftToCalendar } from "@/lib/calendar";
+import { getWritableCalendar, addShiftToCalendar } from "@/lib/calendar";
 import { Card, ErrorBanner, LoadingView, PrimaryButton, SuccessBanner } from "@/components/ui";
 
 type ShiftDetail = {
@@ -76,15 +76,15 @@ export default function TurnoDetailScreen() {
     setCalendarError(null);
     setCalendarSuccess(null);
     try {
-      const calendarId = await getWritableCalendarId();
-      await addShiftToCalendar(calendarId, {
+      const calendar = await getWritableCalendar();
+      await addShiftToCalendar(calendar.id, {
         date: data.date,
         startTime: data.startTime,
         endTime: data.endTime,
         title: data.template?.name ?? "Turno",
         location: data.locationName,
       });
-      setCalendarSuccess("Adicionado ao calendário.");
+      setCalendarSuccess(`Adicionado ao calendário "${calendar.label}".`);
     } catch (e) {
       setCalendarError(e instanceof Error ? e.message : "Não foi possível adicionar ao calendário.");
     } finally {
