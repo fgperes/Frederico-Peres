@@ -4,35 +4,42 @@
 // getDefaultCalendarAsync, getCalendarsAsync, createEventAsync).
 import * as Calendar from "expo-calendar/legacy";
 
-export type WritableCalendar = { id: string; label: string };
+export type WritableCalendar = { id: string; label: string; isDefault: boolean };
 
-// Procura um calendário do dispositivo onde seja possível criar eventos —
-// primeiro o calendário por omissão (só existe em alguns dispositivos/
-// contas), senão o primeiro que permita modificações. Devolve também um
-// nome identificável (calendário + conta) para dizer ao utilizador onde
-// foi parar o evento — em dispositivos com várias contas/calendários não
-// é óbvio qual foi escolhido.
-export async function getWritableCalendar(): Promise<WritableCalendar> {
+function labelFor(calendar: Calendar.Calendar): string {
+  const account = calendar.source?.name ?? calendar.source?.id;
+  return account ? `${calendar.title} (${account})` : calendar.title;
+}
+
+// Lista todos os calendários do dispositivo onde é possível criar eventos —
+// cada pessoa pode ter várias contas/calendários (pessoal, trabalho, local
+// do telemóvel, etc.), por isso não se escolhe um sozinho: quem usa a app
+// é que decide, a não ser que só exista um disponível.
+export async function listWritableCalendars(): Promise<WritableCalendar[]> {
   const { status } = await Calendar.requestPermissionsAsync();
   if (status !== "granted") {
     throw new Error("Sem permissão para aceder ao calendário.");
   }
 
-  let calendar: Calendar.Calendar | null = null;
+  let defaultId: string | null = null;
   try {
-    calendar = await Calendar.getDefaultCalendarAsync();
+    const defaultCalendar = await Calendar.getDefaultCalendarAsync();
+    defaultId = defaultCalendar?.id ?? null;
   } catch {
     // Alguns dispositivos/contas Android não têm um calendário por omissão.
   }
-  if (!calendar) {
-    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    calendar = calendars.find((c) => c.allowsModifications) ?? null;
-  }
-  if (!calendar) {
+
+  const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+  const writable = calendars
+    .filter((c) => c.allowsModifications)
+    .map((c) => ({ id: c.id, label: labelFor(c), isDefault: c.id === defaultId }));
+
+  if (writable.length === 0) {
     throw new Error("Não foi encontrado nenhum calendário disponível neste dispositivo.");
   }
-  const account = calendar.source?.name ?? calendar.source?.id;
-  return { id: calendar.id, label: account ? `${calendar.title} (${account})` : calendar.title };
+  // O calendário por omissão (quando existe) fica sempre em primeiro.
+  writable.sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
+  return writable;
 }
 
 // Evento de dia inteiro (mais simples e fiável entre calendários/dispositivos

@@ -8,8 +8,9 @@ import { api } from "@/lib/api";
 import { radii, spacing, type ThemeColors } from "@/lib/theme";
 import { useThemeColors } from "@/lib/theme-context";
 import { timeToMinutes } from "@/lib/dates";
-import { getWritableCalendar, addShiftToCalendar } from "@/lib/calendar";
+import { listWritableCalendars, addShiftToCalendar, type WritableCalendar } from "@/lib/calendar";
 import { Card, ErrorBanner, LoadingView, PrimaryButton, SuccessBanner } from "@/components/ui";
+import { CalendarAccountPicker } from "@/components/CalendarAccountPicker";
 
 type ShiftDetail = {
   id: string;
@@ -58,6 +59,7 @@ export default function TurnoDetailScreen() {
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarSuccess, setCalendarSuccess] = useState<string | null>(null);
+  const [calendarChoices, setCalendarChoices] = useState<WritableCalendar[] | null>(null);
 
   const load = useCallback(async () => {
     const result = await api.get<ShiftDetail>(`/api/mobile/horario/turno/${id}`, token);
@@ -76,7 +78,24 @@ export default function TurnoDetailScreen() {
     setCalendarError(null);
     setCalendarSuccess(null);
     try {
-      const calendar = await getWritableCalendar();
+      const calendars = await listWritableCalendars();
+      if (calendars.length === 1) {
+        await addToCalendar(calendars[0]);
+      } else {
+        setCalendarChoices(calendars);
+        setAddingToCalendar(false);
+      }
+    } catch (e) {
+      setCalendarError(e instanceof Error ? e.message : "Não foi possível adicionar ao calendário.");
+      setAddingToCalendar(false);
+    }
+  };
+
+  const addToCalendar = async (calendar: WritableCalendar) => {
+    if (!data) return;
+    setCalendarChoices(null);
+    setAddingToCalendar(true);
+    try {
       await addShiftToCalendar(calendar.id, {
         date: data.date,
         startTime: data.startTime,
@@ -233,6 +252,13 @@ export default function TurnoDetailScreen() {
           onPress={handleAddToCalendar}
         />
       </ScrollView>
+
+      <CalendarAccountPicker
+        visible={calendarChoices !== null}
+        calendars={calendarChoices ?? []}
+        onSelect={addToCalendar}
+        onClose={() => setCalendarChoices(null)}
+      />
     </SafeAreaView>
   );
 }

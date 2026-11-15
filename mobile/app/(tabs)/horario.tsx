@@ -16,7 +16,8 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/dates";
 import { Card, EmptyState, ErrorBanner, LoadingView, PageHeader, PrimaryButton, SuccessBanner } from "@/components/ui";
-import { getWritableCalendar, addShiftToCalendar } from "@/lib/calendar";
+import { listWritableCalendars, addShiftToCalendar, type WritableCalendar } from "@/lib/calendar";
+import { CalendarAccountPicker } from "@/components/CalendarAccountPicker";
 
 type Shift = {
   id: string;
@@ -111,6 +112,7 @@ export default function HorarioScreen() {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"lista" | "grelha">("lista");
   const [addingWeekToCalendar, setAddingWeekToCalendar] = useState(false);
+  const [calendarChoices, setCalendarChoices] = useState<WritableCalendar[] | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarSuccess, setCalendarSuccess] = useState<string | null>(null);
 
@@ -184,7 +186,25 @@ export default function HorarioScreen() {
     setCalendarError(null);
     setCalendarSuccess(null);
     try {
-      const calendar = await getWritableCalendar();
+      const calendars = await listWritableCalendars();
+      if (calendars.length === 1) {
+        await addWeekShiftsTo(calendars[0]);
+      } else {
+        setCalendarChoices(calendars);
+        setAddingWeekToCalendar(false);
+      }
+    } catch (e) {
+      setCalendarError(e instanceof Error ? e.message : "Não foi possível adicionar ao calendário.");
+      setAddingWeekToCalendar(false);
+    }
+  };
+
+  const addWeekShiftsTo = async (calendar: WritableCalendar) => {
+    if (!data) return;
+    const shifts = data.week.flatMap((day) => day.shifts.map((s) => ({ day, s })));
+    setCalendarChoices(null);
+    setAddingWeekToCalendar(true);
+    try {
       let added = 0;
       for (const { day, s } of shifts) {
         try {
@@ -296,6 +316,13 @@ export default function HorarioScreen() {
           </>
         )}
       </ScrollView>
+
+      <CalendarAccountPicker
+        visible={calendarChoices !== null}
+        calendars={calendarChoices ?? []}
+        onSelect={addWeekShiftsTo}
+        onClose={() => setCalendarChoices(null)}
+      />
     </SafeAreaView>
   );
 }
